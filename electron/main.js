@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, dialog, Menu } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { execFile } from 'node:child_process'
@@ -1108,12 +1108,14 @@ ipcMain.handle('exportInvoicePdf', async (event, opts = {}) => {
 });
 
 function createWindow() {
+  Menu.setApplicationMenu(null);
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   win = new BrowserWindow({
     width: Math.min(1440, width),
     height: Math.min(900, height),
     minWidth: 1024,
     minHeight: 700,
+    autoHideMenuBar: true,
     title: "T. S. P Enterprises - Inventory & Billing",
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
     webPreferences: {
@@ -1122,6 +1124,7 @@ function createWindow() {
       contextIsolation: true,
     },
   });
+  win.removeMenu();
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
