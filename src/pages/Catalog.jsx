@@ -68,7 +68,7 @@ export default function Catalog() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [brandFilter, setBrandFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('Available');
   const [selectedIds, setSelectedIds] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [modalMode, setModalMode] = useState('library'); // 'library' | 'manual'
@@ -167,6 +167,7 @@ export default function Catalog() {
       setSearch(q);
       setCategoryFilter('All');
       setBrandFilter('All');
+      setStatusFilter('All');
       setPage(1);
     }
   }, [searchParams]);
