@@ -11,7 +11,10 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+import { useAppDialog } from '../components/AppDialogContext.jsx';
+
 export default function Racks({ embedded = false }) {
+  const { showConfirm } = useAppDialog();
   const [racks, setRacks] = useState([]);
   const [selectedRackCode, setSelectedRackCode] = useState('R01');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -81,7 +84,13 @@ export default function Racks({ embedded = false }) {
   };
 
   const handleDeleteRack = async (code) => {
-    if (!confirm(`Delete Rack ${code} and all its bins?`)) return;
+    const ok = await showConfirm({
+      title: 'Delete Rack',
+      message: `Delete Rack ${code} and all its bins?`,
+      confirmLabel: 'Delete Rack',
+      tone: 'danger',
+    });
+    if (!ok) return;
     if (window.api && window.api.deleteRack) {
       await window.api.deleteRack(code);
       await loadRacks();

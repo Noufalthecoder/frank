@@ -38,6 +38,7 @@ import {
   formatQty,
 } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import { useAppDialog } from '../components/AppDialogContext.jsx';
 
 const isItemAvailable = (item) =>
   Number(item.quantity) > 0 && item.status !== 'Unavailable' && item.status !== 'Inactive';
@@ -77,6 +78,7 @@ function loadInitialBills() {
 export default function POSBilling() {
   const navigate = useNavigate();
   const { t, tName } = useLanguage();
+  const { showAlert, showConfirm } = useAppDialog();
   const initialDrafts = loadInitialBills();
 
   // Multi-Bill Tabs System (Up to 10 concurrent carts, persisted in localStorage)
@@ -380,8 +382,24 @@ export default function POSBilling() {
     updateActiveBill({ cart: newCart });
   };
 
-  const clearCart = () => {
-    if (activeBill.cart.length > 0 && confirm('Clear all items from this bill?')) {
+  const getLiveAvailableStock = (cartItem) => {
+    const liveItem = allItems.find((x) => x.sku === cartItem.sku || x.id === cartItem.id);
+    return liveItem ? Number(liveItem.quantity) || 0 : Number(cartItem.maxStock) || 0;
+  };
+
+  const overStockItems = activeBill.cart.filter(
+    (item) => getBaseQty(item) > getLiveAvailableStock(item) + 1e-9
+  );
+
+  const clearCart = async () => {
+    if (activeBill.cart.length === 0) return;
+    const ok = await showConfirm({
+      title: 'Clear Cart',
+      message: 'Clear all items from this bill?',
+      confirmLabel: 'Clear Cart',
+      tone: 'danger',
+    });
+    if (ok) {
       updateActiveBill({ cart: [] });
     }
   };
@@ -389,7 +407,11 @@ export default function POSBilling() {
   // Multi-Bill Tab Operations
   const addNewBill = () => {
     if (bills.length >= 10) {
-      alert('Maximum 10 concurrent bills allowed.');
+      showAlert({
+        title: 'Bill Limit Reached',
+        message: 'Maximum 10 concurrent bills allowed.',
+        tone: 'warning',
+      });
       return;
     }
     const newId = `bill-${Date.now()}`;
@@ -405,7 +427,7 @@ export default function POSBilling() {
     setActiveBillId(newId);
   };
 
-  const closeBill = (billId, e) => {
+  const closeBill = async (billId, e) => {
     e.stopPropagation();
     if (bills.length === 1) {
       // If closing the only tab, just clear it
@@ -414,9 +436,13 @@ export default function POSBilling() {
     }
     const target = bills.find((b) => b.id === billId);
     if (target && target.cart.length > 0) {
-      if (!confirm(`Close bill for ${target.customerName}? Items in this bill will be discarded.`)) {
-        return;
-      }
+      const ok = await showConfirm({
+        title: 'Close Bill Tab',
+        message: `Close bill for ${target.customerName}? Items in this bill will be discarded.`,
+        confirmLabel: 'Discard & Close',
+        tone: 'danger',
+      });
+      if (!ok) return;
     }
     const remaining = bills.filter((b) => b.id !== billId);
     setBills(remaining);
@@ -448,31 +474,43 @@ export default function POSBilling() {
   // Complete Sale
   const handleGenerateBill = async () => {
     if (activeBill.cart.length === 0) {
-      alert('Cart is empty. Please add items to checkout.');
+      await showAlert({
+        title: 'Cart is Empty',
+        message: 'Please add at least one item to checkout.',
+        tone: 'warning',
+      });
       return;
     }
 
     const invalidQty = activeBill.cart.find((i) => (parseFloat(i.qty) || 0) <= 0);
     if (invalidQty) {
-      alert(`Please enter a valid quantity greater than 0 for "${invalidQty.name}".`);
+      await showAlert({
+        title: 'Invalid Quantity',
+        message: `Please enter a valid quantity greater than 0 for "${invalidQty.name}".`,
+        tone: 'warning',
+      });
       return;
     }
 
     // Check if any item exceeds current available stock (in base unit)
-    const overStock = activeBill.cart.filter((i) => {
-      const liveItem = allItems.find((x) => x.sku === i.sku || x.id === i.id);
-      const avail = liveItem ? Number(liveItem.quantity) : Number(i.maxStock || 0);
-      return getBaseQty(i) > avail;
-    });
+    const overStock = activeBill.cart.filter((i) => getBaseQty(i) > getLiveAvailableStock(i) + 1e-9);
     if (overStock.length > 0) {
       const list = overStock
         .map((i) => {
           const baseU = normalizeUnit(i.baseUnit || 'PCS');
           const billU = normalizeUnit(i.billingUnit || baseU);
-          return `• ${i.name} (billing ${formatQty(i.qty)} ${billU} = ${formatQty(getBaseQty(i))} ${baseU}, stock ${formatQty(i.maxStock)} ${baseU})`;
+          const avail = getLiveAvailableStock(i);
+          return `• ${i.name} (billing ${formatQty(i.qty)} ${billU} = ${formatQty(getBaseQty(i))} ${baseU}, stock ${formatQty(avail)} ${baseU})`;
         })
         .join('\n');
-      if (!confirm(`Warning: Stock is lower than billed quantity for:\n${list}\n\nProceed anyway (stock will be set to 0)?`)) {
+      const ok = await showConfirm({
+        title: 'Insufficient Stock Warning',
+        message: `Stock is lower than the billed quantity for:\n${list}\n\nProceed anyway (stock will be set to 0)?`,
+        confirmLabel: 'Proceed Anyway',
+        cancelLabel: 'Go Back & Adjust',
+        tone: 'danger',
+      });
+      if (!ok) {
         return;
       }
     }
@@ -872,11 +910,18 @@ export default function POSBilling() {
                       const compatibleUnits = getCompatibleUnits(baseUnit);
                       const measurable = isMeasurableUnit(baseUnit);
                       const baseQty = getBaseQty(item);
+                      const availableStock = getLiveAvailableStock(item);
+                      const exceedsStock = baseQty > availableStock + 1e-9;
                       const lineSub = baseQty * item.rate;
                       const lineTotal = lineSub * (1 - (item.discountPercent || 0) / 100);
 
                       return (
-                        <tr key={`${item.id}-${index}`} className="hover:bg-slate-50/70 transition-colors">
+                        <tr
+                          key={`${item.id}-${index}`}
+                          className={`transition-colors ${
+                            exceedsStock ? 'bg-rose-50/60 hover:bg-rose-50' : 'hover:bg-slate-50/70'
+                          }`}
+                        >
                           {/* Product Details */}
                           <td className="py-3 px-4">
                             <p className="font-bold text-slate-900 leading-snug">{tName(item.name)}</p>
@@ -885,8 +930,8 @@ export default function POSBilling() {
                               <span>·</span>
                               <span>{t('dash_shelf')}: {item.bin || 'R01-L1-S1'}</span>
                               <span>·</span>
-                              <span className="text-emerald-600 font-medium">
-                                {t('cat_stock')}: {formatQty(item.maxStock)} {baseUnit}
+                              <span className={exceedsStock ? 'text-rose-600 font-bold' : 'text-emerald-600 font-medium'}>
+                                {t('cat_stock')}: {formatQty(availableStock)} {baseUnit}
                               </span>
                             </div>
                           </td>
@@ -908,9 +953,11 @@ export default function POSBilling() {
                                   value={item.qty}
                                   onChange={(e) => setExplicitQty(index, e.target.value)}
                                   onBlur={() => finalizeQtyOnBlur(index)}
-                                  className={`no-spinner text-center bg-slate-50 border border-slate-200 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                                    measurable ? 'w-14' : 'w-12'
-                                  }`}
+                                  className={`no-spinner text-center rounded-md py-0.5 text-xs font-bold focus:outline-none focus:ring-1 ${
+                                    exceedsStock
+                                      ? 'bg-rose-50 border border-rose-400 text-rose-700 focus:bg-white focus:ring-rose-500'
+                                      : 'bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:ring-blue-500'
+                                  } ${measurable ? 'w-14' : 'w-12'}`}
                                 />
                                 {measurable && compatibleUnits.length > 1 ? (
                                   <select
@@ -934,8 +981,14 @@ export default function POSBilling() {
                                 </button>
                               </div>
                               {measurable && billingUnit !== baseUnit && (
-                                <span className="text-[10px] font-medium text-blue-600">
+                                <span className={`text-[10px] font-medium ${exceedsStock ? 'text-rose-600' : 'text-blue-600'}`}>
                                   = {formatQty(baseQty)} {baseUnit}
+                                </span>
+                              )}
+                              {exceedsStock && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 whitespace-nowrap">
+                                  <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                                  Only {formatQty(availableStock)} {baseUnit} in stock
                                 </span>
                               )}
                             </div>
@@ -998,6 +1051,16 @@ export default function POSBilling() {
                 </tbody>
               </table>
             </div>
+
+            {/* Inline Over-Stock Warning Banner */}
+            {overStockItems.length > 0 && (
+              <div className="px-4 py-2.5 bg-rose-50 border-t border-rose-200 flex items-center gap-2 text-xs font-semibold text-rose-700">
+                <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>
+                  Quantity exceeds available stock for {overStockItems.length} item{overStockItems.length === 1 ? '' : 's'} — please reduce quantity or verify physical stock.
+                </span>
+              </div>
+            )}
 
             {/* Bottom table helper toolbar */}
             {activeBill.cart.length > 0 && (

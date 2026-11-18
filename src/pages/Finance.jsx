@@ -22,11 +22,13 @@ import {
   Legend,
 } from 'chart.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import { useAppDialog } from '../components/AppDialogContext.jsx';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function Finance() {
   const { t } = useLanguage();
+  const { showAlert, showConfirm } = useAppDialog();
   const [activeTab, setActiveTab] = useState('Overview');
   const [dateRange, setDateRange] = useState('Last 30 Days');
   const [invoices, setInvoices] = useState([]);
@@ -80,7 +82,11 @@ export default function Finance() {
   const handleAddExpense = async (e) => {
     e.preventDefault();
     if (!newExp.amount) {
-      alert('Please fill amount');
+      await showAlert({
+        title: 'Missing Amount',
+        message: 'Please enter the expense amount.',
+        tone: 'warning',
+      });
       return;
     }
     if (window.api && window.api.addExpense) {
@@ -101,7 +107,13 @@ export default function Finance() {
   };
 
   const handleDeleteExpense = async (id) => {
-    if (!confirm('Delete this expense entry?')) return;
+    const ok = await showConfirm({
+      title: 'Delete Expense',
+      message: 'Delete this expense entry?',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     if (window.api && window.api.deleteExpense) {
       await window.api.deleteExpense(id);
       loadAllFinanceData();
@@ -277,7 +289,11 @@ export default function Finance() {
 
   const handleRecordClosing = async () => {
     if (countedCash === '') {
-      alert('Please enter counted cash in drawer');
+      await showAlert({
+        title: 'Counted Cash Required',
+        message: 'Please enter the counted cash amount in the drawer.',
+        tone: 'warning',
+      });
       return;
     }
     if (window.api && window.api.recordDayClosing) {

@@ -22,9 +22,11 @@ import {
   savePrintPreferences,
 } from '../lib/printConfig.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import { useAppDialog } from '../components/AppDialogContext.jsx';
 
 export default function Settings() {
   const { lang, setLang, t } = useLanguage();
+  const { showAlert, showConfirm } = useAppDialog();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const initialTab =
@@ -148,9 +150,13 @@ export default function Settings() {
   };
 
   const handleRestore = async () => {
-    if (!confirm('Restore database from a .db backup file?\n\nYour current database will be backed up automatically before replacing.')) {
-      return;
-    }
+    const ok = await showConfirm({
+      title: 'Restore Database Backup',
+      message: 'Restore database from a .db backup file?\n\nYour current database will be backed up automatically before replacing.',
+      confirmLabel: 'Choose Backup File',
+      tone: 'warning',
+    });
+    if (!ok) return;
     if (window.api && window.api.restoreDatabase) {
       const res = await window.api.restoreDatabase();
       if (res && res.success) {
@@ -158,13 +164,23 @@ export default function Settings() {
         window.dispatchEvent(new CustomEvent('stock-updated'));
         loadProfile();
       } else if (res && res.error) {
-        alert(res.error);
+        await showAlert({
+          title: 'Restore Failed',
+          message: res.error,
+          tone: 'danger',
+        });
       }
     }
   };
 
   const handleLoadDemoData = async () => {
-    if (!confirm('Load 30 sample hardware items, 5 racks, sample vendors, and sample bills?')) return;
+    const ok = await showConfirm({
+      title: 'Load Sample Demo Data',
+      message: 'Load 30 sample hardware items, 5 racks, sample vendors, and sample bills?',
+      confirmLabel: 'Load Demo Data',
+      tone: 'primary',
+    });
+    if (!ok) return;
     if (window.api && window.api.seedDemoData) {
       await window.api.seedDemoData();
       setDbStatusMsg('Sample hardware demo data loaded!');
@@ -173,9 +189,13 @@ export default function Settings() {
   };
 
   const handleResetDatabase = async () => {
-    if (!confirm('WARNING: This will permanently erase all items, racks, bills, vendors, and expenses (keeping your Shop Profile). Continue?')) {
-      return;
-    }
+    const ok = await showConfirm({
+      title: 'Reset Database',
+      message: 'WARNING: This will permanently erase all items, racks, bills, vendors, and expenses (keeping your Shop Profile). Continue?',
+      confirmLabel: 'Erase All Data',
+      tone: 'danger',
+    });
+    if (!ok) return;
     if (window.api && window.api.resetDatabase) {
       await window.api.resetDatabase();
       setDbStatusMsg('Database cleared cleanly. Ready for fresh store setup.');
