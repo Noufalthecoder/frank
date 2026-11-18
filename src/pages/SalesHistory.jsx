@@ -19,6 +19,11 @@ const PAGE_SIZE = 12;
 
 export default function SalesHistory() {
   const { t, tName } = useLanguage();
+  const payLabel = (m) => {
+    const k = { Cash: 'pos_cash', UPI: 'pos_upi', Card: 'pos_card', Bank: 'fi_pay_bank' }[m];
+    return k ? t(k) : m;
+  };
+  const statusLabel = (s) => (s === 'Returned' ? t('hist_returned') : s === 'Completed' ? t('hist_completed') : s);
   const [invoices, setInvoices] = useState([]);
   const [shopProfile, setShopProfile] = useState(null);
   const [search, setSearch] = useState('');
@@ -103,7 +108,7 @@ export default function SalesHistory() {
     const prefs = getPrintPreferences();
     setPrintPrefs(prefs);
     if (prefs.allowHistoryReprint === false) {
-      showToast('Reprinting from Sales History is disabled in Settings.');
+      showToast(t('fi_reprint_disabled'));
       return;
     }
     if (prefs.openPreviewOnManual !== false) {
@@ -120,20 +125,20 @@ export default function SalesHistory() {
       if (!res || !res.success) {
         setPrintFailure({
           invoice: inv,
-          reason: res?.error || 'The printer is unavailable or disconnected.',
+          reason: res?.error || t('fi_printer_unavailable'),
         });
       }
     }
   };
 
   const getSalesExport = () => ({
-    title: 'Sales History',
+    title: t('fi_export_title_sales'),
     filename: `sales_history_${new Date().toISOString().split('T')[0]}`,
-    headers: ['Invoice No', 'Date & Time', 'Customer', 'Phone', 'Items', 'Subtotal', 'Discount', 'Total', 'Payment Mode', 'Status'],
+    headers: [t('fi_exp_invoice_no'), t('fi_exp_datetime'), t('fi_exp_customer'), t('fi_exp_phone'), t('fi_exp_items'), t('fi_exp_subtotal'), t('fi_exp_discount'), t('fi_exp_total'), t('fi_exp_mode'), t('fi_exp_status')],
     rows: filteredInvoices.map((inv) => [
-      inv.invoice_number, inv.date_time || '', inv.customer_name || 'Walk-in Customer', inv.customer_phone || '',
+      inv.invoice_number, inv.date_time || '', inv.customer_name || t('fi_walkin'), inv.customer_phone || '',
       Number(inv.items_count || 0), Number(inv.subtotal || 0), Number(inv.discount || 0), Number(inv.total || 0),
-      inv.payment_mode || 'Cash', inv.status || 'Completed',
+      payLabel(inv.payment_mode || 'Cash'), statusLabel(inv.status || 'Completed'),
     ]),
   });
 
@@ -167,10 +172,10 @@ export default function SalesHistory() {
               setRetryingPrint(false);
               if (res && res.success) {
                 setPrintFailure(null);
-                showToast(`Invoice #${printFailure.invoice?.invoice_number} printed.`);
+                showToast(t('fi_invoice_printed', { no: printFailure.invoice?.invoice_number }));
               } else {
                 setPrintFailure((prev) =>
-                  prev ? { ...prev, reason: res?.error || 'The printer is unavailable or disconnected.' } : null
+                  prev ? { ...prev, reason: res?.error || t('fi_printer_unavailable') } : null
                 );
               }
             }}
@@ -185,7 +190,7 @@ export default function SalesHistory() {
               setRetryingPrint(false);
               if (res && res.success) {
                 setPrintFailure(null);
-                showToast(res.path ? 'Invoice PDF saved.' : 'Opened PDF export.');
+                showToast(res.path ? t('fi_pdf_saved') : t('fi_pdf_opened'));
               }
             }}
             onDismiss={() => setPrintFailure(null)}
@@ -273,14 +278,14 @@ export default function SalesHistory() {
                     {inv.date_time || '—'}
                   </td>
                   <td className="py-3 px-4 font-semibold text-slate-900">
-                    {inv.customer_name || 'Walk-in Customer'}
+                    {inv.customer_name || t('fi_walkin')}
                   </td>
                   <td className="py-3 px-4 text-center text-slate-700 font-medium">
                     {inv.items_count || 1}
                   </td>
                   <td className="py-3 px-4">
                     <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[11px]">
-                      {inv.payment_mode || 'Cash'}
+                      {payLabel(inv.payment_mode || 'Cash')}
                     </span>
                   </td>
                   <td className="py-3 px-4">
@@ -291,7 +296,7 @@ export default function SalesHistory() {
                           : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                       }`}
                     >
-                      {isReturned ? 'Returned' : 'Completed'}
+                      {isReturned ? t('hist_returned') : t('hist_completed')}
                     </span>
                   </td>
                   <td className={`py-3 px-4 text-right font-bold ${isReturned ? 'line-through text-slate-400' : 'text-slate-900'}`}>
@@ -302,7 +307,7 @@ export default function SalesHistory() {
                       <button
                         onClick={() => setSelectedInvoice(inv)}
                         className="p-1.5 hover:text-blue-600 hover:bg-slate-100 rounded transition-colors"
-                        title="View Itemized Details"
+                        title={t('fi_view_details')}
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
@@ -310,7 +315,7 @@ export default function SalesHistory() {
                         <button
                           onClick={() => handlePrint(inv)}
                           className="p-1.5 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors"
-                          title="Reprint Receipt"
+                          title={t('fi_reprint_receipt')}
                         >
                           <Printer className="w-3.5 h-3.5" />
                         </button>
@@ -323,7 +328,7 @@ export default function SalesHistory() {
             {paginatedInvoices.length === 0 && (
               <tr>
                 <td colSpan={8} className="py-12 text-center text-xs text-slate-400">
-                  No invoices match your search or date filter.
+                  {t('fi_no_invoices_match')}
                 </td>
               </tr>
             )}
@@ -333,8 +338,11 @@ export default function SalesHistory() {
         {/* Footer with Real Pagination */}
         <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-medium">
           <span>
-            Showing {filteredInvoices.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1} –{' '}
-            {Math.min(currentPage * PAGE_SIZE, filteredInvoices.length)} of {filteredInvoices.length} invoices
+            {t('fi_showing_range', {
+              from: filteredInvoices.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1,
+              to: Math.min(currentPage * PAGE_SIZE, filteredInvoices.length),
+              total: filteredInvoices.length,
+            })}
           </span>
 
           <div className="flex items-center gap-1">
@@ -343,7 +351,7 @@ export default function SalesHistory() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Prev
+              {t('cat_prev')}
             </button>
             <span className="px-2.5 py-1 bg-blue-600 text-white rounded font-bold shadow-sm">
               {currentPage} / {totalPages}
@@ -353,7 +361,7 @@ export default function SalesHistory() {
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               className="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Next
+              {t('cat_next')}
             </button>
           </div>
         </div>
@@ -376,7 +384,7 @@ export default function SalesHistory() {
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     }`}
                   >
-                    {selectedInvoice.status || 'Completed'}
+                    {statusLabel(selectedInvoice.status || 'Completed')}
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">{selectedInvoice.date_time}</p>
@@ -391,15 +399,15 @@ export default function SalesHistory() {
 
             <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-lg border border-slate-100">
               <div>
-                <p className="text-slate-400 text-[11px]">Customer</p>
-                <p className="font-semibold text-slate-800">{selectedInvoice.customer_name || 'Walk-in Customer'}</p>
+                <p className="text-slate-400 text-[11px]">{t('fi_customer')}</p>
+                <p className="font-semibold text-slate-800">{selectedInvoice.customer_name || t('fi_walkin')}</p>
                 {selectedInvoice.customer_phone && (
                   <p className="text-[11px] text-slate-500">{selectedInvoice.customer_phone}</p>
                 )}
               </div>
               <div className="text-right">
-                <p className="text-slate-400 text-[11px]">Payment Mode</p>
-                <p className="font-bold text-slate-800">{selectedInvoice.payment_mode || 'Cash'}</p>
+                <p className="text-slate-400 text-[11px]">{t('fi_payment_mode')}</p>
+                <p className="font-bold text-slate-800">{payLabel(selectedInvoice.payment_mode || 'Cash')}</p>
               </div>
             </div>
 
@@ -408,17 +416,17 @@ export default function SalesHistory() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-semibold text-slate-500 uppercase">
-                    <th className="py-2 px-3">Product</th>
-                    <th className="py-2 px-2 text-center">Qty</th>
-                    <th className="py-2 px-2 text-right">Rate</th>
-                    <th className="py-2 px-3 text-right">Total</th>
+                    <th className="py-2 px-3">{t('fi_col_product')}</th>
+                    <th className="py-2 px-2 text-center">{t('fi_col_qty')}</th>
+                    <th className="py-2 px-2 text-right">{t('fi_col_rate')}</th>
+                    <th className="py-2 px-3 text-right">{t('fi_col_total')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {parseItems(selectedInvoice).length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-4 text-center text-slate-400">
-                        {selectedInvoice.items_count || 1} item(s) billed (summary record)
+                        {t('fi_summary_record', { n: selectedInvoice.items_count || 1 })}
                       </td>
                     </tr>
                   ) : (
@@ -451,15 +459,15 @@ export default function SalesHistory() {
 
             <div className="space-y-1.5 text-xs pt-1">
               <div className="flex justify-between text-slate-500">
-                <span>Subtotal:</span>
+                <span>{t('fi_subtotal')}</span>
                 <span className="font-medium text-slate-800">₹ {Number(selectedInvoice.subtotal || selectedInvoice.total).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>Discount:</span>
+                <span>{t('fi_discount')}</span>
                 <span className="font-medium text-emerald-600">– ₹ {Number(selectedInvoice.discount || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between py-2 border-t border-slate-100 font-bold text-sm text-slate-900">
-                <span>Grand Total:</span>
+                <span>{t('fi_grand_total')}</span>
                 <span className="text-blue-600 font-black">₹ {Number(selectedInvoice.total).toFixed(2)}</span>
               </div>
             </div>

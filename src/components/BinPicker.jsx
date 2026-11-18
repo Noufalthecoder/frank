@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 /**
  * Two-step bin picker: choose a Rack first, then a Level/Slot inside it.
@@ -13,11 +14,12 @@ export default function BinPicker({
   racks: racksProp,
   autoPickFirst = true,
   allowUnassigned = true,
-  rackPlaceholder = 'Unassigned',
-  binPlaceholder = 'Select slot…',
+  rackPlaceholder,
+  binPlaceholder,
   className = '',
   selectClassName = 'w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white',
 }) {
+  const { t } = useLanguage();
   const [loaded, setLoaded] = useState([]);
   const racks = racksProp || loaded;
   const [rackSel, setRackSel] = useState('');
@@ -62,11 +64,11 @@ export default function BinPicker({
         value={unknownValue ? '__bad__' : rackSel}
         onChange={(e) => handleRack(e.target.value === '__bad__' ? '' : e.target.value)}
         className={selectClassName}
-        aria-label="Rack"
+        aria-label={t('rk_rack')}
       >
-        {allowUnassigned && <option value="">{rackPlaceholder}</option>}
-        {!allowUnassigned && <option value="" disabled>Select rack…</option>}
-        {unknownValue && <option value="__bad__">{value} (bin not found)</option>}
+        {allowUnassigned && <option value="">{rackPlaceholder ?? t('rk_unassigned')}</option>}
+        {!allowUnassigned && <option value="" disabled>{t('rk_select_rack')}</option>}
+        {unknownValue && <option value="__bad__">{t('rk_bin_not_found_opt', { bin: value })}</option>}
         {racks.map((r) => (
           <option key={r.code} value={r.code}>
             {r.code} – {r.name}
@@ -78,12 +80,12 @@ export default function BinPicker({
         onChange={(e) => handleBin(e.target.value)}
         disabled={!activeRack}
         className={`${selectClassName} disabled:opacity-50`}
-        aria-label="Level and slot"
+        aria-label={t('rk_level_slot')}
       >
-        <option value="">{binPlaceholder}</option>
+        <option value="">{binPlaceholder ?? t('rk_select_slot')}</option>
         {(activeRack?.bins || []).map((b) => (
           <option key={b.bin_code} value={b.bin_code}>
-            Level {b.level_no} · Slot {b.slot_no} ({b.bin_code})
+            {t('rk_level_slot_opt', { level: b.level_no, slot: b.slot_no })} ({b.bin_code})
           </option>
         ))}
       </select>
