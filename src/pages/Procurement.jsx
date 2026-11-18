@@ -579,6 +579,7 @@ export default function Procurement() {
 
         <div className="flex items-center gap-2.5">
           <ExportMenu getSpec={getProcurementExport} onDone={showToast} />
+          {activeTab === 'Vendors' && (
           <button
             onClick={() => setShowAddVendorModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
@@ -586,6 +587,8 @@ export default function Procurement() {
             <UserPlus className="w-3.5 h-3.5 text-slate-500" />
             <span>{t('vend_add_vendor')}</span>
           </button>
+          )}
+          {activeTab === 'Purchase Orders' && (
           <button
             onClick={openCreatePoModal}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 rounded-lg text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
@@ -593,6 +596,7 @@ export default function Procurement() {
             <Plus className="w-3.5 h-3.5" />
             <span>{t('vend_new_po')}</span>
           </button>
+          )}
         </div>
       </div>
 
