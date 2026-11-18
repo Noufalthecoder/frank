@@ -28,6 +28,9 @@ import {
 } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 
+const isItemAvailable = (item) =>
+  Number(item.quantity) > 0 && item.status !== 'Unavailable' && item.status !== 'Inactive';
+
 const getBaseQty = (cartItem) => {
   const numericQty = parseFloat(cartItem.qty) || 0;
   const baseUnit = normalizeUnit(cartItem.baseUnit || cartItem.unit || 'PCS');
@@ -199,12 +202,13 @@ export default function POSBilling() {
       if (!q) return;
 
       const exact = allItems.find(
-        (i) => i.sku.toLowerCase() === q || i.name.toLowerCase() === q
+        (i) => (i.sku.toLowerCase() === q || i.name.toLowerCase() === q) && isItemAvailable(i)
       );
+      const firstAvailable = searchResults.find((i) => isItemAvailable(i));
       if (exact) {
         handleAddToCart(exact);
-      } else if (searchResults.length > 0) {
-        handleAddToCart(searchResults[0]);
+      } else if (firstAvailable) {
+        handleAddToCart(firstAvailable);
       }
     } else if (e.key === 'Escape') {
       setSearchQuery('');
@@ -213,6 +217,7 @@ export default function POSBilling() {
   };
 
   const handleAddToCart = (item) => {
+    if (!isItemAvailable(item)) return;
     const baseUnit = normalizeUnit(item.unit || 'PCS');
     const existingIndex = activeBill.cart.findIndex(
       (i) => i.id === item.id || i.sku === item.sku
@@ -607,11 +612,17 @@ export default function POSBilling() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {searchResults.map((item) => (
+                      {searchResults.map((item) => {
+                        const available = isItemAvailable(item);
+                        return (
                         <tr
                           key={item.id}
-                          onClick={() => handleAddToCart(item)}
-                          className="hover:bg-blue-50/70 cursor-pointer transition-colors"
+                          onClick={() => available && handleAddToCart(item)}
+                          className={`transition-colors ${
+                            available
+                              ? 'hover:bg-blue-50/70 cursor-pointer'
+                              : 'bg-slate-50/80 opacity-75 cursor-not-allowed'
+                          }`}
                         >
                           <td className="py-2.5 px-4">
                             <div className="flex items-center gap-2.5">
@@ -623,7 +634,9 @@ export default function POSBilling() {
                                 />
                               )}
                               <div>
-                                <p className="font-bold text-slate-900 leading-tight">{tName(item.name)}</p>
+                                <p className={`font-bold leading-tight ${available ? 'text-slate-900' : 'text-slate-500'}`}>
+                                  {tName(item.name)}
+                                </p>
                                 <p className="text-[10px] text-slate-400 font-mono mt-0.5">{item.sku}</p>
                               </div>
                             </div>
@@ -632,17 +645,21 @@ export default function POSBilling() {
                             {item.bin_id || '—'}
                           </td>
                           <td className="py-2.5 px-3">
-                            <span
-                              className={`text-[11px] font-bold ${
-                                item.quantity <= 0
-                                  ? 'text-rose-600'
-                                  : item.quantity <= (item.reorder_level || 15)
-                                  ? 'text-amber-600'
-                                  : 'text-emerald-700'
-                              }`}
-                            >
-                              {formatQty(item.quantity)} {normalizeUnit(item.unit || 'PCS')}
-                            </span>
+                            {!available ? (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                {t('cat_unavailable')}
+                              </span>
+                            ) : (
+                              <span
+                                className={`text-[11px] font-bold ${
+                                  item.quantity <= (item.reorder_level || 15)
+                                    ? 'text-amber-600'
+                                    : 'text-emerald-700'
+                                }`}
+                              >
+                                {formatQty(item.quantity)} {normalizeUnit(item.unit || 'PCS')}
+                              </span>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 text-right text-slate-400 line-through">
                             ₹ {(Number(item.selling_price) * 1.15).toFixed(2)}
@@ -659,18 +676,25 @@ export default function POSBilling() {
                             {item.size || item.brand || '—'}
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddToCart(item);
-                              }}
-                              className="px-2.5 py-1 bg-blue-600 text-white rounded-md text-[10px] font-bold hover:bg-blue-700 transition-colors shadow-2xs"
-                            >
-                              + Add
-                            </button>
+                            {available ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddToCart(item);
+                                }}
+                                className="px-2.5 py-1 bg-blue-600 text-white rounded-md text-[10px] font-bold hover:bg-blue-700 transition-colors shadow-2xs"
+                              >
+                                + Add
+                              </button>
+                            ) : (
+                              <span className="inline-block px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-md text-[10px] font-bold">
+                                {t('cat_unavailable')}
+                              </span>
+                            )}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

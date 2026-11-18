@@ -363,13 +363,14 @@ a.handle("addItem", (s, e) => {
     if (!t) return { success: !1, error: "SKU is required." };
     const u = r.prepare(`
       INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
-      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, 'Active')
+      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, @status)
     `).run({
       ...e,
       sku: t,
       name: String(e.name || "").trim(),
       bin_id: String(e.bin_id || "").trim().toUpperCase(),
-      image_url: String(e.image_url || "").trim()
+      image_url: String(e.image_url || "").trim(),
+      status: e.status || "Available"
     });
     return { success: !0, id: Number(u.lastInsertRowid) };
   } catch (t) {

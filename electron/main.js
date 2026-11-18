@@ -408,7 +408,7 @@ ipcMain.handle('addItem', (event, item) => {
     if (!normalizedSku) return { success: false, error: 'SKU is required.' };
     const stmt = db.prepare(`
       INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
-      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, 'Active')
+      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, @status)
     `);
     const res = stmt.run({
       ...item,
@@ -416,6 +416,7 @@ ipcMain.handle('addItem', (event, item) => {
       name: String(item.name || '').trim(),
       bin_id: String(item.bin_id || '').trim().toUpperCase(),
       image_url: String(item.image_url || '').trim(),
+      status: item.status || 'Available',
     });
     return { success: true, id: Number(res.lastInsertRowid) };
   } catch (err) {

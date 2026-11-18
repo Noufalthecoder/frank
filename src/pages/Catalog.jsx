@@ -54,7 +54,11 @@ const EMPTY_FORM = {
   reorder_level: '20',
   bin_id: 'R01-L1-S1',
   image_url: '',
+  status: 'Available',
 };
+
+const isItemAvailable = (item) =>
+  Number(item.quantity) > 0 && item.status !== 'Unavailable' && item.status !== 'Inactive';
 
 export default function Catalog() {
   const { t, tName, tCategory } = useLanguage();
@@ -64,7 +68,7 @@ export default function Catalog() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [brandFilter, setBrandFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('Active');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [selectedIds, setSelectedIds] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [modalMode, setModalMode] = useState('library'); // 'library' | 'manual'
@@ -196,7 +200,11 @@ export default function Catalog() {
       (i.size && i.size.toLowerCase().includes(q));
     const matchCat = categoryFilter === 'All' || i.category === categoryFilter;
     const matchBrand = brandFilter === 'All' || i.brand === brandFilter;
-    const matchStatus = statusFilter === 'All' || i.status === statusFilter;
+    const available = isItemAvailable(i);
+    const matchStatus =
+      statusFilter === 'All' ||
+      (statusFilter === 'Available' && available) ||
+      (statusFilter === 'Unavailable' && !available);
     return matchSearch && matchCat && matchBrand && matchStatus;
   });
 
@@ -286,10 +294,11 @@ export default function Catalog() {
         cost_price: parseFloat(form.cost_price) || 0,
         quantity: parseFloat(form.quantity) || 0,
         reorder_level: parseFloat(form.reorder_level) || 0,
+        status: form.status === 'Unavailable' ? 'Unavailable' : 'Available',
       };
 
       const res = editingItem
-        ? await window.api.updateItem({ ...payload, id: editingItem.id, status: 'Active' })
+        ? await window.api.updateItem({ ...payload, id: editingItem.id })
         : await window.api.addItem(payload);
 
       if (res && res.success === false) {
@@ -337,6 +346,7 @@ export default function Catalog() {
       reorder_level: item.reorder_level,
       bin_id: item.bin_id || 'R01-L1-S1',
       image_url: item.image_url || '',
+      status: item.status === 'Unavailable' || item.status === 'Inactive' ? 'Unavailable' : 'Available',
     });
     loadRackBins();
     setShowAddModal(true);
@@ -486,11 +496,17 @@ export default function Catalog() {
   const paginatedItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const getStockBadgeClass = (item) =>
-    Number(item.quantity) <= 0
+    !isItemAvailable(item)
       ? 'bg-rose-50 text-rose-700 border border-rose-200'
       : Number(item.quantity) <= (item.reorder_level || 20)
       ? 'bg-amber-50 text-amber-700 border border-amber-200'
       : 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+
+  const getStockBadgeText = (item, compact = false) => {
+    if (!isItemAvailable(item)) return t('cat_unavailable');
+    const u = normalizeUnit(item.unit);
+    return `${formatQty(item.quantity)}${isMeasurableUnit(u) ? (compact ? u : ` ${u}`) : ''}`;
+  };
 
   const getUnitBadgeClass = (unit) => {
     const grp = getUnitGroup(unit);
@@ -601,7 +617,7 @@ export default function Catalog() {
             ))}
           </select>
 
-          {/* Status */}
+          {/* Status: All / Available / Unavailable */}
           <select
             value={statusFilter}
             onChange={(e) => {
@@ -610,9 +626,9 @@ export default function Catalog() {
             }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="Active">{t('cat_status')}: {t('cat_active')}</option>
             <option value="All">{t('cat_status')}: {t('cat_all')}</option>
-            <option value="Inactive">{t('cat_status')}: {t('cat_inactive')}</option>
+            <option value="Available">{t('cat_status')}: {t('cat_available')}</option>
+            <option value="Unavailable">{t('cat_status')}: {t('cat_unavailable')}</option>
           </select>
 
           {/* View Dropdown: Large, Medium, Small Icons & Row/Detail View */}
@@ -763,7 +779,7 @@ export default function Catalog() {
                   </td>
                   <td className="py-3 px-4">
                     <span className={`inline-flex px-2 py-0.5 rounded-full font-semibold text-[11px] ${getStockBadgeClass(item)}`}>
-                      {formatQty(item.quantity)}{isMeasurableUnit(item.unit) ? ` ${normalizeUnit(item.unit)}` : ''}
+                      {getStockBadgeText(item)}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right">
@@ -815,7 +831,7 @@ export default function Catalog() {
                       {u}
                     </span>
                     <span className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStockBadgeClass(item)}`}>
-                      {formatQty(item.quantity)} {u}
+                      {!isItemAvailable(item) ? t('cat_unavailable') : `${formatQty(item.quantity)} ${u}`}
                     </span>
                   </div>
 
@@ -886,7 +902,7 @@ export default function Catalog() {
                       <Package className="w-9 h-9 text-slate-300" />
                     )}
                     <span className={`absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${getStockBadgeClass(item)}`}>
-                      {formatQty(item.quantity)}{measurable ? ` ${u}` : ''}
+                      {getStockBadgeText(item)}
                     </span>
                   </div>
 
@@ -972,7 +988,7 @@ export default function Catalog() {
                       {measurable ? `/${u}` : ''}
                     </span>
                     <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${getStockBadgeClass(item)}`}>
-                      {formatQty(item.quantity)}{measurable ? u : ''}
+                      {getStockBadgeText(item, true)}
                     </span>
                   </div>
                 </div>
@@ -1307,7 +1323,7 @@ export default function Catalog() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack / Shelf Bin</label>
                   <input
@@ -1339,6 +1355,19 @@ export default function Catalog() {
                     onChange={(e) => setForm({ ...form, reorder_level: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    {t('cat_availability')}
+                  </label>
+                  <select
+                    value={form.status === 'Unavailable' ? 'Unavailable' : 'Available'}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Available">{t('cat_available')}</option>
+                    <option value="Unavailable">{t('cat_unavailable')}</option>
+                  </select>
                 </div>
               </div>
 

@@ -188,7 +188,7 @@ export function initBrowserApiFallback() {
         return { success: false, error: `SKU "${normalizedSku}" already exists. Use a unique SKU or edit the existing product.` };
       }
       const id = db.items.reduce((max, i) => Math.max(max, i.id || 0), 0) + 1;
-      db.items.push({ ...item, id, sku: normalizedSku, status: 'Active' });
+      db.items.push({ ...item, id, sku: normalizedSku, status: item.status || 'Available' });
       writeDb(db);
       return { success: true, id };
     },
