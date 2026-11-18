@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import BinPicker from './BinPicker.jsx';
 import {
   Search,
   ArrowLeft,
@@ -45,7 +46,9 @@ export default function ToolLibraryPicker({
 
   const openTool = (tool) => {
     setSelectedTool(tool);
-    setDefaultBin(tool.defaultBin || availableBins[0]?.code || 'R01-L1-S1');
+    setDefaultBin(
+      availableBins.some((b) => b.code === tool.defaultBin) ? tool.defaultBin : availableBins[0]?.code || ''
+    );
     setSelectedQtyMap({});
   };
 
@@ -122,9 +125,7 @@ export default function ToolLibraryPicker({
       cost_price: existing ? Number(existing.cost_price) : sizeObj.cost,
       quantity: finalQty,
       reorder_level: existing ? Number(existing.reorder_level) : parseFloat(defaultReorder) || 10,
-      bin_id: existing
-        ? existing.bin_id || (defaultBin || tool.defaultBin || 'R01-L1-S1').trim().toUpperCase()
-        : (defaultBin || tool.defaultBin || 'R01-L1-S1').trim().toUpperCase(),
+      bin_id: existing && existing.bin_id ? existing.bin_id : (defaultBin || '').trim().toUpperCase(),
       image_url: existing?.image_url || tool.image,
     };
   };
@@ -199,20 +200,11 @@ export default function ToolLibraryPicker({
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Rack / Bin</label>
-                <input
-                  type="text"
-                  list="tool-lib-bins"
+                <BinPicker
                   value={defaultBin}
-                  onChange={(e) => setDefaultBin(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+                  onChange={setDefaultBin}
+                  selectClassName="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
                 />
-                <datalist id="tool-lib-bins">
-                  {availableBins.map((b) => (
-                    <option key={b.code} value={b.code}>
-                      {b.label}
-                    </option>
-                  ))}
-                </datalist>
               </div>
             </div>
           </div>

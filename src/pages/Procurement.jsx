@@ -268,7 +268,7 @@ export default function Procurement() {
         cost_price: cost,
         quantity: 0, // Stock is added automatically when this PO is marked Received
         reorder_level: 10,
-        bin_id: 'R01-L1-S1',
+        bin_id: '', // unassigned — place it from Settings → Racks & Bins
         image_url: '',
         status: 'Available',
       });

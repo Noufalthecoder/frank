@@ -12,13 +12,20 @@ import {
 } from 'lucide-react';
 
 import { useAppDialog } from '../components/AppDialogContext.jsx';
+import BinPicker from '../components/BinPicker.jsx';
+import Rack3D from '../components/Rack3D.jsx';
 
 export default function Racks({ embedded = false }) {
-  const { showConfirm } = useAppDialog();
+  const { showConfirm, showAlert } = useAppDialog();
   const [racks, setRacks] = useState([]);
   const [selectedRackCode, setSelectedRackCode] = useState('R01');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedBin, setSelectedBin] = useState(null);
+  const [selectedBinCode, setSelectedBinCode] = useState(null);
+  const [allItems, setAllItems] = useState([]);
+  const [editRack, setEditRack] = useState(null);
+  const [editError, setEditError] = useState('');
+  const [pickItemId, setPickItemId] = useState('');
+  const [viewMode, setViewMode] = useState('3d');
   const [formError, setFormError] = useState('');
 
   const [newRack, setNewRack] = useState({
@@ -45,6 +52,46 @@ export default function Racks({ embedded = false }) {
         setSelectedRackCode(list[0].code);
       }
     }
+    if (window.api && window.api.getItems) {
+      setAllItems((await window.api.getItems()) || []);
+    }
+  };
+
+  // Every real bin, grouped by rack, for assign / move dropdowns
+  const allBins = racks.flatMap((r) => (r.bins || []).map((b) => ({ code: b.bin_code, rack: r })));
+  const validBinCodes = new Set(allBins.map((b) => b.code.toUpperCase()));
+  const unassignedItems = allItems.filter(
+    (i) => !i.bin_id || !validBinCodes.has(String(i.bin_id).toUpperCase())
+  );
+  const selectedBin = racks.flatMap((r) => r.bins || []).find((b) => b.bin_code === selectedBinCode) || null;
+
+  const moveItem = async (itemId, binCode) => {
+    if (!window.api || !window.api.moveItemToBin) return;
+    const res = await window.api.moveItemToBin(itemId, binCode);
+    if (res && res.success === false) {
+      await showAlert({ title: 'Could not move product', message: res.error, tone: 'danger' });
+      return;
+    }
+    setPickItemId('');
+    await loadRacks();
+    window.dispatchEvent(new CustomEvent('stock-updated'));
+  };
+
+  const handleSaveRack = async (e) => {
+    e.preventDefault();
+    setEditError('');
+    const res = await window.api.updateRack({
+      ...editRack,
+      levels: parseInt(editRack.levels) || 1,
+      slots_per_level: parseInt(editRack.slots_per_level) || 1,
+    });
+    if (res && res.success === false) {
+      setEditError(res.error || 'Could not update rack.');
+      return;
+    }
+    setEditRack(null);
+    await loadRacks();
+    window.dispatchEvent(new CustomEvent('stock-updated'));
   };
 
   const currentRack = racks.find((r) => r.code === selectedRackCode) || racks[0];
@@ -92,8 +139,13 @@ export default function Racks({ embedded = false }) {
     });
     if (!ok) return;
     if (window.api && window.api.deleteRack) {
-      await window.api.deleteRack(code);
+      const res = await window.api.deleteRack(code);
+      if (res && res.success === false) {
+        await showAlert({ title: 'Cannot delete rack', message: res.error, tone: 'danger' });
+        return;
+      }
       await loadRacks();
+      window.dispatchEvent(new CustomEvent('stock-updated'));
     }
   };
 
@@ -176,6 +228,33 @@ export default function Racks({ embedded = false }) {
               );
             })}
           </div>
+
+          {/* Products with no valid bin */}
+          {unassignedItems.length > 0 && (
+            <div className="border-t border-slate-100 pt-3 space-y-2">
+              <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5" /> Unassigned ({unassignedItems.length})
+              </p>
+              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+                {unassignedItems.map((item) => (
+                  <div key={item.id} className="p-2 bg-amber-50/50 border border-amber-200/70 rounded-lg">
+                    <p className="text-[11px] font-semibold text-slate-800 truncate">{item.name}</p>
+                    <p className="text-[10px] font-mono text-slate-400 mb-1">
+                      {item.sku}{item.bin_id ? ` · bad bin ${item.bin_id}` : ''}
+                    </p>
+                    <BinPicker
+                      racks={racks}
+                      value=""
+                      autoPickFirst={false}
+                      rackPlaceholder="Assign to rack…"
+                      onChange={(code) => moveItem(item.id, code)}
+                      selectClassName="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-700"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: Selected Rack View with Levels */}
@@ -195,6 +274,22 @@ export default function Racks({ embedded = false }) {
 
                 <div className="flex items-center gap-2 text-slate-400">
                   <button
+                    onClick={() => {
+                      setEditError('');
+                      setEditRack({
+                        code: currentRack.code,
+                        name: currentRack.name,
+                        zone: currentRack.zone || '',
+                        levels: currentRack.levels,
+                        slots_per_level: currentRack.slots_per_level,
+                      });
+                    }}
+                    title="Edit Rack"
+                    className="p-1.5 hover:text-blue-600 hover:bg-blue-50 rounded border border-slate-200 transition-colors"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
                     onClick={() => handleDeleteRack(currentRack.code)}
                     title="Delete Rack"
                     className="p-1.5 hover:text-rose-600 hover:bg-rose-50 rounded border border-slate-200 transition-colors"
@@ -204,7 +299,37 @@ export default function Racks({ embedded = false }) {
                 </div>
               </div>
 
+              {/* View toggle */}
+              <div className="flex items-center justify-end -mt-2">
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+                  {[['3d', '3D View'], ['grid', 'Grid']].map(([k, label]) => (
+                    <button
+                      key={k}
+                      onClick={() => setViewMode(k)}
+                      className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${
+                        viewMode === k ? 'bg-white text-blue-600 shadow-xs ring-1 ring-slate-200/60' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {viewMode === '3d' && (
+                <Rack3D
+                  key={currentRack.code + currentRack.levels + 'x' + currentRack.slots_per_level}
+                  rack={currentRack}
+                  itemsById={Object.fromEntries(allItems.map((i) => [i.id, i]))}
+                  onBinClick={(bin) => {
+                    setPickItemId('');
+                    setSelectedBinCode(bin.bin_code);
+                  }}
+                />
+              )}
+
               {/* Levels Grid */}
+              {viewMode === 'grid' && (
               <div className="space-y-4">
                 {Object.keys(levelsMap).sort().map((levelKey) => {
                   const bins = levelsMap[levelKey] || [];
@@ -222,7 +347,7 @@ export default function Racks({ embedded = false }) {
                           return (
                             <button
                               key={bin.bin_code}
-                              onClick={() => setSelectedBin(bin)}
+                              onClick={() => { setPickItemId(''); setSelectedBinCode(bin.bin_code); }}
                               className={`rounded-xl p-3 text-center hover:shadow-sm transition-all cursor-pointer group border ${
                                 hasStock
                                   ? 'bg-emerald-50/60 border-emerald-200/80 hover:border-emerald-400'
@@ -236,7 +361,7 @@ export default function Racks({ embedded = false }) {
                                 {Number(bin.quantity).toLocaleString('en-IN')}
                               </p>
                               <p className={`text-[9px] font-medium ${hasStock ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                {hasStock ? `${(bin.items || []).length || 1} SKU · units` : 'Empty bin'}
+                                {(bin.items || []).length > 0 ? `${bin.items.length} SKU${bin.items.length > 1 ? 's' : ''}` : 'Empty bin'}
                               </p>
                             </button>
                           );
@@ -246,6 +371,7 @@ export default function Racks({ embedded = false }) {
                   );
                 })}
               </div>
+              )}
             </>
           ) : (
             <div className="py-12 text-center text-xs text-slate-400">
@@ -370,6 +496,86 @@ export default function Racks({ embedded = false }) {
         </div>
       )}
 
+      {/* Edit Rack Modal */}
+      {editRack && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">Edit Rack {editRack.code}</h3>
+              <button onClick={() => setEditRack(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveRack} className="p-5 space-y-4">
+              {editError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 font-medium flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                  <span>{editError}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editRack.name}
+                    onChange={(e) => setEditRack({ ...editRack, name: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Zone</label>
+                  <input
+                    type="text"
+                    value={editRack.zone}
+                    onChange={(e) => setEditRack({ ...editRack, zone: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Levels (Shelves)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={editRack.levels}
+                    onChange={(e) => setEditRack({ ...editRack, levels: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Slots per Level</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={editRack.slots_per_level}
+                    onChange={(e) => setEditRack({ ...editRack, slots_per_level: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400">Shrinking removes bins, so any bin that would be removed must be empty.</p>
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditRack(null)}
+                  className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold shadow-sm hover:bg-blue-700">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Bin Detail Modal */}
       {selectedBin && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
@@ -379,7 +585,7 @@ export default function Racks({ embedded = false }) {
                 <h3 className="text-sm font-bold text-slate-900 font-mono">{selectedBin.bin_code}</h3>
                 <p className="text-[11px] text-slate-400">Level {selectedBin.level_no} · Slot {selectedBin.slot_no}</p>
               </div>
-              <button onClick={() => setSelectedBin(null)} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setSelectedBinCode(null)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -396,25 +602,71 @@ export default function Racks({ embedded = false }) {
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 <p className="text-[11px] font-bold text-slate-600 uppercase">Products in this bin</p>
                 {selectedBin.items.map((item) => (
-                  <div key={item.id || item.sku} className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded-lg text-xs">
-                    <div className="min-w-0 pr-2">
-                      <p className="font-semibold text-slate-800 truncate">{item.name}</p>
-                      <p className="text-[10px] font-mono text-slate-400">{item.sku}</p>
+                  <div key={item.id || item.sku} className="p-2 bg-white border border-slate-200 rounded-lg text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 pr-2">
+                        <p className="font-semibold text-slate-800 truncate">{item.name}</p>
+                        <p className="text-[10px] font-mono text-slate-400">{item.sku}</p>
+                      </div>
+                      <span className="font-bold text-emerald-700 flex-shrink-0">
+                        {item.quantity} {item.unit || 'PCS'}
+                      </span>
                     </div>
-                    <span className="font-bold text-emerald-700 flex-shrink-0">
-                      {item.quantity} {item.unit || 'PCS'}
-                    </span>
+                    <div className="flex items-start gap-1.5">
+                      <BinPicker
+                        racks={racks}
+                        value=""
+                        autoPickFirst={false}
+                        rackPlaceholder="Move to rack…"
+                        onChange={(code) => moveItem(item.id, code)}
+                        className="flex-1 min-w-0"
+                        selectClassName="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-700"
+                      />
+                      <button
+                        onClick={() => moveItem(item.id, '')}
+                        className="px-2 py-1 text-[11px] font-semibold text-slate-500 border border-slate-200 rounded-md hover:text-rose-600 hover:bg-rose-50"
+                      >
+                        Unassign
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-[11px] text-slate-400 text-center py-2">
-                No products assigned to {selectedBin.bin_code} yet. Assign this bin code when adding a product in Catalog.
+                No products in {selectedBin.bin_code} yet.
               </p>
             )}
 
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold text-slate-600 uppercase">Add product to this bin</p>
+              <div className="flex gap-2">
+                <select
+                  value={pickItemId}
+                  onChange={(e) => setPickItemId(e.target.value)}
+                  className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                >
+                  <option value="">Select a product…</option>
+                  {allItems
+                    .filter((i) => String(i.bin_id || '').toUpperCase() !== selectedBin.bin_code.toUpperCase())
+                    .map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.name} ({i.sku}){i.bin_id ? ` · ${i.bin_id}` : ' · unassigned'}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  disabled={!pickItemId}
+                  onClick={() => moveItem(Number(pickItemId), selectedBin.bin_code)}
+                  className="px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
             <button
-              onClick={() => setSelectedBin(null)}
+              onClick={() => setSelectedBinCode(null)}
               className="w-full py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700"
             >
               Close

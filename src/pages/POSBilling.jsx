@@ -300,7 +300,7 @@ export default function POSBilling() {
           size: item.size || '',
           brand: item.brand || 'Generic',
           category: item.category || 'Hardware',
-          bin: item.bin_id || 'R01-L1-S1',
+          bin: item.bin_id || '',
           baseUnit,
           billingUnit: baseUnit,
           qty: 1,
@@ -937,7 +937,7 @@ export default function POSBilling() {
                                   <span>·</span>
                                 </>
                               )}
-                              <span>{t('dash_shelf')}: {item.bin || 'R01-L1-S1'}</span>
+                              <span>{t('dash_shelf')}: {item.bin || 'Unassigned'}</span>
                               <span>·</span>
                               <span className={exceedsStock ? 'text-rose-600 font-bold' : 'text-emerald-600 font-medium'}>
                                 {t('cat_stock')}: {formatQty(availableStock)} {baseUnit}

@@ -1,3 +1,4 @@
+import BinPicker from '../components/BinPicker.jsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -36,6 +37,7 @@ import { useAppDialog } from '../components/AppDialogContext.jsx';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
 import ExportMenu from '../components/ExportMenu.jsx';
 import OrdersButton from '../components/OrdersButton.jsx';
+import BinLocation, { LocateButton, LocationModal } from '../components/BinLocation.jsx';
 
 const VIEW_MODES = [
   { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12 },
@@ -56,7 +58,7 @@ const EMPTY_FORM = {
   cost_price: '',
   quantity: '',
   reorder_level: '20',
-  bin_id: 'R01-L1-S1',
+  bin_id: '',
   image_url: '',
   status: 'Available',
 };
@@ -70,6 +72,8 @@ export default function Catalog() {
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [availableBins, setAvailableBins] = useState([]);
+  const [racks, setRacks] = useState([]);
+  const [locateItem, setLocateItem] = useState(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [brandFilter, setBrandFilter] = useState('All');
@@ -186,9 +190,10 @@ export default function Catalog() {
 
   const loadRackBins = async () => {
     if (window.api && window.api.getRacks) {
-      const racks = await window.api.getRacks();
+      const rackList = await window.api.getRacks();
+      setRacks(rackList || []);
       const bins = [];
-      (racks || []).forEach((r) => {
+      (rackList || []).forEach((r) => {
         (r.bins || []).forEach((b) => {
           bins.push({ code: b.bin_code, label: `${b.bin_code} (${r.name})` });
         });
@@ -338,7 +343,7 @@ export default function Catalog() {
     setModalMode('library');
     setForm({
       ...EMPTY_FORM,
-      bin_id: availableBins[0]?.code || 'R01-L1-S1',
+      bin_id: availableBins[0]?.code || '',
     });
     loadRackBins();
     setShowAddModal(true);
@@ -359,7 +364,7 @@ export default function Catalog() {
       cost_price: item.cost_price,
       quantity: item.quantity,
       reorder_level: item.reorder_level,
-      bin_id: item.bin_id || 'R01-L1-S1',
+      bin_id: item.bin_id || '',
       image_url: item.image_url || '',
       status: item.status === 'Unavailable' || item.status === 'Inactive' ? 'Unavailable' : 'Available',
     });
@@ -400,7 +405,7 @@ export default function Catalog() {
       cost_price: String(itemPayload.cost_price ?? ''),
       quantity: String(itemPayload.quantity ?? '10'),
       reorder_level: String(itemPayload.reorder_level ?? '10'),
-      bin_id: itemPayload.bin_id || availableBins[0]?.code || 'R01-L1-S1',
+      bin_id: itemPayload.bin_id || availableBins[0]?.code || '',
       image_url: itemPayload.image_url || '',
     });
     setModalMode('manual');
@@ -487,6 +492,13 @@ export default function Catalog() {
         const res = await window.api.bulkImportItems(parsedItems);
         if (res && res.success) {
           showToast(`Imported / updated ${res.count} products from CSV.`);
+          if (res.invalidBins && res.invalidBins.length) {
+            await showAlert({
+              title: 'Some bins were not found',
+              message: `These bin codes do not exist and were left Unassigned: ${res.invalidBins.join(', ')}. Create the rack first, then assign them in Settings → Racks & Bins.`,
+              tone: 'warning',
+            });
+          }
           await loadItems();
           window.dispatchEvent(new CustomEvent('stock-updated'));
         } else {
@@ -744,7 +756,7 @@ export default function Catalog() {
                         <div className="font-semibold text-slate-900">{tName(item.name)}</div>
                         <div className="text-[11px] text-slate-400">
                           {tCategory(item.category)} {item.brand ? `· ${item.brand}` : ''} · {t('dash_shelf')}:{' '}
-                          <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
+                          <BinLocation bin={item.bin_id} racks={racks} className="text-blue-600 font-medium" />
                         </div>
                       </div>
                     </div>
@@ -782,6 +794,7 @@ export default function Catalog() {
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-2 text-slate-400">
+                      <LocateButton item={item} onLocate={setLocateItem} size="sm" />
                       <button
                         onClick={() => openEdit(item)}
                         className="p-1 hover:text-blue-600 hover:bg-slate-100 rounded transition-colors"
@@ -846,7 +859,7 @@ export default function Catalog() {
                       )}
                       <p className="text-[11px] text-slate-400 truncate mt-0.5">
                         {tCategory(item.category)}{item.brand ? ` · ${item.brand}` : ''} ·{' '}
-                        <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
+                        <BinLocation bin={item.bin_id} racks={racks} className="text-blue-600 font-medium" />
                       </p>
                     </div>
 
@@ -858,6 +871,7 @@ export default function Catalog() {
                         )}
                       </span>
                       <div className="flex items-center gap-1 text-slate-400">
+                        <LocateButton item={item} onLocate={setLocateItem} size="lg" />
                         <button
                           onClick={() => openEdit(item)}
                           className="p-1.5 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -923,6 +937,7 @@ export default function Catalog() {
                         )}
                       </span>
                       <div className="flex items-center gap-0.5 text-slate-400 flex-shrink-0">
+                        <LocateButton item={item} onLocate={setLocateItem} size="sm" />
                         <button
                           onClick={() => openEdit(item)}
                           className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -1026,6 +1041,8 @@ export default function Catalog() {
       </div>
 
       {/* Add / Edit Modal */}
+      {locateItem && <LocationModal item={locateItem} racks={racks} onClose={() => setLocateItem(null)} />}
+
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className={`animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-3xl' : 'max-w-lg'}`}>
@@ -1059,7 +1076,7 @@ export default function Catalog() {
                       setFormError('');
                       setForm({
                         ...EMPTY_FORM,
-                        bin_id: availableBins[0]?.code || 'R01-L1-S1',
+                        bin_id: availableBins[0]?.code || '',
                       });
                       setModalMode('manual');
                     }}
@@ -1309,21 +1326,7 @@ export default function Catalog() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack / Shelf Bin</label>
-                  <input
-                    type="text"
-                    list="rack-bins-list"
-                    placeholder="e.g. R01-L1-S1"
-                    value={form.bin_id}
-                    onChange={(e) => setForm({ ...form, bin_id: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  />
-                  <datalist id="rack-bins-list">
-                    {availableBins.map((b) => (
-                      <option key={b.code} value={b.code}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </datalist>
+                  <BinPicker value={form.bin_id} onChange={(code) => setForm({ ...form, bin_id: code })} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
