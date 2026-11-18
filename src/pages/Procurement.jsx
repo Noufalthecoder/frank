@@ -12,9 +12,11 @@ import {
   Download
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import { useAppDialog } from '../components/AppDialogContext.jsx';
 
 export default function Procurement() {
   const { t } = useLanguage();
+  const { showAlert, showConfirm } = useAppDialog();
   const [activeTab, setActiveTab] = useState('Purchase Orders');
   const [orders, setOrders] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -104,11 +106,19 @@ export default function Procurement() {
   const handleCreatePo = async (e) => {
     e.preventDefault();
     if (!poForm.vendor_name) {
-      alert('Please select or add a vendor first.');
+      await showAlert({
+        title: 'Vendor Required',
+        message: 'Please select or add a vendor first.',
+        tone: 'warning',
+      });
       return;
     }
     if (!poForm.amount) {
-      alert('Please enter total amount or add line items.');
+      await showAlert({
+        title: 'Amount Required',
+        message: 'Please enter total amount or add line items.',
+        tone: 'warning',
+      });
       return;
     }
     if (window.api && window.api.createPurchaseOrder) {
@@ -146,7 +156,13 @@ export default function Procurement() {
         lines.length > 0
           ? `Mark ${po.po_number} as Received?\n\nThis will automatically add ${lines.length} product line(s) into your catalog stock.`
           : `Mark ${po.po_number} as Received?`;
-      if (!confirm(confirmMsg)) return;
+      const ok = await showConfirm({
+        title: 'Confirm Goods Receipt',
+        message: confirmMsg,
+        confirmLabel: 'Receive & Restock',
+        tone: 'success',
+      });
+      if (!ok) return;
     }
     if (window.api && window.api.updatePurchaseOrderStatus) {
       await window.api.updatePurchaseOrderStatus(po.id, newStatus);
@@ -157,7 +173,13 @@ export default function Procurement() {
   };
 
   const handleDeletePo = async (po) => {
-    if (!confirm(`Delete Purchase Order ${po.po_number}?`)) return;
+    const ok = await showConfirm({
+      title: 'Delete Purchase Order',
+      message: `Delete Purchase Order ${po.po_number}?`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     if (window.api && window.api.deletePurchaseOrder) {
       await window.api.deletePurchaseOrder(po.id);
       showToast(`${po.po_number} deleted.`);
@@ -168,7 +190,11 @@ export default function Procurement() {
   const handleAddVendor = async (e) => {
     e.preventDefault();
     if (!vendorForm.name.trim()) {
-      alert('Vendor Name is required.');
+      await showAlert({
+        title: 'Vendor Name Required',
+        message: 'Please enter a vendor or company name.',
+        tone: 'warning',
+      });
       return;
     }
     if (window.api && window.api.addVendor) {
@@ -187,7 +213,13 @@ export default function Procurement() {
   };
 
   const handleDeleteVendor = async (v) => {
-    if (!confirm(`Remove vendor "${v.name}"?`)) return;
+    const ok = await showConfirm({
+      title: 'Remove Vendor',
+      message: `Remove vendor "${v.name}" from your directory?`,
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    });
+    if (!ok) return;
     if (window.api && window.api.deleteVendor) {
       await window.api.deleteVendor(v.id);
       showToast(`Vendor "${v.name}" removed.`);

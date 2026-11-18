@@ -32,6 +32,7 @@ import {
   formatQty,
 } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import { useAppDialog } from '../components/AppDialogContext.jsx';
 
 const VIEW_MODES = [
   { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12 },
@@ -62,6 +63,7 @@ const isItemAvailable = (item) =>
 
 export default function Catalog() {
   const { t, tName, tCategory } = useLanguage();
+  const { showAlert, showConfirm } = useAppDialog();
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [availableBins, setAvailableBins] = useState([]);
@@ -224,7 +226,13 @@ export default function Catalog() {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this item?')) {
+    const ok = await showConfirm({
+      title: 'Delete Product',
+      message: 'Are you sure you want to delete this item from your catalog?',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (ok) {
       if (window.api && window.api.deleteItem) {
         await window.api.deleteItem(id);
         loadItems();
@@ -364,7 +372,11 @@ export default function Catalog() {
         `Saved ${res.count} size${res.count === 1 ? '' : 's'}${totalUnits ? ` (+${totalUnits} units)` : ''} to catalog.`
       );
     } else {
-      alert(res?.error || 'Failed to add selected tools.');
+      await showAlert({
+        title: 'Could Not Add Tools',
+        message: res?.error || 'Failed to add selected tools.',
+        tone: 'danger',
+      });
     }
   };
 
@@ -445,7 +457,11 @@ export default function Catalog() {
       const text = await file.text();
       const lines = text.split(/\r?\n/).filter((l) => l.trim());
       if (lines.length < 2) {
-        alert('CSV file must have a header row and at least one product row.');
+        await showAlert({
+          title: 'Invalid CSV File',
+          message: 'CSV file must have a header row and at least one product row.',
+          tone: 'warning',
+        });
         return;
       }
       const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, '_'));
@@ -477,11 +493,19 @@ export default function Catalog() {
           await loadItems();
           window.dispatchEvent(new CustomEvent('stock-updated'));
         } else {
-          alert(res?.error || 'CSV import failed.');
+          await showAlert({
+            title: 'CSV Import Failed',
+            message: res?.error || 'CSV import failed.',
+            tone: 'danger',
+          });
         }
       }
     } catch (err) {
-      alert(`Failed to read CSV: ${err.message}`);
+      await showAlert({
+        title: 'CSV Read Error',
+        message: `Failed to read CSV: ${err.message}`,
+        tone: 'danger',
+      });
     } finally {
       e.target.value = '';
     }
