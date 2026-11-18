@@ -676,7 +676,7 @@ export default function Finance() {
       {/* Add Expense Modal */}
       {showAddExpense && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden p-5 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden p-7 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">{t('fi_record_shop_expense')}</h3>
               <button onClick={() => setShowAddExpense(false)} className="p-1 text-slate-400 hover:text-slate-600">

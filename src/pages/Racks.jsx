@@ -386,7 +386,7 @@ export default function Racks({ embedded = false }) {
       {/* Add Rack Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-900">{t('rk_add_new')}</h3>
               <button
@@ -501,7 +501,7 @@ export default function Racks({ embedded = false }) {
       {/* Edit Rack Modal */}
       {editRack && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-900">{t('rk_edit_rack_n', { code: editRack.code })}</h3>
               <button onClick={() => setEditRack(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded">
@@ -581,7 +581,7 @@ export default function Racks({ embedded = false }) {
       {/* Bin Detail Modal */}
       {selectedBin && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-sm overflow-hidden p-5 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-xl overflow-hidden p-7 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 font-mono">{selectedBin.bin_code}</h3>

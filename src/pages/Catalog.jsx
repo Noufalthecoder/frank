@@ -1029,7 +1029,7 @@ export default function Catalog() {
 
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-3xl' : 'max-w-lg'}`}>
+          <div className={`animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-5xl' : 'max-w-2xl'}`}>
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
               <div className="flex items-center gap-2.5">

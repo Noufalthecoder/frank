@@ -330,3 +330,11 @@ button:disabled {
     width: 100% !important;
   }
 }
+
+/* Dialogs: roomier, easier-to-hit form controls */
+.fixed.inset-0 :is(input:not([type="checkbox"]):not([type="radio"]), select) {
+  min-height: 2.75rem;
+  font-size: 0.9375rem;
+}
+.fixed.inset-0 textarea { font-size: 0.9375rem; }
+.fixed.inset-0 label { font-size: 0.875rem; }

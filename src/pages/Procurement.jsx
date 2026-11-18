@@ -843,7 +843,7 @@ export default function Procurement() {
       {/* Create / Edit PO Modal (Dynamic Vendors + Searchable 10-Item Product Picker + Inline Catalog Creator) */}
       {receivingPo && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-7">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-slate-900">{t('pr_receive_title', { po: receivingPo.po_number })}</h3>
               <button onClick={() => setReceivingPo(null)} className="p-1 text-slate-400 hover:text-slate-600">
@@ -1278,7 +1278,7 @@ export default function Procurement() {
       {/* Add Vendor Modal */}
       {showAddVendorModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden p-5 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden p-7 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">{t('pr_add_new_vendor')}</h3>
               <button onClick={() => setShowAddVendorModal(false)} className="p-1 text-slate-400 hover:text-slate-600">
@@ -1365,7 +1365,7 @@ export default function Procurement() {
       {/* PO Detail Modal */}
       {selectedPo && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden p-5 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden p-7 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">{selectedPo.vendor_name}</h3>

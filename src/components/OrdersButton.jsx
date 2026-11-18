@@ -77,7 +77,7 @@ export default function OrdersButton({ label, className = '' }) {
             if (e.target === e.currentTarget) setOpen(false);
           }}
         >
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">{t('ct_po_title')}</h3>

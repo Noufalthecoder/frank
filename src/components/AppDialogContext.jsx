@@ -101,7 +101,7 @@ export function AppDialogProvider({ children }) {
           onClick={() => closeWith(dialog.mode === 'alert' ? true : false)}
         >
           <div
-            className="animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full max-w-md overflow-hidden"
+            className="animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full max-w-lg overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5 flex items-start gap-3.5">
