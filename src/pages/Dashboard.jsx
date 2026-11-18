@@ -1,3 +1,4 @@
+import { loadNetInvoices } from '../lib/returnMath.js';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -53,12 +54,12 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     if (!window.api) return;
     try {
-      const [itemList, invoiceList] = await Promise.all([
+      const [itemList, net] = await Promise.all([
         window.api.getItems ? window.api.getItems() : [],
-        window.api.getInvoices ? window.api.getInvoices() : [],
+        loadNetInvoices(), // invoices net of any partial returns
       ]);
       setItems(itemList || []);
-      setInvoices(invoiceList || []);
+      setInvoices(net.invoices || []);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     }

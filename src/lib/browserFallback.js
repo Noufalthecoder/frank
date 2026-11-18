@@ -1,3 +1,4 @@
+import { planReturn, r2 } from './returnMath.js';
 import { normalizeUnit } from './units.js';
 
 // LocalStorage-backed fallback for window.api when previewing in a regular browser.
@@ -295,7 +296,7 @@ export function initBrowserApiFallback() {
           return true;
         })
         .sort((a, b) => b.id - a.id);
-      const sumTotal = filtered.reduce((s, i) => (i.status === 'Returned' ? s : s + (Number(i.total) || 0)), 0);
+      const sumTotal = filtered.reduce((s, i) => (i.status === 'Returned' ? s : s + (Number(i.total) || 0) - (Number(i.returned_total) || 0)), 0);
       return { ...pageOf(filtered, opts), sumTotal };
     },
     createInvoice: async (inv) => {
@@ -332,22 +333,40 @@ export function initBrowserApiFallback() {
       writeDb(db);
       return { success: true, id, invoice_number: invNumber, zeroStockAlerts };
     },
-    returnInvoice: async (id) => {
+    getInvoiceReturns: async (invoiceId) =>
+      (readDb().invoice_returns || []).filter((r) => r.invoice_id === invoiceId).sort((a, b) => b.id - a.id),
+    getReturns: async () => [...(readDb().invoice_returns || [])].sort((a, b) => b.id - a.id),
+    processReturn: async (payload = {}) => {
+      const { invoiceId, lines: req, reason = 'other', note = '', restock = true } = payload || {};
       const db = readDb();
-      const inv = db.invoices.find((i) => i.id === id);
+      db.invoice_returns = db.invoice_returns || [];
+      const inv = db.invoices.find((i) => i.id === invoiceId);
       if (!inv) return { success: false, error: 'Invoice not found.' };
-      if (inv.status === 'Returned') return { success: false, error: 'Invoice already returned.' };
-      const items = JSON.parse(inv.items_json || '[]');
-      items.forEach((sold) => {
-        const target = db.items.find((i) => i.sku === sold.sku || i.id === sold.id);
-        if (target) {
-          const addBack = Number(sold.stock_deduction_qty ?? sold.quantity ?? 0);
-          target.quantity = Number((Number(target.quantity) + addBack).toFixed(6));
-        }
+      if (inv.status === 'Returned') return { success: false, error: 'Invoice was already returned.' };
+      const prior = db.invoice_returns.filter((r) => r.invoice_id === invoiceId);
+      const plan = planReturn(inv, prior, req);
+      if (plan.error) return { success: false, error: plan.error };
+      const id = db.invoice_returns.reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
+      const returnNumber = `RET-${String(id).padStart(5, '0')}`;
+      db.invoice_returns.push({
+        id, return_number: returnNumber, invoice_id: inv.id, invoice_number: inv.invoice_number,
+        invoice_date: inv.date_time, payment_mode: inv.payment_mode, date_time: formatLocalDateTime(),
+        reason: String(reason), note: String(note || '').slice(0, 300), restocked: Boolean(restock),
+        refund_amount: plan.refund, lines: plan.lines, items_json: JSON.stringify(plan.lines),
       });
-      inv.status = 'Returned';
+      if (restock) {
+        plan.lines.forEach((l) => {
+          const target = db.items.find((i) => i.sku === l.sku || i.id === l.id);
+          if (target) target.quantity = Number((Number(target.quantity) + l.stockQty).toFixed(6));
+        });
+      }
+      inv.returned_total = r2(Number(inv.returned_total || 0) + plan.refund);
+      inv.status = plan.fullyReturned ? 'Returned' : 'Partially Returned';
       writeDb(db);
-      return { success: true, restockedCount: items.length };
+      return {
+        success: true, return_number: returnNumber, refund: plan.refund, fullyReturned: plan.fullyReturned,
+        restockedUnits: restock ? plan.lines.length : 0, status: inv.status,
+      };
     },
 
     getPurchaseOrders: async () =>
@@ -590,6 +609,7 @@ export function initBrowserApiFallback() {
         items: [],
         racks: [],
         invoices: [],
+        invoice_returns: [],
         purchase_orders: [],
         vendors: [],
         expenses: [],
