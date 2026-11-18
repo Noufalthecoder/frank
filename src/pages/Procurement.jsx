@@ -31,7 +31,7 @@ export default function Procurement() {
     vendor_name: '',
     order_date: new Date().toISOString().split('T')[0],
     amount: '',
-    status: 'Open',
+    status: 'Request',
     items: [],
   });
   const [lineSku, setLineSku] = useState('');
@@ -112,8 +112,10 @@ export default function Procurement() {
       return;
     }
     if (window.api && window.api.createPurchaseOrder) {
+      const createdStatus = poForm.status === 'Received' ? 'Received' : 'Request';
       await window.api.createPurchaseOrder({
         ...poForm,
+        status: createdStatus,
         amount: parseFloat(poForm.amount) || 0,
       });
       setShowNewPoModal(false);
@@ -122,11 +124,18 @@ export default function Procurement() {
         vendor_name: vendors[0]?.name || '',
         order_date: new Date().toISOString().split('T')[0],
         amount: '',
-        status: 'Open',
+        status: 'Request',
         items: [],
       });
-      showToast('Purchase Order created.');
-      loadData();
+      showToast(
+        createdStatus === 'Received' && poForm.items.length > 0
+          ? 'Purchase Order created & stock synced.'
+          : 'Purchase Order created.'
+      );
+      await loadData();
+      if (createdStatus === 'Received') {
+        window.dispatchEvent(new CustomEvent('stock-updated'));
+      }
     }
   };
 
@@ -196,16 +205,22 @@ export default function Procurement() {
     }
   };
 
+  const normalizePoStatus = (status) => {
+    if (status === 'Received' || status === 'Closed') return 'Received';
+    return 'Request';
+  };
+
   const filteredOrders = orders.filter((o) => {
     const q = search.toLowerCase();
     const matchSearch =
       (o.po_number || '').toLowerCase().includes(q) ||
       (o.vendor_name || '').toLowerCase().includes(q);
-    const matchStatus = statusFilter === 'All' || o.status === statusFilter;
+    const normalized = normalizePoStatus(o.status);
+    const matchStatus = statusFilter === 'All' || normalized === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const openOrders = orders.filter((o) => o.status === 'Open');
+  const openOrders = orders.filter((o) => normalizePoStatus(o.status) === 'Request');
 
   const handleExportCsv = () => {
     const esc = (val) => {
@@ -239,7 +254,7 @@ export default function Procurement() {
         esc(o.po_number || ''),
         esc(o.vendor_name || ''),
         esc(o.order_date || ''),
-        esc(o.status || ''),
+        esc(normalizePoStatus(o.status)),
         Number(o.amount || 0).toFixed(2),
       ]);
       const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
@@ -353,9 +368,8 @@ export default function Procurement() {
               className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="All">Status: All</option>
-              <option value="Open">Open</option>
+              <option value="Request">Request</option>
               <option value="Received">Received</option>
-              <option value="Closed">Closed</option>
             </select>
           </div>
 
@@ -386,35 +400,30 @@ export default function Procurement() {
                       ₹ {Number(po.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                          po.status === 'Open'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : po.status === 'Received'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border border-slate-200'
-                        }`}
-                      >
-                        {po.status}
-                      </span>
+                      {(() => {
+                        const poStatus = normalizePoStatus(po.status);
+                        return (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                              poStatus === 'Request'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}
+                          >
+                            {poStatus}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {po.status === 'Open' && (
+                        {normalizePoStatus(po.status) === 'Request' && (
                           <button
                             onClick={() => handleStatusChange(po, 'Received')}
                             className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[11px] font-semibold hover:bg-emerald-100 transition-colors"
                             title="Receive Goods & Auto-Restock"
                           >
                             Receive
-                          </button>
-                        )}
-                        {po.status === 'Received' && (
-                          <button
-                            onClick={() => handleStatusChange(po, 'Closed')}
-                            className="px-2 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[11px] font-semibold hover:bg-slate-200 transition-colors"
-                          >
-                            Close
                           </button>
                         )}
                         <button
@@ -455,7 +464,7 @@ export default function Procurement() {
               <PackageCheck className="w-8 h-8 text-emerald-400 mx-auto" />
               <p className="font-semibold text-slate-700">All Incoming Deliveries Received</p>
               <p className="text-slate-400 max-w-sm mx-auto">
-                There are no open purchase orders awaiting goods receipt. Create a New PO to order stock from vendors.
+                There are no requested purchase orders awaiting goods receipt. Create a New PO to order stock from vendors.
               </p>
             </div>
           ) : (
@@ -649,18 +658,37 @@ export default function Procurement() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Total Amount (₹) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="e.g. 48500"
-                  value={poForm.amount}
-                  onChange={(e) => setPoForm({ ...poForm, amount: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Total Amount (₹) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="e.g. 48500"
+                    value={poForm.amount}
+                    onChange={(e) => setPoForm({ ...poForm, amount: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 no-spinner"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Status *</label>
+                  <select
+                    value={poForm.status}
+                    onChange={(e) => setPoForm({ ...poForm, status: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Request">Request</option>
+                    <option value="Received">Received</option>
+                  </select>
+                </div>
               </div>
+              {poForm.status === 'Received' && (
+                <p className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 rounded-lg px-3 py-1.5">
+                  Any ordered items listed above will be restocked into your catalog immediately upon generating this PO.
+                </p>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
@@ -785,7 +813,7 @@ export default function Procurement() {
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-500">Status:</span>
-                <span className="font-bold text-slate-800">{selectedPo.status}</span>
+                <span className="font-bold text-slate-800">{normalizePoStatus(selectedPo.status)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Total Amount:</span>

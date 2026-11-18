@@ -94,7 +94,7 @@ function getDefaultData() {
       { id: 3, invoice_number: 'INV-001246', date_time: formatLocalDateTime(), customer_name: 'KPN Interiors', customer_phone: '', subtotal: 940, discount: 0, total: 940, payment_mode: 'Card', items_count: 3, items_json: '[]', status: 'Completed' },
     ],
     purchase_orders: [
-      { id: 1, po_number: 'PO-00284', vendor_name: 'KPR Fasteners', order_date: new Date().toISOString().slice(0, 10), amount: 48500, status: 'Open', items_json: '[]' },
+      { id: 1, po_number: 'PO-00284', vendor_name: 'KPR Fasteners', order_date: new Date().toISOString().slice(0, 10), amount: 48500, status: 'Request', items_json: '[]' },
       { id: 2, po_number: 'PO-00283', vendor_name: 'Metro Tools Co.', order_date: new Date().toISOString().slice(0, 10), amount: 72000, status: 'Received', items_json: '[]' },
     ],
     expenses: [
@@ -356,19 +356,35 @@ export function initBrowserApiFallback() {
       return { success: true, restockedCount: items.length };
     },
 
-    getPurchaseOrders: async () => [...readDb().purchase_orders].sort((a, b) => b.id - a.id),
+    getPurchaseOrders: async () =>
+      [...readDb().purchase_orders]
+        .map((p) => ({
+          ...p,
+          status: p.status === 'Received' || p.status === 'Closed' ? 'Received' : 'Request',
+        }))
+        .sort((a, b) => b.id - a.id),
     createPurchaseOrder: async (po) => {
       const db = readDb();
       const id = db.purchase_orders.reduce((max, p) => Math.max(max, p.id || 0), 0) + 1;
+      const poStatus = po.status === 'Received' ? 'Received' : 'Request';
+      const items = Array.isArray(po.items) ? po.items : [];
       db.purchase_orders.push({
         id,
         po_number: po.po_number || `PO-${String(Math.floor(10000 + Math.random() * 90000))}`,
         vendor_name: po.vendor_name,
         order_date: po.order_date,
         amount: po.amount,
-        status: po.status || 'Open',
-        items_json: JSON.stringify(po.items || []),
+        status: poStatus,
+        items_json: JSON.stringify(items),
       });
+      if (poStatus === 'Received' && items.length > 0) {
+        items.forEach((i) => {
+          const target = db.items.find((x) => x.sku === i.sku);
+          if (target) {
+            target.quantity = Number((Number(target.quantity) + Number(i.quantity || 0)).toFixed(6));
+          }
+        });
+      }
       writeDb(db);
       return { success: true };
     },
@@ -376,14 +392,17 @@ export function initBrowserApiFallback() {
       const db = readDb();
       const po = db.purchase_orders.find((p) => p.id === id);
       if (!po) return { success: false, error: 'PO not found.' };
-      if (po.status !== 'Received' && status === 'Received') {
+      const nextStatus = status === 'Received' ? 'Received' : 'Request';
+      if (po.status !== 'Received' && nextStatus === 'Received') {
         const items = JSON.parse(po.items_json || '[]');
         items.forEach((i) => {
           const target = db.items.find((x) => x.sku === i.sku);
-          if (target) target.quantity = Number(target.quantity) + Number(i.quantity || 0);
+          if (target) {
+            target.quantity = Number((Number(target.quantity) + Number(i.quantity || 0)).toFixed(6));
+          }
         });
       }
-      po.status = status;
+      po.status = nextStatus;
       writeDb(db);
       return { success: true };
     },
