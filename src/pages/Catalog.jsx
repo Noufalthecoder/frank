@@ -624,12 +624,13 @@ export default function Catalog() {
                 <button
                   type="button"
                   onClick={() => setShowViewMenu((prev) => !prev)}
+                  title={`${t('cat_view_label')}: ${t(currentView.labelKey)}`}
+                  aria-label={`${t('cat_view_label')}: ${t(currentView.labelKey)}`}
                   aria-haspopup="menu"
                   aria-expanded={showViewMenu}
-                  className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <CurrentIcon className="w-3.5 h-3.5 text-blue-600" />
-                  <span>{t('cat_view_label')}: {t(currentView.labelKey)}</span>
+                  <CurrentIcon className="w-4 h-4 text-blue-600" />
                   <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showViewMenu ? 'rotate-180' : ''}`} />
                 </button>
               );
