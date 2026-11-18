@@ -13,6 +13,7 @@ import PrintErrorBanner from '../components/PrintErrorBanner.jsx';
 import { getPrintPreferences, executePrint, exportReceiptPdf } from '../lib/printConfig.js';
 import { formatQty, isMeasurableUnit } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import ExportMenu from '../components/ExportMenu.jsx';
 
 const PAGE_SIZE = 12;
 
@@ -125,30 +126,17 @@ export default function SalesHistory() {
     }
   };
 
-  const handleExportCsv = () => {
-    const headers = ['Invoice No', 'Date & Time', 'Customer', 'Phone', 'Items Count', 'Subtotal', 'Discount', 'Total', 'Payment Mode', 'Status'];
-    const rows = filteredInvoices.map((inv) => [
-      inv.invoice_number,
-      inv.date_time || '',
-      `"${(inv.customer_name || 'Walk-in Customer').replace(/"/g, '""')}"`,
-      inv.customer_phone || '',
-      inv.items_count || 0,
-      Number(inv.subtotal || 0).toFixed(2),
-      Number(inv.discount || 0).toFixed(2),
-      Number(inv.total || 0).toFixed(2),
-      inv.payment_mode || 'Cash',
-      inv.status || 'Completed',
-    ]);
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sales_history_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast(`Exported ${filteredInvoices.length} invoices to CSV.`);
-  };
+  const getSalesExport = () => ({
+    title: 'Sales History',
+    filename: `sales_history_${new Date().toISOString().split('T')[0]}`,
+    headers: ['Invoice No', 'Date & Time', 'Customer', 'Phone', 'Items', 'Subtotal', 'Discount', 'Total', 'Payment Mode', 'Status'],
+    rows: filteredInvoices.map((inv) => [
+      inv.invoice_number, inv.date_time || '', inv.customer_name || 'Walk-in Customer', inv.customer_phone || '',
+      Number(inv.items_count || 0), Number(inv.subtotal || 0), Number(inv.discount || 0), Number(inv.total || 0),
+      inv.payment_mode || 'Cash', inv.status || 'Completed',
+    ]),
+  });
+
 
   return (
     <div className="space-y-5">
@@ -227,13 +215,7 @@ export default function SalesHistory() {
             <option value="Last 7 Days">{t('date_7d')}</option>
             <option value="Last 30 Days">{t('date_30d')}</option>
           </select>
-          <button
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>{t('cat_export_csv')}</span>
-          </button>
+          <ExportMenu getSpec={getSalesExport} onDone={showToast} />
         </div>
       </div>
 

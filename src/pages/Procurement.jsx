@@ -17,6 +17,7 @@ import { UNIT_OPTIONS, normalizeUnit, formatQty } from '../lib/units.js';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
+import ExportMenu from '../components/ExportMenu.jsx';
 
 const generateQuickSku = (name, size) => {
   const words = String(name || '')
@@ -504,52 +505,27 @@ export default function Procurement() {
 
   const openOrders = orders.filter((o) => normalizePoStatus(o.status) === 'Request');
 
-  const handleExportCsv = () => {
-    const esc = (val) => {
-      const s = String(val ?? '');
-      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-    };
+  const getProcurementExport = () => {
     const today = new Date().toISOString().split('T')[0];
-
     if (activeTab === 'Vendors') {
-      const headers = ['Vendor Name', 'Contact Person', 'Phone', 'Email', 'City'];
-      const rows = vendors.map((v) => [
-        esc(v.name || ''),
-        esc(v.contact_person || ''),
-        esc(v.phone || ''),
-        esc(v.email || ''),
-        esc(v.city || ''),
-      ]);
-      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `vendors_${today}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast(`Exported ${vendors.length} vendor${vendors.length === 1 ? '' : 's'} to CSV.`);
-    } else {
-      const source = activeTab === 'Goods Receipt (GRN)' ? openOrders : filteredOrders;
-      const headers = ['PO Number', 'Vendor', 'Order Date', 'Status', 'Amount'];
-      const rows = source.map((o) => [
-        esc(o.po_number || ''),
-        esc(o.vendor_name || ''),
-        esc(o.order_date || ''),
-        esc(normalizePoStatus(o.status)),
-        Number(o.amount || 0).toFixed(2),
-      ]);
-      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `purchase_orders_${today}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast(`Exported ${source.length} purchase order${source.length === 1 ? '' : 's'} to CSV.`);
+      return {
+        title: 'Vendors',
+        filename: `vendors_${today}`,
+        headers: ['Vendor Name', 'Contact Person', 'Phone', 'Email', 'City'],
+        rows: vendors.map((v) => [v.name || '', v.contact_person || '', v.phone || '', v.email || '', v.city || '']),
+      };
     }
+    const source = activeTab === 'Goods Receipt (GRN)' ? openOrders : filteredOrders;
+    return {
+      title: 'Purchase Orders',
+      filename: `purchase_orders_${today}`,
+      headers: ['PO Number', 'Vendor', 'Order Date', 'Status', 'Amount'],
+      rows: source.map((o) => [
+        o.po_number || '', o.vendor_name || '', o.order_date || '', normalizePoStatus(o.status), Number(o.amount || 0),
+      ]),
+    };
   };
+
 
   return (
     <div className="space-y-5">
@@ -571,13 +547,7 @@ export default function Procurement() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>{t('cat_export_csv')}</span>
-          </button>
+          <ExportMenu getSpec={getProcurementExport} onDone={showToast} />
           <button
             onClick={() => setShowAddVendorModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"

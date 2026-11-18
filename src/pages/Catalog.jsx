@@ -34,6 +34,8 @@ import {
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
+import ExportMenu from '../components/ExportMenu.jsx';
+import OrdersButton from '../components/OrdersButton.jsx';
 
 const VIEW_MODES = [
   { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12 },
@@ -410,26 +412,17 @@ export default function Catalog() {
     return acc;
   }, {});
 
-  // CSV Export
-  const handleExportCsv = () => {
-    const headers = ['sku', 'name', 'size', 'unit', 'category', 'brand', 'selling_price', 'cost_price', 'quantity', 'reorder_level', 'bin_id'];
-    const rows = filteredItems.map((i) =>
-      headers.map((h) => {
-        const val = i[h] ?? '';
-        const str = String(val);
-        return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
-      }).join(',')
-    );
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `product_catalog_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast(`Exported ${filteredItems.length} products to CSV.`);
-  };
+  // Excel / PDF export spec
+  const getCatalogExport = () => ({
+    title: 'Product Catalog',
+    filename: `product_catalog_${new Date().toISOString().split('T')[0]}`,
+    headers: ['SKU', 'Name', 'Size', 'Unit', 'Category', 'Brand', 'Selling Price', 'Cost Price', 'Quantity', 'Reorder Level', 'Bin'],
+    rows: filteredItems.map((i) => [
+      i.sku || '', i.name || '', i.size || '', i.unit || '', i.category || '', i.brand || '',
+      Number(i.selling_price || 0), Number(i.cost_price || 0), Number(i.quantity || 0), Number(i.reorder_level || 0), i.bin_id || '',
+    ]),
+  });
+
 
   // CSV Import
   const parseCsvLine = (line) => {
@@ -580,13 +573,8 @@ export default function Catalog() {
             <Upload className="w-3.5 h-3.5 text-slate-500" />
             <span>{t('cat_import_csv')}</span>
           </button>
-          <button
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>{t('cat_export_csv')}</span>
-          </button>
+          <OrdersButton label={t('cat_orders')} />
+          <ExportMenu getSpec={getCatalogExport} onDone={showToast} className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all" />
           <button
             onClick={openAdd}
             className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl text-xs font-bold text-white shadow-sm shadow-blue-600/25 active:scale-[0.98] transition-all"
