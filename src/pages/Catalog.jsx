@@ -1,3 +1,4 @@
+import { localDateStr } from '../lib/dateUtils.js';
 import BinPicker from '../components/BinPicker.jsx';
 import { suggestBin } from '../lib/rackCategory.js';
 import React, { useState, useEffect, useRef } from 'react';
@@ -427,7 +428,7 @@ export default function Catalog() {
   // Excel / PDF export spec
   const getCatalogExport = () => ({
     title: 'Product Catalog',
-    filename: `product_catalog_${new Date().toISOString().split('T')[0]}`,
+    filename: `product_catalog_${localDateStr()}`,
     headers: ['SKU', 'Name', 'Size', 'Unit', 'Category', 'Brand', 'Selling Price', 'Cost Price', 'Quantity', 'Reorder Level', 'Bin'],
     rows: filteredItems.map((i) => [
       i.sku || '', i.name || '', i.size || '', i.unit || '', i.category || '', i.brand || '',
