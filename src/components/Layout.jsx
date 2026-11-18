@@ -121,7 +121,7 @@ export default function Layout({ children }) {
       <aside className="w-[260px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between">
         <div className="flex flex-col min-h-0">
           {/* Brand header */}
-          <div className="flex items-center gap-3 px-5 min-h-[56px] border-b border-slate-200">
+          <NavLink to="/" title={t('nav_home')} className="flex items-center gap-3 px-5 min-h-[56px] border-b border-slate-200 hover:bg-slate-50 transition-colors">
             <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center flex-shrink-0">
               <Layers className="w-4 h-4" />
             </div>
@@ -133,7 +133,7 @@ export default function Layout({ children }) {
                 {shopProfile.address_line1 || 'Beach Road'} · {shopProfile.address_line2 || 'Tharuvaikulam'}
               </p>
             </div>
-          </div>
+          </NavLink>
 
           {/* Navigation: POS Billing first, then a gap, then the rest */}
           <nav className="py-4 flex flex-col gap-1 overflow-y-auto">
@@ -215,7 +215,7 @@ export default function Layout({ children }) {
             <div
               className="flex items-center bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/80"
               role="group"
-              aria-label="Language switcher"
+              aria-label={t('fi_lang_switcher')}
             >
               <button
                 type="button"
@@ -307,7 +307,7 @@ export default function Layout({ children }) {
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                              SKU: <span className="font-mono font-medium text-slate-700">{item.sku}</span> · Rack: <span className="font-medium text-slate-700">{item.bin_id || 'Unassigned'}</span>
+                              {t('cat_col_sku')}: <span className="font-mono font-medium text-slate-700">{item.sku}</span> · {t('fi_rack')}: <span className="font-medium text-slate-700">{item.bin_id || t('fi_unassigned')}</span>
                             </p>
                             <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 mt-1.5 group-hover:translate-x-0.5 transition-transform">
                               <span>{t('update_stock_catalog')}</span>
