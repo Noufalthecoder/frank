@@ -1224,17 +1224,30 @@ export default function POSBilling() {
           <button
             onClick={handleGenerateBill}
             disabled={activeBill.cart.length === 0}
-            className={`w-full py-3.5 rounded-xl text-xs font-bold tracking-wide transition-all flex items-center justify-center gap-2 ${
+            className={`w-full py-3 px-4 rounded-xl text-[13px] font-bold tracking-[-0.01em] transition-all flex items-center justify-between ${
               activeBill.cart.length === 0
-                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
-                : 'bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-600/25 active:scale-[0.985]'
+                ? 'bg-slate-100/90 text-slate-400 border border-slate-200/90 cursor-not-allowed shadow-none'
+                : 'bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border border-blue-700/80 shadow-md shadow-blue-600/25 ring-1 ring-inset ring-white/15 active:scale-[0.99]'
             }`}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{t('pos_complete_btn')} (₹ {roundedTotal.toFixed(2)})</span>
-            <kbd className="px-1.5 py-0.5 bg-blue-700/80 rounded text-[10px] font-mono ml-1 text-white">
-              F9
-            </kbd>
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{t('pos_complete_btn')}</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="tabular-nums font-extrabold">
+                ₹ {roundedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <kbd
+                className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold border ${
+                  activeBill.cart.length === 0
+                    ? 'bg-white text-slate-400 border-slate-200/90'
+                    : 'bg-white/15 text-white border-white/25'
+                }`}
+              >
+                F9
+              </kbd>
+            </span>
           </button>
         </div>
       </div>
