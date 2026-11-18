@@ -236,9 +236,20 @@ export default function Dashboard() {
       legend: { display: false },
       tooltip: {
         backgroundColor: '#0f172a',
+        titleColor: '#f8fafc',
+        bodyColor: '#e2e8f0',
         padding: 10,
         cornerRadius: 10,
+        boxPadding: 6,
+        titleFont: { size: 12, weight: '700' },
         bodyFont: { size: 12, weight: '600' },
+        callbacks: {
+          label: (context) => {
+            const count = context.parsed || 0;
+            const pct = Math.round((count / totalSkus) * 100);
+            return ` ${count} ${t('dash_skus')} (${pct}%)`;
+          },
+        },
       },
     },
     cutout: '75%',
@@ -390,10 +401,12 @@ export default function Dashboard() {
           ) : (
             <>
               <div className="relative h-40 w-full flex items-center justify-center my-2">
-                <Doughnut data={categoryData} options={categoryOptions} />
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xl font-bold text-slate-900">{items.length}</span>
+                <div className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-bold text-slate-900 tabular-nums">{items.length}</span>
                   <span className="text-[11px] text-slate-400 font-medium">{t('dash_skus')}</span>
+                </div>
+                <div className="relative z-10 w-full h-full">
+                  <Doughnut data={categoryData} options={categoryOptions} />
                 </div>
               </div>
 
