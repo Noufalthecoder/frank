@@ -11,6 +11,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import { Line, Doughnut } from 'react-chartjs-2';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -40,6 +41,7 @@ const CATEGORY_COLORS = ['#2563eb', '#38bdf8', '#f59e0b', '#8b5cf6', '#10b981', 
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { t, tName, tCategory } = useLanguage();
   const [dateRange, setDateRange] = useState('All Time');
   const [items, setItems] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -87,7 +89,7 @@ export default function Dashboard() {
   // Real margin profit calculation
   const costMap = {};
   items.forEach((i) => {
-    costMap[i.sku] = Number(i.cost_price) || 0;
+    if (i.sku) costMap[String(i.sku).toUpperCase()] = Number(i.cost_price) || 0;
   });
 
   const totalProfit = validInvoices.reduce((sum, inv) => {
@@ -95,7 +97,12 @@ export default function Dashboard() {
       const lines = JSON.parse(inv.items_json || '[]');
       if (lines.length === 0) return sum + Number(inv.total || 0) * 0.25;
       const lineCost = lines.reduce(
-        (c, l) => c + Number(l.quantity || l.qty || 0) * (costMap[l.sku] || Number(l.rate || 0) * 0.72),
+        (c, l) => {
+          const skuKey = String(l.sku || '').toUpperCase();
+          const unitCost = costMap[skuKey] > 0 ? costMap[skuKey] : Number(l.rate || 0) * 0.72;
+          const baseUnitsSold = Number(l.stock_deduction_qty ?? l.quantity ?? l.qty ?? 0);
+          return c + baseUnitsSold * unitCost;
+        },
         0
       );
       return sum + (Number(inv.total || 0) - lineCost);
@@ -131,10 +138,21 @@ export default function Dashboard() {
         label: 'Sales',
         data: trendDates.length > 0 ? trendDates.map((d) => salesByDate[d]) : [0],
         borderColor: '#2563eb',
-        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+        borderWidth: 2.5,
+        backgroundColor: (context) => {
+          const { ctx, chartArea } = context.chart;
+          if (!chartArea) return 'rgba(37, 99, 235, 0.1)';
+          const grad = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          grad.addColorStop(0, 'rgba(37, 99, 235, 0.18)');
+          grad.addColorStop(1, 'rgba(37, 99, 235, 0.0)');
+          return grad;
+        },
         tension: 0.35,
-        pointRadius: 4,
+        pointRadius: 4.5,
+        pointHoverRadius: 6.5,
         pointBackgroundColor: '#2563eb',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
       },
     ],
   };
@@ -142,9 +160,18 @@ export default function Dashboard() {
   const salesOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { display: false },
       tooltip: {
+        backgroundColor: '#0f172a',
+        titleColor: '#94a3b8',
+        bodyColor: '#ffffff',
+        titleFont: { size: 11, weight: '600' },
+        bodyFont: { size: 13, weight: '700' },
+        padding: 10,
+        cornerRadius: 10,
+        displayColors: false,
         callbacks: {
           label: (context) => `₹ ${context.parsed.y.toLocaleString('en-IN')}`,
         },
@@ -153,17 +180,24 @@ export default function Dashboard() {
     scales: {
       x: {
         grid: { display: false },
-        ticks: { font: { size: 11 }, color: '#64748b' },
+        border: { display: false },
+        ticks: { font: { size: 11, weight: '500' }, color: '#64748b' },
       },
       y: {
+        beginAtZero: true,
+        border: { display: false, dash: [4, 4] },
         grid: { color: '#f1f5f9' },
         ticks: {
-          font: { size: 11 },
+          maxTicksLimit: 5,
+          font: { size: 11, weight: '500' },
           color: '#64748b',
           callback: (value) => {
-            if (value >= 100000) return `${(value / 100000).toFixed(1)}L`;
-            if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-            return value;
+            if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+            if (value >= 1000) {
+              const k = value / 1000;
+              return `₹${Number.isInteger(k) ? k : k.toFixed(1)}K`;
+            }
+            return `₹${Math.round(value)}`;
           },
         },
       },
@@ -180,7 +214,7 @@ export default function Dashboard() {
   const totalSkus = items.length || 1;
 
   const categoryData = {
-    labels: categoryEntries.length > 0 ? categoryEntries.map(([c]) => c) : ['Empty'],
+    labels: categoryEntries.length > 0 ? categoryEntries.map(([c]) => tCategory(c)) : ['Empty'],
     datasets: [
       {
         data: categoryEntries.length > 0 ? categoryEntries.map(([, count]) => count) : [1],
@@ -188,7 +222,9 @@ export default function Dashboard() {
           categoryEntries.length > 0
             ? categoryEntries.map((_, idx) => CATEGORY_COLORS[idx % CATEGORY_COLORS.length])
             : ['#e2e8f0'],
-        borderWidth: 0,
+        borderWidth: categoryEntries.length > 1 ? 3 : 0,
+        borderColor: '#ffffff',
+        hoverOffset: 6,
       },
     ],
   };
@@ -198,100 +234,115 @@ export default function Dashboard() {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0f172a',
+        padding: 10,
+        cornerRadius: 10,
+        bodyFont: { size: 12, weight: '600' },
+      },
     },
-    cutout: '72%',
+    cutout: '75%',
   };
+
+  const dateRangeLabel =
+    dateRange === 'Today'
+      ? t('date_today')
+      : dateRange === 'Last 7 Days'
+      ? t('date_7d')
+      : dateRange === 'Last 30 Days'
+      ? t('date_30d')
+      : t('date_all');
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Live overview of inventory, sales and operations</p>
+          <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('dash_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">{t('dash_subtitle')}</p>
         </div>
 
         {/* Live Date Filter */}
         <select
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value)}
-          className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3.5 py-2 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-700 shadow-xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 transition-all"
         >
-          <option value="All Time">All Time</option>
-          <option value="Today">Today</option>
-          <option value="Last 7 Days">Last 7 Days</option>
-          <option value="Last 30 Days">Last 30 Days</option>
+          <option value="All Time">{t('date_all')}</option>
+          <option value="Today">{t('date_today')}</option>
+          <option value="Last 7 Days">{t('date_7d')}</option>
+          <option value="Last 30 Days">{t('date_30d')}</option>
         </select>
       </div>
 
-      {/* 4 Metric Cards (Clean White Styling) */}
+      {/* 4 Metric Cards (Clean White Elevated Styling) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Sales Card */}
-        <div className="bg-white text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
+        <div className="surface-card-interactive rounded-2xl p-5 relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Sales</span>
-            <span className="p-1.5 bg-emerald-50 rounded-lg text-emerald-600">
+            <span>{t('dash_sales')}</span>
+            <span className="p-2 bg-emerald-50 rounded-xl text-emerald-600 ring-1 ring-inset ring-emerald-200/70">
               <TrendingUp className="w-4 h-4" />
             </span>
           </div>
-          <p className="text-2xl font-bold tracking-tight mt-2 text-slate-900">
+          <p className="text-[28px] font-extrabold tracking-[-0.03em] mt-2.5 text-slate-900 tabular-nums leading-none">
             ₹ {Math.round(totalSales).toLocaleString('en-IN')}
           </p>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-600 mt-1 font-medium">
+          <div className="flex items-center gap-1 text-[11px] text-emerald-600 mt-2.5 font-semibold">
             <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>{dateRange}</span>
+            <span>{dateRangeLabel}</span>
           </div>
         </div>
 
         {/* Orders Card */}
-        <div className="bg-white text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
+        <div className="surface-card-interactive rounded-2xl p-5 relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Orders</span>
-            <span className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+            <span>{t('dash_orders')}</span>
+            <span className="p-2 bg-blue-50 rounded-xl text-blue-600 ring-1 ring-inset ring-blue-200/70">
               <ShoppingBag className="w-4 h-4" />
             </span>
           </div>
-          <p className="text-2xl font-bold tracking-tight mt-2 text-slate-900">
+          <p className="text-[28px] font-extrabold tracking-[-0.03em] mt-2.5 text-slate-900 tabular-nums leading-none">
             {totalOrders.toLocaleString('en-IN')}
           </p>
-          <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1 font-medium">
-            <span>Completed invoices</span>
+          <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-2.5 font-medium">
+            <span>{t('dash_completed_invoices')}</span>
           </div>
         </div>
 
         {/* Profit Card */}
-        <div className="bg-white text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
+        <div className="surface-card-interactive rounded-2xl p-5 relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Estimated Profit</span>
-            <span className="p-1.5 bg-emerald-50 rounded-lg text-emerald-600">
+            <span>{t('dash_profit')}</span>
+            <span className="p-2 bg-emerald-50 rounded-xl text-emerald-600 ring-1 ring-inset ring-emerald-200/70">
               <CircleDollarSign className="w-4 h-4" />
             </span>
           </div>
-          <p className="text-2xl font-bold tracking-tight mt-2 text-slate-900">
+          <p className="text-[28px] font-extrabold tracking-[-0.03em] mt-2.5 text-slate-900 tabular-nums leading-none">
             ₹ {Math.round(totalProfit).toLocaleString('en-IN')}
           </p>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-600 mt-1 font-medium">
+          <div className="flex items-center gap-1 text-[11px] text-emerald-600 mt-2.5 font-semibold tabular-nums">
             <span>
-              {totalSales > 0 ? `${((totalProfit / totalSales) * 100).toFixed(1)}% avg margin` : 'No sales yet'}
+              {totalSales > 0 ? `${((totalProfit / totalSales) * 100).toFixed(1)}% ${t('dash_avg_margin')}` : t('dash_no_sales_yet')}
             </span>
           </div>
         </div>
 
         {/* Items in Stock Card */}
-        <div className="bg-white text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
+        <div className="surface-card-interactive rounded-2xl p-5 relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Items in Stock</span>
-            <span className="p-1.5 bg-amber-50 rounded-lg text-amber-600">
+            <span>{t('dash_items_in_stock')}</span>
+            <span className="p-2 bg-amber-50 rounded-xl text-amber-600 ring-1 ring-inset ring-amber-200/70">
               <Package className="w-4 h-4" />
             </span>
           </div>
-          <p className="text-2xl font-bold tracking-tight mt-2 text-slate-900">
-            {totalUnits.toLocaleString('en-IN')}
+          <p className="text-[28px] font-extrabold tracking-[-0.03em] mt-2.5 text-slate-900 tabular-nums leading-none">
+            {Number(totalUnits.toFixed(2)).toLocaleString('en-IN')}
           </p>
-          <div className="flex items-center gap-1 text-[11px] mt-1 font-medium">
-            <span className="text-slate-500">{items.length} SKUs</span>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] mt-2.5 font-medium tabular-nums">
+            <span className="text-slate-500 whitespace-nowrap">{items.length} {t('dash_skus')}</span>
             {outOfStockCount > 0 && (
-              <span className="text-rose-600 font-bold">· {outOfStockCount} out of stock</span>
+              <span className="text-rose-600 font-bold whitespace-nowrap">· {outOfStockCount} {t('dash_out_of_stock')}</span>
             )}
           </div>
         </div>
@@ -300,69 +351,92 @@ export default function Dashboard() {
       {/* Middle Grid: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sales Trend Line Chart (2 cols) */}
-        <div className="lg:col-span-2 bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-2 surface-card rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Sales Trend</h2>
-            <p className="text-xs text-slate-400 mb-3">Revenue grouped by invoice date</p>
+            <h2 className="text-sm font-bold text-slate-900 tracking-tight">{t('dash_sales_trend')}</h2>
+            <p className="text-xs text-slate-400 mb-4">{t('dash_sales_trend_sub')}</p>
           </div>
-          <div className="h-56 w-full">
-            <Line data={salesData} options={salesOptions} />
-          </div>
+          {validInvoices.length === 0 ? (
+            <div className="h-56 w-full flex flex-col items-center justify-center text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+              <TrendingUp className="w-7 h-7 text-slate-300 mb-2" />
+              <p className="text-xs font-semibold text-slate-600">{t('dash_no_sales_recorded')}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">{t('dash_complete_bill_hint')}</p>
+            </div>
+          ) : (
+            <div className="h-56 w-full">
+              <Line data={salesData} options={salesOptions} />
+            </div>
+          )}
         </div>
 
         {/* Stock by Category Donut Chart (1 col) */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="surface-card rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Catalog by Category</h2>
-            <p className="text-xs text-slate-400 mb-3">Live SKU distribution</p>
+            <h2 className="text-sm font-bold text-slate-900">{t('dash_catalog_category')}</h2>
+            <p className="text-xs text-slate-400 mb-3">{t('dash_sku_dist')}</p>
           </div>
 
-          <div className="relative h-40 w-full flex items-center justify-center my-2">
-            <Doughnut data={categoryData} options={categoryOptions} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-bold text-slate-900">{items.length}</span>
-              <span className="text-[11px] text-slate-400 font-medium">SKUs</span>
+          {items.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-10 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+              <Package className="w-7 h-7 text-slate-300 mb-2" />
+              <p className="text-xs font-semibold text-slate-600">{t('dash_no_products')}</p>
+              <button
+                onClick={() => navigate('/catalog')}
+                className="text-[11px] font-semibold text-blue-600 hover:underline mt-1"
+              >
+                {t('dash_add_in_catalog')}
+              </button>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[11px] text-slate-600 mt-3 pt-3 border-t border-slate-100">
-            {categoryEntries.map(([cat, count], idx) => (
-              <div key={cat} className="flex items-center gap-1.5 truncate">
-                <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }}
-                />
-                <span className="truncate">
-                  {cat} ({Math.round((count / totalSkus) * 100)}%)
-                </span>
+          ) : (
+            <>
+              <div className="relative h-40 w-full flex items-center justify-center my-2">
+                <Doughnut data={categoryData} options={categoryOptions} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-bold text-slate-900">{items.length}</span>
+                  <span className="text-[11px] text-slate-400 font-medium">{t('dash_skus')}</span>
+                </div>
               </div>
-            ))}
-          </div>
+
+              <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[11px] text-slate-600 mt-3 pt-3 border-t border-slate-100">
+                {categoryEntries.map(([cat, count], idx) => (
+                  <div key={cat} className="flex items-center gap-1.5 truncate">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }}
+                    />
+                    <span className="truncate">
+                      {tCategory(cat)} ({Math.round((count / totalSkus) * 100)}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Bottom Grid: Low Stock Alerts & Recent Sales */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Low Stock Alerts (2 cols) */}
-        <div className="lg:col-span-2 bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+        <div className="lg:col-span-2 surface-card rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="p-1 rounded bg-amber-50 text-amber-600">
                 <AlertTriangle className="w-4 h-4" />
               </div>
-              <h2 className="text-sm font-bold text-slate-900">Low Stock Alerts</h2>
+              <h2 className="text-sm font-bold text-slate-900">{t('dash_low_stock')}</h2>
             </div>
             <button
               onClick={() => navigate('/catalog')}
               className="text-xs text-blue-600 hover:text-blue-700 font-medium"
             >
-              View All
+              {t('dash_view_all')}
             </button>
           </div>
 
           <div className="divide-y divide-slate-100">
             {lowStockItems.length === 0 ? (
-              <p className="text-xs text-slate-400 py-6 text-center">All inventory stock levels are healthy.</p>
+              <p className="text-xs text-slate-400 py-6 text-center">{t('dash_all_healthy')}</p>
             ) : (
               lowStockItems.map((item) => (
                 <div
@@ -372,19 +446,19 @@ export default function Dashboard() {
                 >
                   <div>
                     <p className="text-xs font-semibold text-slate-800">
-                      {item.name} <span className="text-slate-400 font-normal">({item.sku})</span>
+                      {tName(item.name)} <span className="text-slate-400 font-normal">({item.sku})</span>
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      Shelf {item.bin_id || 'Unassigned'} · {item.category}
+                      {t('dash_shelf')} {item.bin_id || 'Unassigned'} · {tCategory(item.category)}
                     </p>
                   </div>
                   {Number(item.quantity) <= 0 ? (
                     <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 animate-pulse">
-                      0 left (Out of Stock)
+                      {t('dash_zero_left')}
                     </span>
                   ) : (
                     <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-                      {item.quantity} left
+                      {item.quantity} {t('dash_left')}
                     </span>
                   )}
                 </div>
@@ -394,26 +468,26 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Sales (1 col) */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="surface-card rounded-2xl p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
                   <Receipt className="w-4 h-4" />
                 </div>
-                <h2 className="text-sm font-bold text-slate-900">Recent Sales</h2>
+                <h2 className="text-sm font-bold text-slate-900">{t('dash_recent_sales')}</h2>
               </div>
               <button
                 onClick={() => navigate('/history')}
                 className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline"
               >
-                View All
+                {t('dash_view_all')}
               </button>
             </div>
 
             <div className="divide-y divide-slate-100">
               {recentSales.length === 0 ? (
-                <p className="text-xs text-slate-400 py-8 text-center">No sales recorded yet.</p>
+                <p className="text-xs text-slate-400 py-8 text-center">{t('dash_no_sales_recorded')}</p>
               ) : (
                 recentSales.map((sale) => (
                   <div
@@ -456,10 +530,10 @@ export default function Dashboard() {
           <div className="pt-3 border-t border-slate-100 mt-4">
             <button
               onClick={() => navigate('/pos')}
-              className="w-full py-2 bg-blue-50 text-blue-600 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-bold rounded-xl shadow-sm shadow-blue-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-1.5"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Create New Bill (POS)</span>
+              <span>{t('dash_create_bill')}</span>
             </button>
           </div>
         </div>

@@ -16,9 +16,38 @@ import {
   History,
   User,
   Phone,
-  LayoutGrid
+  LayoutGrid,
+  RefreshCw,
+  ChevronDown,
+  Settings as SettingsIcon
 } from 'lucide-react';
-import PrintableReceipt, { getPrintPreferences } from '../components/PrintableReceipt.jsx';
+import PrintableReceipt from '../components/PrintableReceipt.jsx';
+import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
+import PrintErrorBanner from '../components/PrintErrorBanner.jsx';
+import {
+  getPrintPreferences,
+  savePrintPreferences,
+  executePrint,
+  exportReceiptPdf,
+} from '../lib/printConfig.js';
+import {
+  normalizeUnit,
+  isMeasurableUnit,
+  getCompatibleUnits,
+  convertUnit,
+  formatQty,
+} from '../lib/units.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
+
+const isItemAvailable = (item) =>
+  Number(item.quantity) > 0 && item.status !== 'Unavailable' && item.status !== 'Inactive';
+
+const getBaseQty = (cartItem) => {
+  const numericQty = parseFloat(cartItem.qty) || 0;
+  const baseUnit = normalizeUnit(cartItem.baseUnit || cartItem.unit || 'PCS');
+  const billingUnit = normalizeUnit(cartItem.billingUnit || baseUnit);
+  return convertUnit(numericQty, billingUnit, baseUnit);
+};
 
 const DRAFT_BILLS_KEY = 'tsp_pos_draft_bills_v1';
 
@@ -47,6 +76,7 @@ function loadInitialBills() {
 
 export default function POSBilling() {
   const navigate = useNavigate();
+  const { t, tName } = useLanguage();
   const initialDrafts = loadInitialBills();
 
   // Multi-Bill Tabs System (Up to 10 concurrent carts, persisted in localStorage)
@@ -61,9 +91,35 @@ export default function POSBilling() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [recentInvoices, setRecentInvoices] = useState([]);
 
-  // Printable Receipt Modal
+  // Printable Receipt Modal & Live Printer Status
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [lastInvoice, setLastInvoice] = useState(null);
+  const [printPrefs, setPrintPrefs] = useState(getPrintPreferences());
+  const [printers, setPrinters] = useState([]);
+  const [showPrinterMenu, setShowPrinterMenu] = useState(false);
+  const [loadingPrinters, setLoadingPrinters] = useState(false);
+  const [posToast, setPosToast] = useState('');
+  const [printFailure, setPrintFailure] = useState(null); // { invoice, reason }
+  const [retryingPrint, setRetryingPrint] = useState(false);
+  const printerMenuRef = useRef(null);
+  const posToastTimerRef = useRef(null);
+
+  const showPosToast = (msg) => {
+    setPosToast(msg);
+    if (posToastTimerRef.current) clearTimeout(posToastTimerRef.current);
+    posToastTimerRef.current = setTimeout(() => setPosToast(''), 2000);
+  };
+
+  const loadPrinters = async () => {
+    setLoadingPrinters(true);
+    try {
+      if (window.api && window.api.getPrinters) {
+        const list = await window.api.getPrinters();
+        setPrinters(list || []);
+      }
+    } catch (_) {}
+    setLoadingPrinters(false);
+  };
 
   // Input Refs for Keyboard Shortcuts
   const searchInputRef = useRef(null);
@@ -90,9 +146,25 @@ export default function POSBilling() {
   useEffect(() => {
     loadCatalog();
     loadRecentInvoices();
+    loadPrinters();
     if (window.api && window.api.getShopProfile) {
       window.api.getShopProfile().then((p) => { if (p) setShopProfile(p); });
     }
+    const handlePrefsUpdate = (e) => {
+      setPrintPrefs(e.detail || getPrintPreferences());
+    };
+    const handleClickOutside = (e) => {
+      if (printerMenuRef.current && !printerMenuRef.current.contains(e.target)) {
+        setShowPrinterMenu(false);
+      }
+    };
+    window.addEventListener('print-prefs-updated', handlePrefsUpdate);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('print-prefs-updated', handlePrefsUpdate);
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (posToastTimerRef.current) clearTimeout(posToastTimerRef.current);
+    };
   }, []);
 
   const loadCatalog = async () => {
@@ -167,6 +239,7 @@ export default function POSBilling() {
     const matches = allItems.filter(
       (item) =>
         item.name.toLowerCase().includes(q) ||
+        tName(item.name).toLowerCase().includes(q) ||
         item.sku.toLowerCase().includes(q) ||
         (item.size && item.size.toLowerCase().includes(q)) ||
         (item.brand && item.brand.toLowerCase().includes(q)) ||
@@ -182,12 +255,13 @@ export default function POSBilling() {
       if (!q) return;
 
       const exact = allItems.find(
-        (i) => i.sku.toLowerCase() === q || i.name.toLowerCase() === q
+        (i) => (i.sku.toLowerCase() === q || i.name.toLowerCase() === q) && isItemAvailable(i)
       );
+      const firstAvailable = searchResults.find((i) => isItemAvailable(i));
       if (exact) {
         handleAddToCart(exact);
-      } else if (searchResults.length > 0) {
-        handleAddToCart(searchResults[0]);
+      } else if (firstAvailable) {
+        handleAddToCart(firstAvailable);
       }
     } else if (e.key === 'Escape') {
       setSearchQuery('');
@@ -196,6 +270,8 @@ export default function POSBilling() {
   };
 
   const handleAddToCart = (item) => {
+    if (!isItemAvailable(item)) return;
+    const baseUnit = normalizeUnit(item.unit || 'PCS');
     const existingIndex = activeBill.cart.findIndex(
       (i) => i.id === item.id || i.sku === item.sku
     );
@@ -203,7 +279,9 @@ export default function POSBilling() {
     let newCart;
     if (existingIndex >= 0) {
       newCart = activeBill.cart.map((cartItem, idx) =>
-        idx === existingIndex ? { ...cartItem, qty: cartItem.qty + 1 } : cartItem
+        idx === existingIndex
+          ? { ...cartItem, qty: Number(((parseFloat(cartItem.qty) || 0) + 1).toFixed(4)) }
+          : cartItem
       );
     } else {
       newCart = [
@@ -216,6 +294,8 @@ export default function POSBilling() {
           brand: item.brand || 'Generic',
           category: item.category || 'Hardware',
           bin: item.bin_id || 'R01-L1-S1',
+          baseUnit,
+          billingUnit: baseUnit,
           qty: 1,
           rate: Number(item.selling_price) || 0,
           mrp: (Number(item.selling_price) || 0) * 1.15,
@@ -235,7 +315,9 @@ export default function POSBilling() {
   const updateQty = (index, delta) => {
     const newCart = activeBill.cart.map((item, idx) => {
       if (idx === index) {
-        const nextQty = Math.max(1, item.qty + delta);
+        const current = parseFloat(item.qty) || 0;
+        const minVal = isMeasurableUnit(item.baseUnit) ? 0.1 : 1;
+        const nextQty = Math.max(minVal, Number((current + delta).toFixed(4)));
         return { ...item, qty: nextQty };
       }
       return item;
@@ -244,9 +326,35 @@ export default function POSBilling() {
   };
 
   const setExplicitQty = (index, val) => {
-    const nextQty = Math.max(1, parseInt(val) || 1);
+    const newCart = activeBill.cart.map((item, idx) => {
+      if (idx !== index) return item;
+      if (val === '') return { ...item, qty: '' };
+      if (isMeasurableUnit(item.baseUnit)) {
+        const parsed = parseFloat(val);
+        if (isNaN(parsed) || parsed < 0) return item;
+        return { ...item, qty: val };
+      }
+      const nextQty = Math.max(1, parseInt(val, 10) || 1);
+      return { ...item, qty: nextQty };
+    });
+    updateActiveBill({ cart: newCart });
+  };
+
+  const finalizeQtyOnBlur = (index) => {
+    const newCart = activeBill.cart.map((item, idx) => {
+      if (idx !== index) return item;
+      const parsed = parseFloat(item.qty);
+      if (isMeasurableUnit(item.baseUnit)) {
+        return { ...item, qty: !isNaN(parsed) && parsed > 0 ? Number(parsed.toFixed(4)) : 1 };
+      }
+      return { ...item, qty: !isNaN(parsed) && parsed >= 1 ? Math.round(parsed) : 1 };
+    });
+    updateActiveBill({ cart: newCart });
+  };
+
+  const updateBillingUnit = (index, nextUnit) => {
     const newCart = activeBill.cart.map((item, idx) =>
-      idx === index ? { ...item, qty: nextQty } : item
+      idx === index ? { ...item, billingUnit: normalizeUnit(nextUnit) } : item
     );
     updateActiveBill({ cart: newCart });
   };
@@ -324,10 +432,10 @@ export default function POSBilling() {
     updateActiveBill({ paymentMode: nextMode });
   };
 
-  // Financial Calculations (Non-GST Clean Retail Calculation)
-  const itemSubtotal = activeBill.cart.reduce((acc, i) => acc + i.qty * i.rate, 0);
+  // Financial Calculations (Non-GST Clean Retail Calculation with Length/Weight Unit Conversion)
+  const itemSubtotal = activeBill.cart.reduce((acc, i) => acc + getBaseQty(i) * i.rate, 0);
   const itemDiscounts = activeBill.cart.reduce(
-    (acc, i) => acc + (i.qty * i.rate * (i.discountPercent || 0)) / 100,
+    (acc, i) => acc + (getBaseQty(i) * i.rate * (i.discountPercent || 0)) / 100,
     0
   );
   const afterItemDiscount = Math.max(0, itemSubtotal - itemDiscounts);
@@ -344,14 +452,26 @@ export default function POSBilling() {
       return;
     }
 
-    // Check if any item exceeds current available stock
+    const invalidQty = activeBill.cart.find((i) => (parseFloat(i.qty) || 0) <= 0);
+    if (invalidQty) {
+      alert(`Please enter a valid quantity greater than 0 for "${invalidQty.name}".`);
+      return;
+    }
+
+    // Check if any item exceeds current available stock (in base unit)
     const overStock = activeBill.cart.filter((i) => {
       const liveItem = allItems.find((x) => x.sku === i.sku || x.id === i.id);
       const avail = liveItem ? Number(liveItem.quantity) : Number(i.maxStock || 0);
-      return i.qty > avail;
+      return getBaseQty(i) > avail;
     });
     if (overStock.length > 0) {
-      const list = overStock.map((i) => `• ${i.name} (billing ${i.qty}, stock ${i.maxStock})`).join('\n');
+      const list = overStock
+        .map((i) => {
+          const baseU = normalizeUnit(i.baseUnit || 'PCS');
+          const billU = normalizeUnit(i.billingUnit || baseU);
+          return `• ${i.name} (billing ${formatQty(i.qty)} ${billU} = ${formatQty(getBaseQty(i))} ${baseU}, stock ${formatQty(i.maxStock)} ${baseU})`;
+        })
+        .join('\n');
       if (!confirm(`Warning: Stock is lower than billed quantity for:\n${list}\n\nProceed anyway (stock will be set to 0)?`)) {
         return;
       }
@@ -364,35 +484,44 @@ export default function POSBilling() {
       discount: totalDiscount,
       total: roundedTotal,
       payment_mode: activeBill.paymentMode || 'Cash',
-      items: activeBill.cart.map((i) => ({
-        id: i.id,
-        sku: i.sku,
-        name: i.name,
-        bin: i.bin,
-        quantity: i.qty,
-        rate: i.rate,
-        discount: (i.qty * i.rate * (i.discountPercent || 0)) / 100,
-        total: i.qty * i.rate * (1 - (i.discountPercent || 0) / 100),
-      })),
+      items: activeBill.cart.map((i) => {
+        const baseU = normalizeUnit(i.baseUnit || 'PCS');
+        const billU = normalizeUnit(i.billingUnit || baseU);
+        const billedQty = parseFloat(i.qty) || 0;
+        const baseQty = getBaseQty(i);
+        const lineSub = baseQty * i.rate;
+        const lineDisc = (lineSub * (i.discountPercent || 0)) / 100;
+        return {
+          id: i.id,
+          sku: i.sku,
+          name: i.name,
+          bin: i.bin,
+          quantity: billedQty,
+          unit: billU,
+          base_unit: baseU,
+          stock_deduction_qty: baseQty,
+          rate: i.rate,
+          discount: lineDisc,
+          total: lineSub - lineDisc,
+        };
+      }),
     };
 
     if (window.api && window.api.createInvoice) {
       const res = await window.api.createInvoice(invoicePayload);
       if (res && res.success) {
-        setLastInvoice({
+        const completedInvoice = {
           ...invoicePayload,
           invoice_number: res.invoice_number,
           date: new Date().toLocaleString(),
           zeroStockAlerts: res.zeroStockAlerts || [],
-        });
-        setShowReceiptModal(true);
+        };
+        setLastInvoice(completedInvoice);
 
         const prefs = getPrintPreferences();
-        if (prefs.autoPrint) {
-          setTimeout(() => window.print(), 250);
-        }
+        setPrintPrefs(prefs);
 
-        // Reset current active bill
+        // Reset current active bill immediately so POS is ready for the next customer
         updateActiveBill({
           cart: [],
           customerName: 'Walk-in Customer',
@@ -410,12 +539,99 @@ export default function POSBilling() {
             detail: { zeroStockAlerts: res.zeroStockAlerts || [] },
           })
         );
+
+        if (prefs.afterPayment === 'auto' || prefs.autoPrint) {
+          // Flow B: Automatic silent print to configured printer -> ready for next customer
+          const printRes = await executePrint({
+            silent: true,
+            deviceName: prefs.printerName || '',
+            format: prefs.format || '80mm',
+            orientation: prefs.orientation || 'portrait',
+          });
+          if (printRes && printRes.success) {
+            setPrintFailure(null);
+            showPosToast(`Invoice #${res.invoice_number} sent to ${prefs.printerName || 'default printer'} (${prefs.format})`);
+          } else {
+            setPrintFailure({
+              invoice: completedInvoice,
+              reason: printRes?.error || 'The printer is unavailable or disconnected.',
+            });
+          }
+        } else if (prefs.afterPayment === 'none') {
+          showPosToast(`Invoice #${res.invoice_number} saved.`);
+        } else {
+          // Flow C: Auto-print disabled -> open Print Preview modal (A1-A6 + Thermal + Printer picker)
+          setShowReceiptModal(true);
+        }
       }
     }
   };
 
+  const activePrinterObj =
+    printers.find((p) => p.name === printPrefs.printerName) ||
+    printers.find((p) => p.isDefault) ||
+    printers[0] ||
+    null;
+
   return (
     <div className="space-y-4">
+      {/* Floating Top-Right Toast (2s) */}
+      {posToast && (
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{posToast}</span>
+        </div>
+      )}
+
+      {/* Printer Disconnected / Failure Recovery Banner (Zero Duplicate Stock Deduction) */}
+      {printFailure && (
+        <div className="fixed top-4 right-5 z-[95] w-full max-w-md">
+          <PrintErrorBanner
+            invoiceNumber={printFailure.invoice?.invoice_number}
+            reason={printFailure.reason}
+            retrying={retryingPrint}
+            onRetry={async () => {
+              setRetryingPrint(true);
+              await loadPrinters();
+              const prefs = getPrintPreferences();
+              const retryRes = await executePrint({
+                silent: true,
+                deviceName: prefs.printerName || '',
+                format: prefs.format || '80mm',
+                orientation: prefs.orientation || 'portrait',
+              });
+              setRetryingPrint(false);
+              if (retryRes && retryRes.success) {
+                const invNo = printFailure.invoice?.invoice_number;
+                setPrintFailure(null);
+                showPosToast(`Invoice #${invNo} printed.`);
+              } else {
+                setPrintFailure((prev) =>
+                  prev
+                    ? { ...prev, reason: retryRes?.error || 'The printer is unavailable or disconnected.' }
+                    : null
+                );
+              }
+            }}
+            onSavePdf={async () => {
+              setRetryingPrint(true);
+              const prefs = getPrintPreferences();
+              const pdfRes = await exportReceiptPdf({
+                invoiceNumber: printFailure.invoice?.invoice_number || 'INVOICE',
+                format: prefs.format === '80mm' || prefs.format === '58mm' ? 'A4' : prefs.format,
+                orientation: prefs.orientation || 'portrait',
+              });
+              setRetryingPrint(false);
+              if (pdfRes && pdfRes.success) {
+                setPrintFailure(null);
+                showPosToast(pdfRes.path ? 'Invoice PDF saved.' : 'Opened PDF export.');
+              }
+            }}
+            onDismiss={() => setPrintFailure(null)}
+          />
+        </div>
+      )}
+
       {/* Top Bar: Multi-Bill Concurrent Tabs */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
         {/* Bill Tabs */}
@@ -423,7 +639,7 @@ export default function POSBilling() {
           {bills.map((bill, index) => {
             const isActive = bill.id === activeBillId;
             const billTotal = bill.cart.reduce(
-              (acc, i) => acc + i.qty * i.rate * (1 - (i.discountPercent || 0) / 100),
+              (acc, i) => acc + getBaseQty(i) * i.rate * (1 - (i.discountPercent || 0) / 100),
               0
             );
             return (
@@ -469,7 +685,7 @@ export default function POSBilling() {
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-blue-300 bg-blue-50/50 text-blue-600 hover:bg-blue-100/60 text-xs font-semibold transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New bill {bills.length}/10</span>
+              <span>{t('pos_new_bill')} {bills.length}/10</span>
             </button>
           )}
         </div>
@@ -478,10 +694,10 @@ export default function POSBilling() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => setShowHistoryModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
           >
             <History className="w-3.5 h-3.5 text-slate-400" />
-            <span>Bill History</span>
+            <span>{t('pos_bill_history')}</span>
           </button>
         </div>
       </div>
@@ -497,7 +713,7 @@ export default function POSBilling() {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search product by name, SKU or size (e.g. M8, Taparia, DB-10) [F2]..."
+                placeholder={t('pos_search_placeholder')}
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onKeyDown={handleBarcodeKeyDown}
@@ -519,7 +735,7 @@ export default function POSBilling() {
 
             {/* Inline Product Lookup Results Table (As in reference image) */}
             {searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden z-30">
+              <div className="animate-popover absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200/90 rounded-2xl shadow-2xl shadow-slate-900/12 overflow-hidden z-30">
                 <div className="max-h-72 overflow-y-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
@@ -534,54 +750,89 @@ export default function POSBilling() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {searchResults.map((item) => (
+                      {searchResults.map((item) => {
+                        const available = isItemAvailable(item);
+                        return (
                         <tr
                           key={item.id}
-                          onClick={() => handleAddToCart(item)}
-                          className="hover:bg-blue-50/70 cursor-pointer transition-colors"
+                          onClick={() => available && handleAddToCart(item)}
+                          className={`transition-colors ${
+                            available
+                              ? 'hover:bg-blue-50/70 cursor-pointer'
+                              : 'bg-slate-50/80 opacity-75 cursor-not-allowed'
+                          }`}
                         >
                           <td className="py-2.5 px-4">
-                            <p className="font-bold text-slate-900 leading-tight">{item.name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">{item.sku}</p>
+                            <div className="flex items-center gap-2.5">
+                              {item.image_url && (
+                                <img
+                                  src={item.image_url}
+                                  alt={item.name}
+                                  className="w-8 h-8 rounded-md object-contain bg-white border border-slate-200 p-0.5 flex-shrink-0"
+                                />
+                              )}
+                              <div>
+                                <p className={`font-bold leading-tight ${available ? 'text-slate-900' : 'text-slate-500'}`}>
+                                  {tName(item.name)}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{item.sku}</p>
+                              </div>
+                            </div>
                           </td>
                           <td className="py-2.5 px-3 font-medium text-slate-600">
                             {item.bin_id || '—'}
                           </td>
                           <td className="py-2.5 px-3">
-                            <span
-                              className={`text-[11px] font-bold ${
-                                item.quantity <= 0
-                                  ? 'text-rose-600'
-                                  : item.quantity <= (item.reorder_level || 15)
-                                  ? 'text-amber-600'
-                                  : 'text-emerald-700'
-                              }`}
-                            >
-                              {item.quantity} {item.unit || 'PCS'}
-                            </span>
+                            {!available ? (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                {t('cat_unavailable')}
+                              </span>
+                            ) : (
+                              <span
+                                className={`text-[11px] font-bold ${
+                                  item.quantity <= (item.reorder_level || 15)
+                                    ? 'text-amber-600'
+                                    : 'text-emerald-700'
+                                }`}
+                              >
+                                {formatQty(item.quantity)} {normalizeUnit(item.unit || 'PCS')}
+                              </span>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 text-right text-slate-400 line-through">
                             ₹ {(Number(item.selling_price) * 1.15).toFixed(2)}
                           </td>
                           <td className="py-2.5 px-3 text-right font-bold text-slate-900">
                             ₹ {Number(item.selling_price).toFixed(2)}
+                            {isMeasurableUnit(item.unit) && (
+                              <span className="text-[10px] font-medium text-slate-400">
+                                /{normalizeUnit(item.unit)}
+                              </span>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 text-slate-500 text-[11px]">
                             {item.size || item.brand || '—'}
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddToCart(item);
-                              }}
-                              className="px-2.5 py-1 bg-blue-600 text-white rounded-md text-[10px] font-bold hover:bg-blue-700 transition-colors shadow-2xs"
-                            >
-                              + Add
-                            </button>
+                            {available ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddToCart(item);
+                                }}
+                                className="px-2.5 py-1 bg-blue-600 text-white rounded-md text-[10px] font-bold hover:bg-blue-700 transition-colors shadow-2xs"
+                              >
+                                + Add
+                              </button>
+                            ) : (
+                              <span className="inline-block px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-md text-[10px] font-bold">
+                                {t('cat_unavailable')}
+                              </span>
+                            )}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -590,16 +841,16 @@ export default function POSBilling() {
           </div>
 
           {/* Active Cart Table */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between min-h-[380px]">
+          <div className="surface-card rounded-2xl overflow-hidden flex flex-col justify-between min-h-[390px]">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                    <th className="py-3 px-4">Product</th>
-                    <th className="py-3 px-3 text-center w-36">Qty</th>
-                    <th className="py-3 px-3 text-right w-28">Rate (₹)</th>
-                    <th className="py-3 px-3 text-right w-24">Disc %</th>
-                    <th className="py-3 px-4 text-right w-28">Total</th>
+                    <th className="py-3 px-4">{t('pos_col_product')}</th>
+                    <th className="py-3 px-3 text-center w-44">{t('pos_col_qty')}</th>
+                    <th className="py-3 px-3 text-right w-28">{t('pos_col_rate')}</th>
+                    <th className="py-3 px-3 text-right w-24">{t('pos_col_disc')}</th>
+                    <th className="py-3 px-4 text-right w-28">{t('pos_col_total')}</th>
                     <th className="py-3 px-3 text-center w-12"></th>
                   </tr>
                 </thead>
@@ -608,55 +859,85 @@ export default function POSBilling() {
                     <tr>
                       <td colSpan="6" className="py-16 text-center text-slate-400">
                         <Receipt className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                        <p className="text-xs font-semibold text-slate-600">No items added to this bill</p>
+                        <p className="text-xs font-semibold text-slate-600">{t('pos_empty_cart')}</p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          Type in the search box above or scan with barcode reader [F2]
+                          {t('pos_empty_cart_hint')}
                         </p>
                       </td>
                     </tr>
                   ) : (
                     activeBill.cart.map((item, index) => {
-                      const lineSub = item.qty * item.rate;
+                      const baseUnit = normalizeUnit(item.baseUnit || item.unit || 'PCS');
+                      const billingUnit = normalizeUnit(item.billingUnit || baseUnit);
+                      const compatibleUnits = getCompatibleUnits(baseUnit);
+                      const measurable = isMeasurableUnit(baseUnit);
+                      const baseQty = getBaseQty(item);
+                      const lineSub = baseQty * item.rate;
                       const lineTotal = lineSub * (1 - (item.discountPercent || 0) / 100);
 
                       return (
                         <tr key={`${item.id}-${index}`} className="hover:bg-slate-50/70 transition-colors">
                           {/* Product Details */}
                           <td className="py-3 px-4">
-                            <p className="font-bold text-slate-900 leading-snug">{item.name}</p>
+                            <p className="font-bold text-slate-900 leading-snug">{tName(item.name)}</p>
                             <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
                               <span className="font-mono text-slate-600">{item.sku}</span>
                               <span>·</span>
-                              <span>Shelf: {item.bin || 'R01-L1-S1'}</span>
+                              <span>{t('dash_shelf')}: {item.bin || 'R01-L1-S1'}</span>
                               <span>·</span>
                               <span className="text-emerald-600 font-medium">
-                                Stock: {item.maxStock || '100+'}
+                                {t('cat_stock')}: {formatQty(item.maxStock)} {baseUnit}
                               </span>
                             </div>
                           </td>
 
-                          {/* Quantity Stepper */}
+                          {/* Quantity / Length / Weight Input */}
                           <td className="py-3 px-3">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => updateQty(index, -1)}
-                                className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-colors"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </button>
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.qty}
-                                onChange={(e) => setExplicitQty(index, e.target.value)}
-                                className="w-12 text-center bg-slate-50 border border-slate-200 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                              <button
-                                onClick={() => updateQty(index, 1)}
-                                className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-colors"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => updateQty(index, -1)}
+                                  className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-colors"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <input
+                                  type="number"
+                                  min={measurable ? '0.001' : '1'}
+                                  step={measurable ? 'any' : '1'}
+                                  value={item.qty}
+                                  onChange={(e) => setExplicitQty(index, e.target.value)}
+                                  onBlur={() => finalizeQtyOnBlur(index)}
+                                  className={`no-spinner text-center bg-slate-50 border border-slate-200 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                    measurable ? 'w-14' : 'w-12'
+                                  }`}
+                                />
+                                {measurable && compatibleUnits.length > 1 ? (
+                                  <select
+                                    value={billingUnit}
+                                    onChange={(e) => updateBillingUnit(index, e.target.value)}
+                                    aria-label="Billing unit"
+                                    className="bg-blue-50 border border-blue-200 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                                  >
+                                    {compatibleUnits.map((u) => (
+                                      <option key={u} value={u}>
+                                        {u}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : null}
+                                <button
+                                  onClick={() => updateQty(index, 1)}
+                                  className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-colors"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                              {measurable && billingUnit !== baseUnit && (
+                                <span className="text-[10px] font-medium text-blue-600">
+                                  = {formatQty(baseQty)} {baseUnit}
+                                </span>
+                              )}
                             </div>
                           </td>
 
@@ -671,9 +952,14 @@ export default function POSBilling() {
                                 step="0.5"
                                 value={item.rate}
                                 onChange={(e) => updateRate(index, e.target.value)}
-                                className="w-full text-right bg-slate-50 border border-slate-200 rounded-md pl-5 pr-2 py-1 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="no-spinner w-full text-right bg-slate-50 border border-slate-200 rounded-md pl-5 pr-2 py-1 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
+                            {measurable && (
+                              <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                per {baseUnit}
+                              </div>
+                            )}
                           </td>
 
                           {/* Discount % */}
@@ -685,7 +971,7 @@ export default function POSBilling() {
                                 max="100"
                                 value={item.discountPercent || 0}
                                 onChange={(e) => updateDiscountPercent(index, e.target.value)}
-                                className="w-full text-right bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="no-spinner w-full text-right bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
                           </td>
@@ -729,8 +1015,8 @@ export default function POSBilling() {
             )}
           </div>
 
-          {/* Keyboard Hotkey Bar (As in reference image) */}
-          <div className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-2xs flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+          {/* Keyboard Hotkey Bar */}
+          <div className="surface-card rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
             <button
               onClick={() => searchInputRef.current?.focus()}
               className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded-md border border-slate-200 transition-colors"
@@ -801,27 +1087,27 @@ export default function POSBilling() {
         </div>
 
         {/* Right Column: Checkout Summary & Customer Details */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <div className="surface-card rounded-2xl p-5 space-y-4">
           {/* Bill Calculation Box */}
-          <div className="space-y-2.5 pb-4 border-b border-slate-200 text-xs">
+          <div className="space-y-2.5 pb-4 border-b border-slate-200/80 text-xs">
             <div className="flex items-center justify-between text-slate-500 font-medium">
-              <span>Subtotal</span>
-              <span className="font-semibold text-slate-800">₹ {itemSubtotal.toFixed(2)}</span>
+              <span>{t('pos_subtotal')}</span>
+              <span className="font-semibold text-slate-800 tabular-nums">₹ {itemSubtotal.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between text-slate-500 font-medium">
-              <span>Discount</span>
-              <span className="font-semibold text-emerald-600">– ₹ {totalDiscount.toFixed(2)}</span>
+              <span>{t('pos_discount')}</span>
+              <span className="font-semibold text-emerald-600 tabular-nums">– ₹ {totalDiscount.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between text-slate-400 text-[11px]">
-              <span>Round-off</span>
-              <span>{roundOff >= 0 ? `+ ₹ ${roundOff.toFixed(2)}` : `– ₹ ${Math.abs(roundOff).toFixed(2)}`}</span>
+              <span>{t('pos_round_off')}</span>
+              <span className="tabular-nums">{roundOff >= 0 ? `+ ₹ ${roundOff.toFixed(2)}` : `– ₹ ${Math.abs(roundOff).toFixed(2)}`}</span>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-              <span className="text-sm font-bold text-slate-900">Total</span>
-              <span className="text-3xl font-black text-blue-600 tracking-tight">
+            <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-white border border-blue-200/70 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-900/70">{t('pos_total')}</span>
+              <span className="text-[28px] font-black text-blue-600 tracking-[-0.03em] tabular-nums leading-none">
                 ₹ {roundedTotal.toFixed(2)}
               </span>
             </div>
@@ -831,7 +1117,7 @@ export default function POSBilling() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                Bill Discount %
+                {t('pos_bill_discount_label')}
               </label>
               <span className="text-[10px] text-slate-400 font-mono">F6</span>
             </div>
@@ -847,9 +1133,9 @@ export default function POSBilling() {
                     billDiscountPercent: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)),
                   })
                 }
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="no-spinner w-full bg-slate-50 border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
                 %
               </span>
             </div>
@@ -859,16 +1145,16 @@ export default function POSBilling() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                Payment Mode
+                {t('pos_payment_label')}
               </label>
               <span className="text-[10px] text-slate-400 font-mono">F8</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { mode: 'Cash', icon: Banknote },
-                { mode: 'Card', icon: CreditCard },
-                { mode: 'UPI', icon: Smartphone },
-              ].map(({ mode, icon: Icon }) => {
+                { mode: 'Cash', label: t('pos_cash'), icon: Banknote },
+                { mode: 'Card', label: t('pos_card'), icon: CreditCard },
+                { mode: 'UPI', label: t('pos_upi'), icon: Smartphone },
+              ].map(({ mode, label, icon: Icon }) => {
                 const isSelected = activeBill.paymentMode === mode;
                 return (
                   <button
@@ -882,7 +1168,7 @@ export default function POSBilling() {
                     }`}
                   >
                     <Icon className="w-4 h-4" />
-                    <span>{mode.toUpperCase()}</span>
+                    <span>{label}</span>
                   </button>
                 );
               })}
@@ -894,7 +1180,7 @@ export default function POSBilling() {
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                  Customer Name (Optional)
+                  {t('pos_customer_name')}
                 </label>
                 <span className="text-[10px] text-slate-400 font-mono">F4</span>
               </div>
@@ -938,17 +1224,30 @@ export default function POSBilling() {
           <button
             onClick={handleGenerateBill}
             disabled={activeBill.cart.length === 0}
-            className={`w-full py-3.5 rounded-xl text-xs font-bold tracking-wide transition-all shadow-md flex items-center justify-center gap-2 ${
+            className={`w-full py-3 px-4 rounded-xl text-[13px] font-bold tracking-[-0.01em] transition-all flex items-center justify-between ${
               activeBill.cart.length === 0
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 active:scale-[0.99]'
+                ? 'bg-slate-100/90 text-slate-400 border border-slate-200/90 cursor-not-allowed shadow-none'
+                : 'bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border border-blue-700/80 shadow-md shadow-blue-600/25 ring-1 ring-inset ring-white/15 active:scale-[0.99]'
             }`}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Complete Sale (₹ {roundedTotal.toFixed(2)})</span>
-            <kbd className="px-1.5 py-0.5 bg-blue-700/80 rounded text-[10px] font-mono ml-1 text-white">
-              F9
-            </kbd>
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{t('pos_complete_btn')}</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="tabular-nums font-extrabold">
+                ₹ {roundedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <kbd
+                className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold border ${
+                  activeBill.cart.length === 0
+                    ? 'bg-white text-slate-400 border-slate-200/90'
+                    : 'bg-white/15 text-white border-white/25'
+                }`}
+              >
+                F9
+              </kbd>
+            </span>
           </button>
         </div>
       </div>
@@ -1036,84 +1335,21 @@ export default function POSBilling() {
         </div>
       )}
 
-      {/* Printable Receipt Modal */}
+      {/* Print Preview Modal (opens when Auto-Print is disabled) */}
       {showReceiptModal && lastInvoice && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden p-6 space-y-4">
-            <div className="text-center border-b border-slate-100 pb-4">
-              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">{shopProfile?.shop_name || 'T. S. P Enterprises'}</h3>
-              <p className="text-[11px] text-slate-500">
-                {shopProfile?.address_line1 || 'Beach Road'} · {shopProfile?.address_line2 || 'Tharuvaikulam'}
-              </p>
-              <p className="text-xs text-blue-600 font-mono mt-1 font-semibold">
-                {lastInvoice.invoice_number}
-              </p>
-            </div>
-
-            {/* Receipt Summary Body */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs space-y-2">
-              <div className="flex justify-between text-slate-500">
-                <span>Customer:</span>
-                <span className="font-semibold text-slate-800">{lastInvoice.customer_name}</span>
-              </div>
-              <div className="flex justify-between text-slate-500">
-                <span>Payment Mode:</span>
-                <span className="font-bold text-slate-800">{lastInvoice.payment_mode}</span>
-              </div>
-              <div className="flex justify-between text-slate-500">
-                <span>Date & Time:</span>
-                <span>{lastInvoice.date}</span>
-              </div>
-              <div className="border-t border-slate-200 pt-2 flex justify-between font-bold text-sm text-slate-900">
-                <span>Total Paid:</span>
-                <span className="text-blue-600 font-black">₹ {Number(lastInvoice.total).toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Zero Stock Alert Banner */}
-            {lastInvoice.zeroStockAlerts && lastInvoice.zeroStockAlerts.length > 0 && (
-              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-rose-900">
-                  <AlertTriangle className="w-4 h-4 text-rose-600" />
-                  <span>Stock Exhausted (0 Remaining):</span>
-                </div>
-                <ul className="list-disc list-inside text-[11px] text-rose-700 font-medium">
-                  {lastInvoice.zeroStockAlerts.map((i) => (
-                    <li key={i.id || i.sku}>
-                      {i.name} ({i.sku})
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-[10px] text-rose-500 font-normal mt-0.5">Please generate PO from Vendors.</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <button
-                onClick={() => {
-                  window.print();
-                }}
-                className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Bill</span>
-              </button>
-              <button
-                onClick={() => setShowReceiptModal(false)}
-                className="py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors"
-              >
-                Next Customer
-              </button>
-            </div>
-          </div>
-        </div>
+        <PrintPreviewModal
+          invoice={lastInvoice}
+          profile={shopProfile}
+          zeroStockAlerts={lastInvoice.zeroStockAlerts || []}
+          primaryCloseLabel={t('pos_next_customer')}
+          onClose={() => setShowReceiptModal(false)}
+        />
       )}
 
-      {/* Hidden Clean Thermal / A4 Print Layout */}
-      <PrintableReceipt invoice={lastInvoice} profile={shopProfile} />
+      {/* Hidden Print DOM (used when Auto-Print is enabled) */}
+      {!showReceiptModal && lastInvoice && (
+        <PrintableReceipt invoice={lastInvoice} profile={shopProfile} format={printPrefs.format} />
+      )}
     </div>
   );
 }

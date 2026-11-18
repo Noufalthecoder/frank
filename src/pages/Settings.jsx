@@ -15,22 +15,65 @@ import {
   Trash2
 } from 'lucide-react';
 import Racks from './Racks.jsx';
-import { getPrintPreferences } from '../components/PrintableReceipt.jsx';
+import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
+import {
+  PAPER_SIZES,
+  getPrintPreferences,
+  savePrintPreferences,
+} from '../lib/printConfig.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 export default function Settings() {
+  const { lang, setLang, t } = useLanguage();
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'racks' ? 'Racks & Bins' : 'Shop Profile';
+  const tabParam = searchParams.get('tab');
+  const initialTab =
+    tabParam === 'racks'
+      ? 'Racks & Bins'
+      : tabParam === 'print'
+      ? 'Billing & Print'
+      : 'Shop Profile';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [dbPath, setDbPath] = useState('%APPDATA%\\Invenbill\\billing.db');
   const [dbStatusMsg, setDbStatusMsg] = useState('');
   const [printPrefs, setPrintPrefs] = useState(getPrintPreferences());
+  const [printers, setPrinters] = useState([]);
+  const [loadingPrinters, setLoadingPrinters] = useState(false);
+  const [showTestPreview, setShowTestPreview] = useState(false);
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2000);
+  };
+
+  const loadPrinters = async () => {
+    setLoadingPrinters(true);
+    try {
+      if (window.api && window.api.getPrinters) {
+        const list = await window.api.getPrinters();
+        setPrinters(list || []);
+        if (!printPrefs.printerName && list && list.length > 0) {
+          const def = list.find((p) => p.isDefault) || list[0];
+          setPrintPrefs((prev) => ({ ...prev, printerName: def.name }));
+        }
+      }
+    } catch (_) {}
+    setLoadingPrinters(false);
+  };
+
+  useEffect(() => {
+    if (tabParam === 'racks') setActiveTab('Racks & Bins');
+    else if (tabParam === 'print') setActiveTab('Billing & Print');
+  }, [tabParam]);
 
   const [profile, setProfile] = useState({
     shop_name: 'T. S. P Enterprises',
     tagline: 'Hardware, Tools & Fasteners',
     phone: '+91 98765 43210',
     email: 'tspenterprises@gmail.com',
+    gstin: '',
     address_line1: 'Beach Road',
     address_line2: 'Tharuvaikulam',
     city: 'Thoothukudi',
@@ -40,6 +83,7 @@ export default function Settings() {
 
   useEffect(() => {
     loadProfile();
+    loadPrinters();
     if (window.api && window.api.getDatabasePath) {
       window.api.getDatabasePath().then((p) => { if (p) setDbPath(p); });
     }
@@ -64,10 +108,34 @@ export default function Settings() {
 
   const handlePrintPrefsChange = (updates) => {
     const next = { ...printPrefs, ...updates };
+    if ('afterPayment' in updates) {
+      next.autoPrint = updates.afterPayment === 'auto';
+    } else if ('autoPrint' in updates) {
+      next.afterPayment = updates.autoPrint ? 'auto' : 'preview';
+    }
     setPrintPrefs(next);
-    try {
-      localStorage.setItem('tsp_print_prefs', JSON.stringify(next));
-    } catch (_) {}
+  };
+
+  const handleSavePrinterSettings = () => {
+    const saved = savePrintPreferences(printPrefs);
+    setPrintPrefs(saved);
+    showToast('Printer settings saved.');
+  };
+
+  const sampleTestInvoice = {
+    invoice_number: 'TEST-0001',
+    date_time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+    customer_name: 'Walk-in Customer',
+    customer_phone: '+91 98765 43210',
+    payment_mode: 'Cash',
+    subtotal: 490,
+    discount: 10,
+    total: 480,
+    items: [
+      { sku: 'CS-10', name: 'Combination Spanner 10mm', quantity: 2, unit: 'PCS', base_unit: 'PCS', rate: 85, total: 170 },
+      { sku: 'GI-BW-20G', name: 'GI Binding Wire 20 Gauge', quantity: 500, unit: 'g', base_unit: 'kg', stock_deduction_qty: 0.5, rate: 120, total: 60 },
+      { sku: 'HM-500', name: 'Ball Peen Hammer 500g', quantity: 1, unit: 'PCS', base_unit: 'PCS', rate: 260, total: 260 },
+    ],
   };
 
   const handleBackup = async () => {
@@ -117,12 +185,20 @@ export default function Settings() {
 
   return (
     <div className="space-y-5">
+      {/* Floating Top-Right Toast (2s) */}
+      {toast && (
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{toast}</span>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Settings</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Manage shop profile, users, billing/print and application preferences
+          <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('set_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
+            {t('set_subtitle')}
           </p>
         </div>
       </div>
@@ -130,15 +206,15 @@ export default function Settings() {
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
         {/* Left Side: Settings Navigation Tabs */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 space-y-1">
+        <div className="surface-card rounded-2xl p-3 space-y-1">
           {[
-            { id: 'Shop Profile', icon: Store },
-            { id: 'Racks & Bins', icon: Grid3X3 },
-            { id: 'Users & Roles', icon: Users },
-            { id: 'Billing & Print', icon: Printer },
-            { id: 'Preferences', icon: Sliders },
-            { id: 'Database', icon: Database },
-          ].map(({ id, icon: Icon }) => {
+            { id: 'Shop Profile', label: t('set_tab_profile'), icon: Store },
+            { id: 'Racks & Bins', label: t('set_tab_racks'), icon: Grid3X3 },
+            { id: 'Users & Roles', label: t('set_tab_users'), icon: Users },
+            { id: 'Billing & Print', label: t('set_tab_print'), icon: Printer },
+            { id: 'Preferences', label: t('set_tab_prefs'), icon: Sliders },
+            { id: 'Database', label: t('set_tab_db'), icon: Database },
+          ].map(({ id, label, icon: Icon }) => {
             const isActive = activeTab === id;
             return (
               <button
@@ -151,14 +227,14 @@ export default function Settings() {
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>{id}</span>
+                <span>{label}</span>
               </button>
             );
           })}
         </div>
 
         {/* Right Side: Form Panel */}
-        <div className="md:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+        <div className="md:col-span-3 surface-card rounded-2xl p-6 space-y-6">
           {activeTab === 'Shop Profile' && (
             <form onSubmit={handleSave} className="space-y-6">
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
@@ -266,6 +342,19 @@ export default function Settings() {
                   </div>
 
                   <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      GST Number / GSTIN <span className="text-slate-400 font-normal">(Optional — shown on bill only if entered)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 33ABCDE1234F1Z5"
+                      value={profile.gstin || ''}
+                      onChange={(e) => setProfile({ ...profile, gstin: e.target.value.toUpperCase() })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">Invoice Footer Note</label>
                     <textarea
                       rows={2}
@@ -335,56 +424,268 @@ export default function Settings() {
           )}
 
           {activeTab === 'Billing & Print' && (
-            <div className="space-y-4">
-              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">Receipt & Print Settings</h2>
-              <div className="space-y-4 text-xs">
+            <div className="space-y-5">
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Default Receipt Format</label>
+                  <h2 className="text-sm font-bold text-slate-900">Printer Configuration</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Configure default printer, paper size (80mm / 58mm Thermal & A1–A6), and automatic or manual print workflow
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={loadPrinters}
+                  disabled={loadingPrinters}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 transition-colors"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${loadingPrinters ? 'animate-spin' : ''}`} />
+                  <span>Refresh Printers</span>
+                </button>
+              </div>
+
+              {/* Available Printers */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">Available printers</label>
+                <div className="space-y-2">
+                  {printers.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs text-slate-500">
+                      No printers detected. Connect a USB or Network printer and click <strong>Refresh Printers</strong>.
+                    </div>
+                  ) : (
+                    printers.map((p) => {
+                      const isSelected = printPrefs.printerName === p.name || (!printPrefs.printerName && p.isDefault);
+                      const statusCls =
+                        p.connectionState === 'connected'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : p.connectionState === 'error'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200';
+                      const dotCls =
+                        p.connectionState === 'connected'
+                          ? 'bg-emerald-500'
+                          : p.connectionState === 'error'
+                          ? 'bg-rose-500'
+                          : 'bg-amber-500';
+                      return (
+                        <button
+                          key={p.name}
+                          type="button"
+                          onClick={() => handlePrintPrefsChange({ printerName: p.name })}
+                          className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                            isSelected
+                              ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600/25 shadow-2xs'
+                              : 'border-slate-200 bg-white hover:bg-slate-50/80'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'bg-slate-50 text-slate-500 border-slate-200'
+                              }`}
+                            >
+                              <Printer className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-bold text-slate-900 truncate">
+                                  {p.displayName || p.name}
+                                </p>
+                                {p.isDefault && (
+                                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                                    Windows Default
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                {p.connectionType || 'Local'} · Installed
+                                {p.portName ? ` · ${p.portName}` : ''}
+                                {p.isSimulated ? ' (Browser Preview)' : ''}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border flex-shrink-0 ${statusCls}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${dotCls}`} />
+                            {p.statusLabel || 'Connected'}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Format, Orientation & After-Payment Behavior */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">Default invoice format</label>
                   <select
                     value={printPrefs.format}
                     onChange={(e) => handlePrintPrefsChange({ format: e.target.value })}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs w-full max-w-sm"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="thermal">80mm Thermal Receipt (ESC/POS)</option>
-                    <option value="a4">Standard A4 Sheet</option>
+                    <optgroup label="Thermal Roll">
+                      {PAPER_SIZES.filter((p) => p.thermal).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="ISO Paper Sizes (A1 – A6)">
+                      {PAPER_SIZES.filter((p) => !p.thermal).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
-                <div className="flex items-center gap-2 pt-1">
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">Default orientation</label>
+                  <select
+                    value={printPrefs.orientation || 'portrait'}
+                    onChange={(e) => handlePrintPrefsChange({ orientation: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="portrait">Portrait</option>
+                    <option value="landscape">Landscape</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1.5">After successful payment</label>
+                  <select
+                    value={printPrefs.afterPayment || (printPrefs.autoPrint ? 'auto' : 'preview')}
+                    onChange={(e) => handlePrintPrefsChange({ afterPayment: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="auto">Automatically print (direct to default printer, ready for next customer)</option>
+                    <option value="preview">Open print preview (choose A1–A6 / thermal, printer, or system dialog)</option>
+                    <option value="none">Do not print automatically (save invoice only)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Checkboxes */}
+              <div className="space-y-2.5 pt-1 text-xs">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    id="autoprint"
                     checked={Boolean(printPrefs.autoPrint)}
                     onChange={(e) => handlePrintPrefsChange({ autoPrint: e.target.checked })}
-                    className="rounded text-blue-600"
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <label htmlFor="autoprint" className="text-slate-700 font-medium">
-                    Auto-open print dialog immediately after completing a sale (F9)
-                  </label>
-                </div>
-                <p className="text-[11px] text-emerald-600 font-medium">
-                  Preferences save automatically and apply to POS & Sales History receipts.
-                </p>
+                  <span className="text-slate-700 font-medium">Print automatically after successful payment</span>
+                </label>
+
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={printPrefs.openPreviewOnManual !== false}
+                    onChange={(e) => handlePrintPrefsChange({ openPreviewOnManual: e.target.checked })}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-slate-700 font-medium">Open print preview when manually requested</span>
+                </label>
+
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={printPrefs.allowHistoryReprint !== false}
+                    onChange={(e) => handlePrintPrefsChange({ allowHistoryReprint: e.target.checked })}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-slate-700 font-medium">Allow reprinting invoices from Sales History</span>
+                </label>
+
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={printPrefs.enablePdfExport !== false}
+                    onChange={(e) => handlePrintPrefsChange({ enablePdfExport: e.target.checked })}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-slate-700 font-medium">Enable A1–A6 PDF export</span>
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    savePrintPreferences(printPrefs);
+                    setShowTestPreview(true);
+                  }}
+                  className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Printer className="w-4 h-4 text-slate-600" />
+                  <span>Print Test Page</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSavePrinterSettings}
+                  className="w-full py-2.5 px-4 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-600/20 active:scale-[0.99] transition-all"
+                >
+                  Save Printer Settings
+                </button>
               </div>
             </div>
           )}
 
           {activeTab === 'Preferences' && (
             <div className="space-y-4">
-              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">Application Preferences</h2>
+              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">{t('set_prefs_title')}</h2>
               <div className="space-y-3 text-xs text-slate-600">
+                <div className="p-3.5 bg-blue-50/60 rounded-lg border border-blue-100 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-slate-900">{t('set_lang_title')}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{t('set_lang_desc')}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLang('en')}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        lang === 'en'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      English
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLang('ta')}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        lang === 'ta'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      தமிழ் (Tamil)
+                    </button>
+                  </div>
+                </div>
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-slate-800">Billing Tax Mode</p>
-                    <p className="text-[11px] text-slate-400">Clean non-GST retail billing (Price × Qty – Discount)</p>
+                    <p className="font-bold text-slate-800">{t('set_tax_title')}</p>
+                    <p className="text-[11px] text-slate-400">{t('set_tax_desc')}</p>
                   </div>
                   <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-full border border-emerald-200 text-[10px]">
-                    Non-GST Active
+                    {t('set_tax_badge')}
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-slate-800">Currency & Locale</p>
-                    <p className="text-[11px] text-slate-400">Indian Rupee (₹ · en-IN number grouping)</p>
+                    <p className="font-bold text-slate-800">{t('set_currency_title')}</p>
+                    <p className="text-[11px] text-slate-400">{t('set_currency_desc')}</p>
                   </div>
                   <span className="font-bold text-slate-800">INR (₹)</span>
                 </div>
@@ -454,6 +755,16 @@ export default function Settings() {
           )}
         </div>
       </div>
+
+      {/* Live Test Page Print Preview Modal */}
+      {showTestPreview && (
+        <PrintPreviewModal
+          invoice={sampleTestInvoice}
+          profile={profile}
+          primaryCloseLabel="Close Preview"
+          onClose={() => setShowTestPreview(false)}
+        />
+      )}
     </div>
   );
 }

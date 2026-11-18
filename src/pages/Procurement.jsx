@@ -8,10 +8,13 @@ import {
   Truck,
   CheckCircle2,
   PackageCheck,
-  UserPlus
+  UserPlus,
+  Download
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 export default function Procurement() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Purchase Orders');
   const [orders, setOrders] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -49,7 +52,7 @@ export default function Procurement() {
 
   const showToast = (msg) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 3500);
+    setTimeout(() => setToast(''), 2000);
   };
 
   const loadData = async () => {
@@ -204,30 +207,86 @@ export default function Procurement() {
 
   const openOrders = orders.filter((o) => o.status === 'Open');
 
+  const handleExportCsv = () => {
+    const esc = (val) => {
+      const s = String(val ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const today = new Date().toISOString().split('T')[0];
+
+    if (activeTab === 'Vendors') {
+      const headers = ['Vendor Name', 'Contact Person', 'Phone', 'Email', 'City'];
+      const rows = vendors.map((v) => [
+        esc(v.name || ''),
+        esc(v.contact_person || ''),
+        esc(v.phone || ''),
+        esc(v.email || ''),
+        esc(v.city || ''),
+      ]);
+      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vendors_${today}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${vendors.length} vendor${vendors.length === 1 ? '' : 's'} to CSV.`);
+    } else {
+      const source = activeTab === 'Goods Receipt (GRN)' ? openOrders : filteredOrders;
+      const headers = ['PO Number', 'Vendor', 'Order Date', 'Status', 'Amount'];
+      const rows = source.map((o) => [
+        esc(o.po_number || ''),
+        esc(o.vendor_name || ''),
+        esc(o.order_date || ''),
+        esc(o.status || ''),
+        Number(o.amount || 0).toFixed(2),
+      ]);
+      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `purchase_orders_${today}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${source.length} purchase order${source.length === 1 ? '' : 's'} to CSV.`);
+    }
+  };
+
   return (
     <div className="space-y-5">
+      {/* Floating Top-Right Toast Notification (2s) */}
+      {toast && (
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{toast}</span>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Vendors</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Vendor directory, purchase orders and goods receipt (auto-restock)
+          <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('vend_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
+            {t('vend_subtitle')}
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
-          {toast && (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              {toast}
-            </span>
-          )}
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>{t('cat_export_csv')}</span>
+          </button>
           <button
             onClick={() => setShowAddVendorModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
           >
             <UserPlus className="w-3.5 h-3.5 text-slate-500" />
-            <span>Add Vendor</span>
+            <span>{t('vend_add_vendor')}</span>
           </button>
           <button
             onClick={() => {
@@ -239,14 +298,18 @@ export default function Procurement() {
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 rounded-lg text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>New PO</span>
+            <span>{t('vend_new_po')}</span>
           </button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-6 text-xs font-semibold text-slate-500">
-        {['Purchase Orders', 'Goods Receipt (GRN)', 'Vendors'].map((tab) => (
+        {[
+          { id: 'Purchase Orders', label: t('vend_tab_po') },
+          { id: 'Goods Receipt (GRN)', label: t('vend_tab_grn') },
+          { id: 'Vendors', label: t('vend_tab_vendors') },
+        ].map(({ id: tab, label }) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -256,7 +319,7 @@ export default function Procurement() {
                 : 'hover:text-slate-800'
             }`}
           >
-            <span>{tab}</span>
+            <span>{label}</span>
             {tab === 'Goods Receipt (GRN)' && openOrders.length > 0 && (
               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
                 {openOrders.length}

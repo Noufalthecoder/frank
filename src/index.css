@@ -1,10 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Inter", "Noto Sans Tamil", "Segoe UI Variable", "Segoe UI", "Nirmala UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   color: #0f172a;
-  background-color: #f8fafc;
+  background-color: #f6f8fb;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.font-mono,
+kbd {
+  font-family: "JetBrains Mono", "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 body {
@@ -13,7 +20,8 @@ body {
   min-height: 100vh;
   width: 100vw;
   overflow-x: hidden;
-  background-color: #f8fafc;
+  background-color: #f6f8fb;
+  color: #0f172a;
 }
 
 #root {
@@ -21,20 +29,114 @@ body {
   width: 100%;
 }
 
-/* Custom scrollbars */
+/* Tabular figures for crisp aligned currency, stock & counters */
+.tabular-nums,
+table td,
+table th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle multi-layered surface elevation (Linear / Stripe style) */
+.surface-card {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
+}
+
+.surface-card-interactive {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 180ms ease;
+}
+
+.surface-card-interactive:hover {
+  transform: translateY(-1px);
+  border-color: rgba(148, 163, 184, 0.55);
+  box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
+}
+
+/* Refined micro-animations */
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px) translateY(-4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+.animate-popover {
+  animation: popoverIn 150ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-modal {
+  animation: modalIn 190ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-toast {
+  animation: toastIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Crisp custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* Hide native number input spinner arrows */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Refined button press feel */
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
 }
 
 /* Clean Thermal / A4 Receipt Print Isolation */
@@ -69,15 +171,21 @@ body {
     z-index: 99999 !important;
   }
 
-  .print-receipt.receipt-thermal {
-    max-width: 76mm !important;
-    font-family: "Courier New", Courier, monospace !important;
-    font-size: 11px !important;
+  .print-receipt.print-format-58mm {
+    max-width: 54mm !important;
   }
 
-  .print-receipt.receipt-a4 {
-    max-width: 190mm !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-    font-size: 12px !important;
+  .print-receipt.print-format-80mm {
+    max-width: 76mm !important;
+  }
+
+  .print-receipt.print-format-a6,
+  .print-receipt.print-format-a5,
+  .print-receipt.print-format-a4,
+  .print-receipt.print-format-a3,
+  .print-receipt.print-format-a2,
+  .print-receipt.print-format-a1 {
+    max-width: 100% !important;
+    width: 100% !important;
   }
 }

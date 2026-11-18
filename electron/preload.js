@@ -67,4 +67,9 @@ contextBridge.exposeInMainWorld('api', {
   restoreDatabase: () => ipcRenderer.invoke('restoreDatabase'),
   seedDemoData: () => ipcRenderer.invoke('seedDemoData'),
   resetDatabase: () => ipcRenderer.invoke('resetDatabase'),
+
+  // Printing & PDF Export
+  getPrinters: () => ipcRenderer.invoke('getPrinters'),
+  printInvoice: (opts) => ipcRenderer.invoke('printInvoice', opts),
+  exportInvoicePdf: (opts) => ipcRenderer.invoke('exportInvoicePdf', opts),
 })

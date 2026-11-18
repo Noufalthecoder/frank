@@ -8,7 +8,8 @@ import {
   X,
   Trash2,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Download
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -20,10 +21,12 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function Finance() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Overview');
   const [dateRange, setDateRange] = useState('Last 30 Days');
   const [invoices, setInvoices] = useState([]);
@@ -31,10 +34,16 @@ export default function Finance() {
   const [items, setItems] = useState([]);
   const [dayClosings, setDayClosings] = useState([]);
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2000);
+  };
 
   // Day closing state
   const todayStr = new Date().toISOString().split('T')[0];
-  const [openingCash, setOpeningCash] = useState(5000);
+  const [openingCash, setOpeningCash] = useState(0);
   const [countedCash, setCountedCash] = useState('');
   const [closingRemarks, setClosingRemarks] = useState('');
   const [closingSavedMsg, setClosingSavedMsg] = useState('');
@@ -97,6 +106,30 @@ export default function Finance() {
       await window.api.deleteExpense(id);
       loadAllFinanceData();
     }
+  };
+
+  const handleExportExpensesCsv = () => {
+    const headers = ['Date', 'Category', 'Description', 'Payment Mode', 'Amount'];
+    const esc = (val) => {
+      const s = String(val ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = filteredExpenses.map((e) => [
+      esc(e.date || ''),
+      esc(e.category || ''),
+      esc(e.description || ''),
+      esc(e.payment_mode || 'Cash'),
+      Number(e.amount || 0).toFixed(2),
+    ]);
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${filteredExpenses.length} expense${filteredExpenses.length === 1 ? '' : 's'} to CSV.`);
   };
 
   // Date range helper
@@ -254,11 +287,19 @@ export default function Finance() {
 
   return (
     <div className="space-y-5">
+      {/* Floating Top-Right Toast (2s) */}
+      {toast && (
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{toast}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Finance</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Live expenses, cash flow and daily cash closing</p>
+          <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('fin_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">{t('fin_subtitle')}</p>
         </div>
 
         <select
@@ -266,16 +307,20 @@ export default function Finance() {
           onChange={(e) => setDateRange(e.target.value)}
           className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="All Time">All Time</option>
-          <option value="Today">Today</option>
-          <option value="Last 7 Days">Last 7 Days</option>
-          <option value="Last 30 Days">Last 30 Days</option>
+          <option value="All Time">{t('date_all')}</option>
+          <option value="Today">{t('date_today')}</option>
+          <option value="Last 7 Days">{t('date_7d')}</option>
+          <option value="Last 30 Days">{t('date_30d')}</option>
         </select>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-6 text-xs font-semibold text-slate-500">
-        {['Overview', 'Expenses', 'Day Close'].map((tab) => (
+        {[
+          { id: 'Overview', label: t('fin_tab_overview') },
+          { id: 'Expenses', label: t('fin_tab_expenses') },
+          { id: 'Day Close', label: t('fin_tab_dayclose') },
+        ].map(({ id: tab, label }) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -283,7 +328,7 @@ export default function Finance() {
               activeTab === tab ? 'text-blue-600 font-bold' : 'hover:text-slate-800'
             }`}
           >
-            {tab}
+            {label}
             {activeTab === tab && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"></span>
             )}
@@ -351,9 +396,17 @@ export default function Finance() {
                 <h2 className="text-sm font-bold text-slate-900">Daily Cash Flow</h2>
                 <p className="text-xs text-slate-400 mb-3">Live Sales vs Expenses breakdown</p>
               </div>
-              <div className="h-64 w-full">
-                <Bar data={cashFlowData} options={cashFlowOptions} />
-              </div>
+              {sortedDates.length === 0 ? (
+                <div className="h-64 w-full flex flex-col items-center justify-center text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                  <Wallet className="w-7 h-7 text-slate-300 mb-2" />
+                  <p className="text-xs font-semibold text-slate-600">No cash flow data yet</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Record sales or expenses to populate daily cash flow</p>
+                </div>
+              ) : (
+                <div className="h-64 w-full">
+                  <Bar data={cashFlowData} options={cashFlowOptions} />
+                </div>
+              )}
             </div>
 
             <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
@@ -393,13 +446,22 @@ export default function Finance() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-800">Expense Ledger ({filteredExpenses.length})</h2>
-            <button
-              onClick={() => setShowAddExpense(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Expense</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportExpensesCsv}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-500" />
+                <span>{t('cat_export_csv')}</span>
+              </button>
+              <button
+                onClick={() => setShowAddExpense(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t('fin_add_expense')}</span>
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

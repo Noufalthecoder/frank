@@ -1,5 +1,6 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { LanguageProvider } from './i18n/LanguageContext.jsx';
 import Layout from './components/Layout.jsx';
 
 import Dashboard from './pages/Dashboard.jsx';
@@ -13,21 +14,23 @@ import Settings from './pages/Settings.jsx';
 
 export default function App() {
   return (
-    <HashRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/racks" element={<Navigate to="/settings?tab=racks" replace />} />
-          <Route path="/pos" element={<POSBilling />} />
-          <Route path="/history" element={<SalesHistory />} />
-          <Route path="/vendors" element={<Procurement />} />
-          <Route path="/procurement" element={<Navigate to="/vendors" replace />} />
-          <Route path="/finance" element={<Finance />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
-    </HashRouter>
+    <LanguageProvider>
+      <HashRouter>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/racks" element={<Navigate to="/settings?tab=racks" replace />} />
+            <Route path="/pos" element={<POSBilling />} />
+            <Route path="/history" element={<SalesHistory />} />
+            <Route path="/vendors" element={<Procurement />} />
+            <Route path="/procurement" element={<Navigate to="/vendors" replace />} />
+            <Route path="/finance" element={<Finance />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Layout>
+      </HashRouter>
+    </LanguageProvider>
   );
 }

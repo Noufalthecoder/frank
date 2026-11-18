@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, screen, dialog } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { execFile } from 'node:child_process'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -147,6 +148,16 @@ function initSchema() {
   } catch (_) {
     // Column already exists
   }
+  try {
+    db.exec(`ALTER TABLE items ADD COLUMN image_url TEXT DEFAULT ''`);
+  } catch (_) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE shop_profile ADD COLUMN gstin TEXT DEFAULT ''`);
+  } catch (_) {
+    // Column already exists
+  }
 
   // Ensure shop profile row exists with T. S. P Enterprises
   const profile = db.prepare('SELECT id FROM shop_profile WHERE id = 1').get();
@@ -164,15 +175,19 @@ function initSchema() {
     `).run();
   }
 
-  // Auto-seed sample hardware data ONLY in dev mode when database is empty
-  // Packaged production .exe starts clean (owner can load demo data on demand in Settings -> Database)
+  // Seed starter catalog items & racks ONLY in dev mode when catalog is empty — never seed fake sales/expenses
   const itemCount = db.prepare('SELECT count(*) as count FROM items').get().count;
   if (VITE_DEV_SERVER_URL && itemCount === 0) {
-    seedInitialData();
+    seedStarterCatalog();
   }
 }
 
-function seedInitialData() {
+function formatLocalDateTime(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function seedStarterCatalog() {
   // Categories & Brands
   const categories = ['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'];
   const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
@@ -182,7 +197,7 @@ function seedInitialData() {
   const insertBrand = db.prepare('INSERT OR IGNORE INTO brands (name) VALUES (?)');
   brands.forEach(b => insertBrand.run(b));
 
-  // Items: 30 Realistic Hardware Products
+  // Items: Starter Hardware Products
   const sampleItems = [
     // Fasteners
     { sku: 'HB-M6-20', name: 'Hex Bolt M6 x 20mm', size: 'M6 x 20', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', price: 6.50, cost: 4.00, qty: 650, reorder: 50, bin: 'R01-L1-S1' },
@@ -224,10 +239,16 @@ function seedInitialData() {
     { sku: 'TP-INS', name: 'PVC Insulation Tape Black', size: 'Standard', unit: 'PCS', category: 'Electrical', brand: 'Generic', price: 15.00, cost: 9.50, qty: 340, reorder: 50, bin: 'R05-L2-S1' },
     
     // Plumbing
-    { sku: 'PVC-1', name: 'PVC Pipe 1" Class 3 6kg', size: '1 inch', unit: 'MTR', category: 'Plumbing', brand: 'Finolex', price: 85.00, cost: 60.00, qty: 96, reorder: 30, bin: 'R02-L2-S1' },
+    { sku: 'PVC-1', name: 'PVC Pipe 1" Class 3 6kg', size: '1 inch', unit: 'm', category: 'Plumbing', brand: 'Finolex', price: 85.00, cost: 60.00, qty: 96, reorder: 30, bin: 'R02-L2-S1' },
     { sku: 'PVC-ELB-1', name: 'PVC Elbow 90 deg 1"', size: '1 inch', unit: 'PCS', category: 'Plumbing', brand: 'Finolex', price: 18.00, cost: 11.50, qty: 180, reorder: 40, bin: 'R02-L2-S2' },
     { sku: 'TF-TAPE', name: 'Teflon Thread Seal Tape 12mm', size: '12mm', unit: 'PCS', category: 'Plumbing', brand: 'Generic', price: 20.00, cost: 11.00, qty: 260, reorder: 50, bin: 'R02-L2-S3' },
     { sku: 'PVC-SOL', name: 'PVC Solvent Cement 100ml', size: '100ml', unit: 'PCS', category: 'Plumbing', brand: 'Generic', price: 65.00, cost: 45.00, qty: 42, reorder: 15, bin: 'R02-L2-S4' },
+
+    // Length & Weight Hardware Materials
+    { sku: 'GI-BW-20G', name: 'GI Binding Wire 20 Gauge', size: '20 SWG', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', price: 120.00, cost: 90.00, qty: 50, reorder: 10, bin: 'R01-L3-S3' },
+    { sku: 'NYL-ROPE-8', name: 'Nylon Braided Rope 8mm', size: '8mm', unit: 'm', category: 'Others', brand: 'Generic', price: 25.00, cost: 16.00, qty: 150, reorder: 25, bin: 'R02-L4-S1' },
+    { sku: 'MS-NAIL-2IN', name: 'MS Wire Nails 2" (Loose)', size: '2 inch', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', price: 110.00, cost: 82.00, qty: 40, reorder: 10, bin: 'R01-L3-S4' },
+    { sku: 'CU-WND-24G', name: 'Enamelled Copper Winding Wire', size: '24 SWG', unit: 'g', category: 'Electrical', brand: 'Finolex', price: 1.50, cost: 1.05, qty: 2000, reorder: 250, bin: 'R05-L2-S2' },
 
     // Paints & Adhesives
     { sku: 'FEV-1K', name: 'Fevicol SH Resin Adhesive 1kg', size: '1 kg', unit: 'PCS', category: 'Paints & Adhesives', brand: 'Pidilite', price: 240.00, cost: 190.00, qty: 25, reorder: 8, bin: 'R02-L3-S1' },
@@ -237,7 +258,7 @@ function seedInitialData() {
   ];
 
   const insertItem = db.prepare(`
-    INSERT OR REPLACE INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
+    INSERT OR IGNORE INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
     VALUES (@sku, @name, @size, @unit, @category, @brand, @price, @cost, @qty, @reorder, @bin, 'Active')
   `);
   sampleItems.forEach(i => insertItem.run(i));
@@ -262,6 +283,24 @@ function seedInitialData() {
       }
     }
   });
+
+  // Vendors
+  const existingVendors = db.prepare('SELECT count(*) as count FROM vendors').get().count;
+  if (existingVendors === 0) {
+    const sampleVendors = [
+      { name: 'KPR Fasteners', person: 'K. Ramesh', phone: '+91 94441 23456', city: 'Coimbatore' },
+      { name: 'Metro Tools Co.', person: 'S. Kumar', phone: '+91 98840 54321', city: 'Chennai' },
+      { name: 'Shree Metals', person: 'Anand Patel', phone: '+91 97123 45678', city: 'Ahmedabad' },
+      { name: 'Nice Hardware', person: 'V. Naresh', phone: '+91 99401 11223', city: 'Madurai' },
+      { name: 'A1 Tools Distributors', person: 'Mohan Lal', phone: '+91 98200 99887', city: 'Mumbai' }
+    ];
+    const insertVendor = db.prepare('INSERT INTO vendors (name, contact_person, phone, city) VALUES (?, ?, ?, ?)');
+    sampleVendors.forEach(v => insertVendor.run(v.name, v.person, v.phone, v.city));
+  }
+}
+
+function seedInitialData() {
+  seedStarterCatalog();
 
   // Recent Invoices (with realistic dates around today)
   const today = new Date().toISOString().split('T')[0];
@@ -322,20 +361,6 @@ function seedInitialData() {
   const insertPO = db.prepare('INSERT OR IGNORE INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json) VALUES (?, ?, ?, ?, ?, ?)');
   samplePOs.forEach(p => insertPO.run(p.num, p.vendor, p.date, p.amount, p.status, JSON.stringify(p.items)));
 
-  // Vendors
-  const existingVendors = db.prepare('SELECT count(*) as count FROM vendors').get().count;
-  if (existingVendors === 0) {
-    const sampleVendors = [
-      { name: 'KPR Fasteners', person: 'K. Ramesh', phone: '+91 94441 23456', city: 'Coimbatore' },
-      { name: 'Metro Tools Co.', person: 'S. Kumar', phone: '+91 98840 54321', city: 'Chennai' },
-      { name: 'Shree Metals', person: 'Anand Patel', phone: '+91 97123 45678', city: 'Ahmedabad' },
-      { name: 'Nice Hardware', person: 'V. Naresh', phone: '+91 99401 11223', city: 'Madurai' },
-      { name: 'A1 Tools Distributors', person: 'Mohan Lal', phone: '+91 98200 99887', city: 'Mumbai' }
-    ];
-    const insertVendor = db.prepare('INSERT INTO vendors (name, contact_person, phone, city) VALUES (?, ?, ?, ?)');
-    sampleVendors.forEach(v => insertVendor.run(v.name, v.person, v.phone, v.city));
-  }
-
   // Expenses
   const existingExp = db.prepare('SELECT count(*) as count FROM expenses').get().count;
   if (existingExp === 0) {
@@ -361,11 +386,11 @@ ipcMain.handle('updateShopProfile', (event, profile) => {
   const stmt = db.prepare(`
     UPDATE shop_profile
     SET shop_name = @shop_name, tagline = @tagline, phone = @phone, email = @email,
-        address_line1 = @address_line1, address_line2 = @address_line2, city = @city, pincode = @pincode,
+        gstin = @gstin, address_line1 = @address_line1, address_line2 = @address_line2, city = @city, pincode = @pincode,
         invoice_footer = @invoice_footer, updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
   `);
-  stmt.run(profile);
+  stmt.run({ ...profile, gstin: String(profile.gstin || '').trim().toUpperCase() });
   return { success: true };
 });
 
@@ -388,14 +413,16 @@ ipcMain.handle('addItem', (event, item) => {
     const normalizedSku = String(item.sku || '').trim().toUpperCase();
     if (!normalizedSku) return { success: false, error: 'SKU is required.' };
     const stmt = db.prepare(`
-      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
-      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, 'Active')
+      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
+      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, @status)
     `);
     const res = stmt.run({
       ...item,
       sku: normalizedSku,
       name: String(item.name || '').trim(),
       bin_id: String(item.bin_id || '').trim().toUpperCase(),
+      image_url: String(item.image_url || '').trim(),
+      status: item.status || 'Available',
     });
     return { success: true, id: Number(res.lastInsertRowid) };
   } catch (err) {
@@ -413,7 +440,7 @@ ipcMain.handle('updateItem', (event, item) => {
       UPDATE items 
       SET sku = @sku, name = @name, size = @size, unit = @unit, category = @category, brand = @brand,
           selling_price = @selling_price, cost_price = @cost_price, quantity = @quantity,
-          reorder_level = @reorder_level, bin_id = @bin_id, status = @status
+          reorder_level = @reorder_level, bin_id = @bin_id, image_url = @image_url, status = @status
       WHERE id = @id
     `);
     stmt.run({
@@ -421,6 +448,7 @@ ipcMain.handle('updateItem', (event, item) => {
       sku: normalizedSku,
       name: String(item.name || '').trim(),
       bin_id: String(item.bin_id || '').trim().toUpperCase(),
+      image_url: String(item.image_url || '').trim(),
     });
     return { success: true };
   } catch (err) {
@@ -492,8 +520,8 @@ ipcMain.handle('deleteRack', (event, code) => {
 ipcMain.handle('bulkImportItems', (event, itemsList) => {
   try {
     const stmt = db.prepare(`
-      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
-      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, 'Active')
+      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
+      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, 'Active')
       ON CONFLICT(sku) DO UPDATE SET
         name = excluded.name,
         size = excluded.size,
@@ -504,7 +532,8 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
         cost_price = excluded.cost_price,
         quantity = excluded.quantity,
         reorder_level = excluded.reorder_level,
-        bin_id = excluded.bin_id
+        bin_id = excluded.bin_id,
+        image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE items.image_url END
     `);
     const insertMany = db.transaction((rows) => {
       let imported = 0;
@@ -516,7 +545,7 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
           sku,
           name,
           size: String(row.size || '').trim(),
-          unit: String(row.unit || 'PCS').trim().toUpperCase(),
+          unit: String(row.unit || 'PCS').trim(),
           category: String(row.category || 'Others').trim(),
           brand: String(row.brand || 'Generic').trim(),
           selling_price: parseFloat(row.selling_price) || 0,
@@ -524,6 +553,7 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
           quantity: parseFloat(row.quantity) || 0,
           reorder_level: parseFloat(row.reorder_level) || 10,
           bin_id: String(row.bin_id || '').trim().toUpperCase(),
+          image_url: String(row.image_url || '').trim(),
         });
         imported++;
       }
@@ -544,7 +574,7 @@ ipcMain.handle('getInvoices', () => {
 ipcMain.handle('createInvoice', (event, inv) => {
   const genNum = `INV-${String(Math.floor(100000 + Math.random() * 900000))}`;
   const invNumber = inv.invoice_number || genNum;
-  const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const nowStr = formatLocalDateTime();
 
   const insert = db.prepare(`
     INSERT INTO invoices (invoice_number, date_time, customer_name, customer_phone, subtotal, discount, total, payment_mode, items_count, items_json, status)
@@ -564,13 +594,14 @@ ipcMain.handle('createInvoice', (event, inv) => {
     JSON.stringify(inv.items)
   );
 
-  // Deduct stock for each item & identify items that went to zero
-  const updateStock = db.prepare('UPDATE items SET quantity = MAX(0, quantity - ?) WHERE sku = ? OR id = ?');
+  // Deduct stock for each item (using stock_deduction_qty in base unit for length/weight items)
+  const updateStock = db.prepare('UPDATE items SET quantity = ROUND(MAX(0, quantity - ?), 6) WHERE sku = ? OR id = ?');
   const checkStock = db.prepare('SELECT id, sku, name, quantity FROM items WHERE (sku = ? OR id = ?)');
 
   const zeroStockAlerts = [];
   inv.items.forEach(item => {
-    updateStock.run(item.quantity, item.sku || '', item.id || 0);
+    const deductQty = Number(item.stock_deduction_qty ?? item.quantity ?? 0);
+    updateStock.run(deductQty, item.sku || '', item.id || 0);
     const updated = checkStock.get(item.sku || '', item.id || 0);
     if (updated && updated.quantity <= 0) {
       zeroStockAlerts.push(updated);
@@ -587,10 +618,11 @@ ipcMain.handle('returnInvoice', (event, id) => {
     if (inv.status === 'Returned') return { success: false, error: 'Invoice was already returned.' };
 
     const items = JSON.parse(inv.items_json || '[]');
-    const restock = db.prepare('UPDATE items SET quantity = quantity + ? WHERE sku = ? OR id = ?');
+    const restock = db.prepare('UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ? OR id = ?');
     const tx = db.transaction(() => {
       items.forEach(item => {
-        restock.run(Number(item.quantity) || 0, item.sku || '', item.id || 0);
+        const addBack = Number(item.stock_deduction_qty ?? item.quantity ?? 0);
+        restock.run(addBack, item.sku || '', item.id || 0);
       });
       db.prepare(`UPDATE invoices SET status = 'Returned' WHERE id = ?`).run(id);
     });
@@ -764,6 +796,224 @@ ipcMain.handle('resetDatabase', () => {
   });
   tx();
   return { success: true };
+});
+
+// Paper size definitions in microns (width x height) for Electron print & printToPDF (A1-A6 + Thermal)
+const ELECTRON_PAGE_SIZES_MICRONS = {
+  A1: { width: 594000, height: 841000 },
+  A2: { width: 420000, height: 594000 },
+  A3: { width: 297000, height: 420000 },
+  A4: { width: 210000, height: 297000 },
+  A5: { width: 148000, height: 210000 },
+  A6: { width: 105000, height: 148000 },
+  '80mm': { width: 80000, height: 297000 },
+  '58mm': { width: 58000, height: 297000 },
+};
+
+function queryWindowsPrinterDetails() {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve({});
+    execFile(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        'Get-Printer | Select-Object Name,PortName,PrinterStatus,WorkOffline,DriverName | ConvertTo-Json -Compress',
+      ],
+      { timeout: 3000, windowsHide: true },
+      (err, stdout) => {
+        if (err || !stdout || !stdout.trim()) return resolve({});
+        try {
+          const parsed = JSON.parse(stdout.trim());
+          const list = Array.isArray(parsed) ? parsed : [parsed];
+          const map = {};
+          list.forEach((p) => {
+            if (p && p.Name) map[String(p.Name).toLowerCase()] = p;
+          });
+          resolve(map);
+        } catch (_) {
+          resolve({});
+        }
+      }
+    );
+  });
+}
+
+function classifyConnection(portName = '', driverName = '') {
+  const port = String(portName || '').toUpperCase();
+  const drv = String(driverName || '').toUpperCase();
+  if (port.includes('USB') || port.startsWith('COM') || port.startsWith('LPT')) return 'USB';
+  if (port.startsWith('WSD') || port.startsWith('IP_') || /^\d+\.\d+\.\d+\.\d+/.test(port) || port.includes('HTTP')) return 'Network';
+  if (port.includes('PORTPROMPT') || port.includes('NUL') || port.includes('FILE') || drv.includes('PDF') || drv.includes('XPS') || drv.includes('ONENOTE')) return 'Virtual';
+  return 'Local';
+}
+
+function resolvePrinterStatus(winDetail, electronStatus) {
+  if (winDetail) {
+    const ps = String(winDetail.PrinterStatus ?? '').toLowerCase();
+    const workOffline = Boolean(winDetail.WorkOffline);
+    if (workOffline || ps === 'offline' || ps === '5') {
+      return { connectionState: 'offline', statusLabel: 'Offline' };
+    }
+    if (ps === 'paused' || ps === '1') {
+      return { connectionState: 'offline', statusLabel: 'Paused' };
+    }
+    if (ps.includes('paperout') || ps === '16') {
+      return { connectionState: 'error', statusLabel: 'Paper Out' };
+    }
+    if (ps.includes('error') || ps.includes('jam') || ps.includes('door') || ps === '2') {
+      return { connectionState: 'error', statusLabel: 'Error' };
+    }
+    return { connectionState: 'connected', statusLabel: 'Connected' };
+  }
+  // Fallback to Electron status bitmask
+  const st = Number(electronStatus) || 0;
+  if (st === 0) return { connectionState: 'connected', statusLabel: 'Connected' };
+  if (st & 128) return { connectionState: 'offline', statusLabel: 'Offline' };
+  if (st & 1) return { connectionState: 'offline', statusLabel: 'Paused' };
+  if (st & 16) return { connectionState: 'error', statusLabel: 'Paper Out' };
+  return { connectionState: 'error', statusLabel: 'Attention' };
+}
+
+// IPC Handlers: Native Printer Discovery (Electron + Windows Get-Printer status), Silent/System Printing & A1-A6 PDF Export
+ipcMain.handle('getPrinters', async () => {
+  try {
+    if (!win || win.isDestroyed()) return [];
+    const [printers, winMap] = await Promise.all([
+      win.webContents.getPrintersAsync(),
+      queryWindowsPrinterDetails(),
+    ]);
+    return (printers || []).map((p) => {
+      const winDetail = winMap[String(p.name || '').toLowerCase()] || null;
+      const portName = winDetail?.PortName || '';
+      const driverName = winDetail?.DriverName || p.description || '';
+      const connectionType = classifyConnection(portName, driverName);
+      const { connectionState, statusLabel } = resolvePrinterStatus(winDetail, p.status);
+      return {
+        name: p.name,
+        displayName: p.displayName || p.name,
+        description: driverName,
+        portName,
+        connectionType,
+        connectionState,
+        statusLabel,
+        isDefault: Boolean(p.isDefault),
+        status: p.status,
+      };
+    });
+  } catch (err) {
+    return [];
+  }
+});
+
+ipcMain.handle('printInvoice', async (event, opts = {}) => {
+  try {
+    if (!win || win.isDestroyed()) return { success: false, error: 'Window unavailable.' };
+    const format = opts.format || '80mm';
+    const landscape = opts.orientation === 'landscape';
+    const pageSize = ELECTRON_PAGE_SIZES_MICRONS[format] || ELECTRON_PAGE_SIZES_MICRONS.A4;
+    const silent = Boolean(opts.silent);
+
+    // Pre-check printer availability before silent/direct print
+    if (silent || opts.deviceName) {
+      const [printers, winMap] = await Promise.all([
+        win.webContents.getPrintersAsync(),
+        queryWindowsPrinterDetails(),
+      ]);
+      const target = opts.deviceName
+        ? printers.find((p) => p.name === opts.deviceName)
+        : printers.find((p) => p.isDefault) || printers[0];
+
+      if (!target) {
+        return {
+          success: false,
+          code: 'PRINTER_UNAVAILABLE',
+          error: 'The printer is unavailable or disconnected.',
+        };
+      }
+
+      const winDetail = winMap[String(target.name || '').toLowerCase()] || null;
+      const { connectionState, statusLabel } = resolvePrinterStatus(winDetail, target.status);
+      if (connectionState !== 'connected') {
+        return {
+          success: false,
+          code: 'PRINTER_UNAVAILABLE',
+          error:
+            statusLabel === 'Paper Out'
+              ? 'The printer is out of paper. Load paper and retry.'
+              : 'The printer is unavailable or disconnected.',
+        };
+      }
+    }
+
+    return await new Promise((resolve) => {
+      win.webContents.print(
+        {
+          silent,
+          printBackground: true,
+          deviceName: opts.deviceName || undefined,
+          landscape,
+          pageSize,
+          margins: { marginType: 'none' },
+        },
+        (success, failureReason) => {
+          if (success) {
+            resolve({ success: true });
+          } else {
+            resolve({
+              success: false,
+              code: 'PRINT_FAILED',
+              error:
+                failureReason && failureReason !== 'cancelled'
+                  ? `The printer is unavailable or disconnected (${failureReason}).`
+                  : 'The printer is unavailable or disconnected.',
+            });
+          }
+        }
+      );
+    });
+  } catch (err) {
+    return {
+      success: false,
+      code: 'PRINT_FAILED',
+      error: err.message || 'The printer is unavailable or disconnected.',
+    };
+  }
+});
+
+ipcMain.handle('exportInvoicePdf', async (event, opts = {}) => {
+  try {
+    if (!win || win.isDestroyed()) return { success: false, error: 'Window unavailable.' };
+    const format = opts.format || 'A4';
+    const landscape = opts.orientation === 'landscape';
+    const sizeMicrons = ELECTRON_PAGE_SIZES_MICRONS[format] || ELECTRON_PAGE_SIZES_MICRONS.A4;
+    // Electron printToPDF pageSize takes inches when passing custom { width, height }
+    const pageSizeInches = {
+      width: Number((sizeMicrons.width / 25400).toFixed(3)),
+      height: Number((sizeMicrons.height / 25400).toFixed(3)),
+    };
+
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: `Save Invoice PDF (${format})`,
+      defaultPath: `${opts.invoiceNumber || 'Invoice'}_${format}.pdf`,
+      filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+    });
+
+    if (canceled || !filePath) return { success: false };
+
+    const pdfData = await win.webContents.printToPDF({
+      printBackground: true,
+      landscape,
+      pageSize: pageSizeInches,
+      margins: { top: 0.2, bottom: 0.2, left: 0.2, right: 0.2 },
+    });
+
+    fs.writeFileSync(filePath, pdfData);
+    return { success: true, path: filePath };
+  } catch (err) {
+    return { success: false, error: err.message || 'PDF export failed.' };
+  }
 });
 
 function createWindow() {
