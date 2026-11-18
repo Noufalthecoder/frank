@@ -227,7 +227,9 @@ export default function POSBilling() {
       // F9: Complete Sale
       else if (e.key === 'F9') {
         e.preventDefault();
-        handleGenerateBill();
+        if (!isCompleteDisabled) {
+          handleGenerateBill();
+        }
       }
       // Alt + N: New Bill
       else if (e.altKey && (e.key === 'n' || e.key === 'N')) {
@@ -469,11 +471,24 @@ export default function POSBilling() {
   };
 
   // Financial Calculations (Non-GST Clean Retail Calculation with Length/Weight Unit Conversion)
-  const itemSubtotal = activeBill.cart.reduce((acc, i) => acc + getBaseQty(i) * i.rate, 0);
-  const itemDiscounts = activeBill.cart.reduce(
-    (acc, i) => acc + (getBaseQty(i) * i.rate * (i.discountPercent || 0)) / 100,
-    0
+  // If an item is not in stock / exceeds stock, do not perform amount addition and block sale
+  const hasOverStock = activeBill.cart.some(
+    (i) => getBaseQty(i) > getLiveAvailableStock(i) + 1e-9
   );
+  const isCompleteDisabled = activeBill.cart.length === 0 || hasOverStock;
+
+  const itemSubtotal = activeBill.cart.reduce((acc, i) => {
+    const baseQty = getBaseQty(i);
+    const avail = getLiveAvailableStock(i);
+    if (baseQty > avail + 1e-9) return acc;
+    return acc + baseQty * i.rate;
+  }, 0);
+  const itemDiscounts = activeBill.cart.reduce((acc, i) => {
+    const baseQty = getBaseQty(i);
+    const avail = getLiveAvailableStock(i);
+    if (baseQty > avail + 1e-9) return acc;
+    return acc + (baseQty * i.rate * (i.discountPercent || 0)) / 100;
+  }, 0);
   const afterItemDiscount = Math.max(0, itemSubtotal - itemDiscounts);
   const billDiscountAmount = (afterItemDiscount * (activeBill.billDiscountPercent || 0)) / 100;
   const rawTotal = Math.max(0, afterItemDiscount - billDiscountAmount);
@@ -483,6 +498,8 @@ export default function POSBilling() {
 
   // Complete Sale
   const handleGenerateBill = async () => {
+    if (isCompleteDisabled) return;
+
     if (activeBill.cart.length === 0) {
       await showAlert({
         title: t('po_empty_title'),
@@ -502,27 +519,8 @@ export default function POSBilling() {
       return;
     }
 
-    // Check if any item exceeds current available stock (in base unit)
-    const overStock = activeBill.cart.filter((i) => getBaseQty(i) > getLiveAvailableStock(i) + 1e-9);
-    if (overStock.length > 0) {
-      const list = overStock
-        .map((i) => {
-          const baseU = normalizeUnit(i.baseUnit || 'PCS');
-          const billU = normalizeUnit(i.billingUnit || baseU);
-          const avail = getLiveAvailableStock(i);
-          return `• ${tName(i.name)} (${t('po_billing_word')} ${formatQty(i.qty)} ${billU} = ${formatQty(getBaseQty(i))} ${baseU}, ${t('cat_stock')} ${formatQty(avail)} ${baseU})`;
-        })
-        .join('\n');
-      const ok = await showConfirm({
-        title: t('po_insuff_title'),
-        message: t('po_insuff_msg', { list }),
-        confirmLabel: t('po_proceed'),
-        cancelLabel: t('po_go_back'),
-        tone: 'danger',
-      });
-      if (!ok) {
-        return;
-      }
+    if (hasOverStock) {
+      return;
     }
 
     const invoicePayload = {
@@ -927,8 +925,8 @@ export default function POSBilling() {
                       const baseQty = getBaseQty(item);
                       const availableStock = getLiveAvailableStock(item);
                       const exceedsStock = baseQty > availableStock + 1e-9;
-                      const lineSub = baseQty * item.rate;
-                      const lineTotal = lineSub * (1 - (item.discountPercent || 0) / 100);
+                      const lineSub = exceedsStock ? 0 : baseQty * item.rate;
+                      const lineTotal = exceedsStock ? 0 : lineSub * (1 - (item.discountPercent || 0) / 100);
 
                       return (
                         <tr
@@ -1050,7 +1048,9 @@ export default function POSBilling() {
                           </td>
 
                           {/* Line Total */}
-                          <td className="py-3 px-4 text-right font-black text-slate-900 text-sm">
+                          <td className={`py-3 px-4 text-right font-black text-sm tabular-nums ${
+                            exceedsStock ? 'text-rose-500 font-bold' : 'text-slate-900'
+                          }`}>
                             ₹ {lineTotal.toFixed(2)}
                           </td>
 
@@ -1291,9 +1291,10 @@ export default function POSBilling() {
           {/* Complete Sale Button (F9) */}
           <button
             onClick={handleGenerateBill}
-            disabled={activeBill.cart.length === 0}
+            disabled={isCompleteDisabled}
+            title={hasOverStock ? t('po_overstock_blocked') : ''}
             className={`w-full py-3 px-4 rounded-xl text-[15px] font-bold tracking-[-0.01em] transition-all flex items-center justify-between ${
-              activeBill.cart.length === 0
+              isCompleteDisabled
                 ? 'bg-slate-100/90 text-slate-400 border border-slate-200/90 cursor-not-allowed shadow-none'
                 : 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-700/80 shadow-md ring-1 ring-inset ring-white/15 active:scale-[0.99]'
             }`}
@@ -1308,7 +1309,7 @@ export default function POSBilling() {
               </span>
               <kbd
                 className={`px-1.5 py-0.5 rounded-md text-[12px] font-mono font-bold border ${
-                  activeBill.cart.length === 0
+                  isCompleteDisabled
                     ? 'bg-white text-slate-400 border-slate-200/90'
                     : 'bg-white/15 text-white border-white/25'
                 }`}
