@@ -98,8 +98,8 @@ export default function Layout({ children }) {
     { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard },
     { name: t('nav_pos'), path: '/pos', icon: ShoppingCart },
     { name: t('nav_history'), path: '/history', icon: Receipt },
-    { name: t('nav_vendors'), path: '/vendors', icon: Truck },
     { name: t('nav_catalog'), path: '/catalog', icon: Boxes },
+    { name: t('nav_vendors'), path: '/vendors', icon: Truck },
     { name: t('nav_finance'), path: '/finance', icon: Wallet },
     { name: t('nav_settings'), path: '/settings', icon: Settings },
   ];
