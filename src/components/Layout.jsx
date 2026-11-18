@@ -95,13 +95,13 @@ export default function Layout({ children }) {
   }, []);
 
   const navItems = [
-    { name: t('nav_pos'), path: '/pos', icon: ShoppingCart },
-    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard },
-    { name: t('nav_catalog'), path: '/catalog', icon: Boxes },
-    { name: t('nav_history'), path: '/history', icon: Receipt },
-    { name: t('nav_vendors'), path: '/vendors', icon: Truck },
-    { name: t('nav_finance'), path: '/finance', icon: Wallet },
-    { name: t('nav_settings'), path: '/settings', icon: Settings },
+    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard, emoji: '📊' },
+    { name: t('nav_pos'), path: '/pos', icon: ShoppingCart, emoji: '🛒' },
+    { name: t('nav_catalog'), path: '/catalog', icon: Boxes, emoji: '📦' },
+    { name: t('nav_history'), path: '/history', icon: Receipt, emoji: '🧾' },
+    { name: t('nav_vendors'), path: '/vendors', icon: Truck, emoji: '🚚' },
+    { name: t('nav_finance'), path: '/finance', icon: Wallet, emoji: '💰' },
+    { name: t('nav_settings'), path: '/settings', icon: Settings, emoji: '⚙️' },
   ];
 
   const handleSearchSubmit = (e) => {
@@ -153,7 +153,15 @@ export default function Layout({ children }) {
                   {isActive && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-blue-600" />
                   )}
-                  <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <span
+                    aria-hidden="true"
+                    className={`w-5 text-center text-[17px] leading-none flex-shrink-0 transition-all duration-150 ${
+                      isActive ? 'scale-110 drop-shadow-sm' : 'opacity-90'
+                    }`}
+                    style={{ fontFamily: '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif' }}
+                  >
+                    {item.emoji}
+                  </span>
                   <span className="truncate">{item.name}</span>
                 </NavLink>
               );
