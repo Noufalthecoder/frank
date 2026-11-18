@@ -5,13 +5,13 @@ import {
   Check,
   CheckCircle2,
   Plus,
-  SlidersHorizontal,
+  Minus,
   Package
 } from 'lucide-react';
 import { TOOL_LIBRARY } from '../data/toolLibrary.js';
 
 export default function ToolLibraryPicker({
-  existingSkus = new Set(),
+  existingItemsMap = {},
   availableBins = [],
   onFillManualForm,
   onBulkAddSizes,
@@ -19,8 +19,9 @@ export default function ToolLibraryPicker({
   const [query, setQuery] = useState('');
   const [catFilter, setCatFilter] = useState('All');
   const [selectedTool, setSelectedTool] = useState(null);
-  const [selectedSizeCodes, setSelectedSizeCodes] = useState([]);
-  const [defaultQty, setDefaultQty] = useState('25');
+  // Map of sizeCode -> count to add (presence in object means selected)
+  const [selectedQtyMap, setSelectedQtyMap] = useState({});
+  const [defaultQty, setDefaultQty] = useState('10');
   const [defaultReorder, setDefaultReorder] = useState('10');
   const [defaultBin, setDefaultBin] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -42,59 +43,106 @@ export default function ToolLibraryPicker({
   const openTool = (tool) => {
     setSelectedTool(tool);
     setDefaultBin(tool.defaultBin || availableBins[0]?.code || 'R01-L1-S1');
-    setSelectedSizeCodes([]);
+    setSelectedQtyMap({});
   };
 
   const makeSku = (tool, sizeObj) => `${tool.skuPrefix}-${sizeObj.code}`.toUpperCase();
 
   const toggleSize = (code) => {
-    setSelectedSizeCodes((prev) =>
-      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
-    );
+    setSelectedQtyMap((prev) => {
+      if (prev[code] !== undefined) {
+        const next = { ...prev };
+        delete next[code];
+        return next;
+      }
+      return { ...prev, [code]: Math.max(1, parseInt(defaultQty) || 1) };
+    });
+  };
+
+  const adjustSizeQty = (code, delta, e) => {
+    e.stopPropagation();
+    setSelectedQtyMap((prev) => {
+      const current = prev[code] || 0;
+      const nextQty = current + delta;
+      if (nextQty <= 0) {
+        const copy = { ...prev };
+        delete copy[code];
+        return copy;
+      }
+      return { ...prev, [code]: nextQty };
+    });
+  };
+
+  const setExplicitSizeQty = (code, val) => {
+    const parsed = Math.max(1, parseInt(val) || 1);
+    setSelectedQtyMap((prev) => ({ ...prev, [code]: parsed }));
   };
 
   const selectAllSizes = () => {
     if (!selectedTool) return;
-    setSelectedSizeCodes(selectedTool.sizes.map((s) => s.code));
+    const qty = Math.max(1, parseInt(defaultQty) || 1);
+    const next = {};
+    selectedTool.sizes.forEach((s) => {
+      next[s.code] = selectedQtyMap[s.code] || qty;
+    });
+    setSelectedQtyMap(next);
   };
 
   const selectMissingOnly = () => {
     if (!selectedTool) return;
-    const missing = selectedTool.sizes
-      .filter((s) => !existingSkus.has(makeSku(selectedTool, s)))
-      .map((s) => s.code);
-    setSelectedSizeCodes(missing);
+    const qty = Math.max(1, parseInt(defaultQty) || 1);
+    const next = {};
+    selectedTool.sizes.forEach((s) => {
+      const sku = makeSku(selectedTool, s);
+      if (!existingItemsMap[sku]) {
+        next[s.code] = selectedQtyMap[s.code] || qty;
+      }
+    });
+    setSelectedQtyMap(next);
   };
 
-  const buildItemPayload = (tool, sizeObj) => ({
-    sku: makeSku(tool, sizeObj),
-    name: `${tool.name} ${sizeObj.size}`,
-    size: sizeObj.size,
-    unit: sizeObj.unit || tool.unit || 'PCS',
-    category: tool.category,
-    brand: tool.brand,
-    selling_price: sizeObj.price,
-    cost_price: sizeObj.cost,
-    quantity: parseFloat(defaultQty) || 0,
-    reorder_level: parseFloat(defaultReorder) || 10,
-    bin_id: (defaultBin || tool.defaultBin || 'R01-L1-S1').trim().toUpperCase(),
-    image_url: tool.image,
-  });
+  const buildItemPayload = (tool, sizeObj, customAddQty) => {
+    const sku = makeSku(tool, sizeObj);
+    const existing = existingItemsMap[sku];
+    const addQty = customAddQty !== undefined ? customAddQty : Math.max(1, parseInt(defaultQty) || 1);
+    // If item already exists in catalog, add to its existing stock; otherwise set initial stock
+    const finalQty = existing ? Number(existing.quantity || 0) + addQty : addQty;
+
+    return {
+      sku,
+      name: existing ? existing.name : `${tool.name} ${sizeObj.size}`,
+      size: sizeObj.size,
+      unit: sizeObj.unit || tool.unit || 'PCS',
+      category: existing ? existing.category : tool.category,
+      brand: existing ? existing.brand : tool.brand,
+      selling_price: existing ? Number(existing.selling_price) : sizeObj.price,
+      cost_price: existing ? Number(existing.cost_price) : sizeObj.cost,
+      quantity: finalQty,
+      reorder_level: existing ? Number(existing.reorder_level) : parseFloat(defaultReorder) || 10,
+      bin_id: existing
+        ? existing.bin_id || (defaultBin || tool.defaultBin || 'R01-L1-S1').trim().toUpperCase()
+        : (defaultBin || tool.defaultBin || 'R01-L1-S1').trim().toUpperCase(),
+      image_url: existing?.image_url || tool.image,
+    };
+  };
+
+  const selectedCodes = Object.keys(selectedQtyMap);
+  const totalUnitsToAdd = selectedCodes.reduce((sum, code) => sum + (Number(selectedQtyMap[code]) || 0), 0);
 
   const handleBulkSubmit = async () => {
-    if (!selectedTool || selectedSizeCodes.length === 0) return;
+    if (!selectedTool || selectedCodes.length === 0) return;
     setIsSaving(true);
     try {
       const itemsToInsert = selectedTool.sizes
-        .filter((s) => selectedSizeCodes.includes(s.code))
-        .map((s) => buildItemPayload(selectedTool, s));
-      await onBulkAddSizes(itemsToInsert);
+        .filter((s) => selectedQtyMap[s.code] !== undefined)
+        .map((s) => buildItemPayload(selectedTool, s, selectedQtyMap[s.code]));
+      await onBulkAddSizes(itemsToInsert, totalUnitsToAdd);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Detail View: Pick Sizes for the selected Tool
+  // Detail View: Pick Sizes & Counts for the selected Tool
   if (selectedTool) {
     return (
       <div className="space-y-4">
@@ -124,13 +172,13 @@ export default function ToolLibraryPicker({
             <h4 className="text-sm font-bold text-slate-900 mt-1">{selectedTool.name}</h4>
             <p className="text-[11px] text-slate-500 mt-0.5">{selectedTool.description}</p>
 
-            {/* Quick Defaults for Selected Sizes */}
+            {/* Quick Defaults for Newly Selected Sizes */}
             <div className="grid grid-cols-3 gap-2.5 mt-3">
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Initial Stock</label>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Default Add Qty</label>
                 <input
                   type="number"
-                  min="0"
+                  min="1"
                   value={defaultQty}
                   onChange={(e) => setDefaultQty(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500"
@@ -191,7 +239,7 @@ export default function ToolLibraryPicker({
             <span className="text-slate-300">·</span>
             <button
               type="button"
-              onClick={() => setSelectedSizeCodes([])}
+              onClick={() => setSelectedQtyMap({})}
               className="text-[11px] font-semibold text-slate-500 hover:underline"
             >
               Clear
@@ -199,12 +247,14 @@ export default function ToolLibraryPicker({
           </div>
         </div>
 
-        {/* Sizes Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
+        {/* Sizes Grid with Per-Size Counters */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
           {selectedTool.sizes.map((s) => {
             const sku = makeSku(selectedTool, s);
-            const isSelected = selectedSizeCodes.includes(s.code);
-            const inCatalog = existingSkus.has(sku);
+            const isSelected = selectedQtyMap[s.code] !== undefined;
+            const addCount = selectedQtyMap[s.code] || 0;
+            const existing = existingItemsMap[sku];
+            const currentStock = existing ? Number(existing.quantity || 0) : 0;
 
             return (
               <div
@@ -219,7 +269,7 @@ export default function ToolLibraryPicker({
                 <div className="flex items-start justify-between gap-1.5">
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900 leading-tight">{s.size}</p>
-                    <p className="text-[10px] font-mono text-slate-400 mt-0.5">{sku}</p>
+                    <p className="text-[10px] font-mono text-slate-400 mt-0.5">₹ {existing ? Number(existing.selling_price) : s.price}</p>
                   </div>
                   <div
                     className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border ${
@@ -232,27 +282,70 @@ export default function ToolLibraryPicker({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100">
-                  <span className="text-[11px] font-bold text-slate-800">₹ {s.price}</span>
-                  <div className="flex items-center gap-1.5">
-                    {inCatalog && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        In Stock
+                {/* Selected: Per-Size Quantity Stepper | Unselected: Stock Badge & Edit */}
+                {isSelected ? (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-2 pt-2 border-t border-blue-200/70 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-semibold text-blue-700">
+                        {existing ? 'Add:' : 'Qty:'}
                       </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => adjustSizeQty(s.code, -1, e)}
+                          className="w-6 h-6 rounded-md bg-white border border-blue-200 hover:bg-blue-100 text-blue-700 flex items-center justify-center transition-colors"
+                          title="Decrease count"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={addCount}
+                          onChange={(e) => setExplicitSizeQty(s.code, e.target.value)}
+                          className="w-12 text-center bg-white border border-blue-300 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => adjustSizeQty(s.code, 1, e)}
+                          className="w-6 h-6 rounded-md bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors"
+                          title="Increase count"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                    {existing && (
+                      <p className="text-[10px] font-bold text-emerald-700 text-right">
+                        Stock: {currentStock} → {currentStock + addCount}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100">
+                    {existing ? (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Stock: {currentStock}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400">Tap to add</span>
                     )}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onFillManualForm(buildItemPayload(selectedTool, s));
+                        onFillManualForm(buildItemPayload(selectedTool, s, Math.max(1, parseInt(defaultQty) || 1)));
                       }}
-                      title="Customize in Manual Form"
+                      title="Customize price & details"
                       className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 px-1.5 py-0.5 rounded hover:bg-blue-100/70"
                     >
                       Edit
                     </button>
                   </div>
-                </div>
+                )}
               </div>
             );
           })}
@@ -261,19 +354,21 @@ export default function ToolLibraryPicker({
         {/* Bottom Action Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-100">
           <p className="text-[11px] text-slate-500">
-            Tip: Click sizes to multi-select, or click <strong>Edit</strong> on any size to tweak prices first.
+            Select sizes & adjust each count individually. Existing items will have their stock increased.
           </p>
           <button
             type="button"
-            disabled={selectedSizeCodes.length === 0 || isSaving}
+            disabled={selectedCodes.length === 0 || isSaving}
             onClick={handleBulkSubmit}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-lg text-xs font-bold shadow-sm transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-lg text-xs font-bold shadow-sm transition-colors flex-shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>
               {isSaving
-                ? 'Adding...'
-                : `Add ${selectedSizeCodes.length || ''} Selected Size${selectedSizeCodes.length === 1 ? '' : 's'} to Catalog`}
+                ? 'Saving...'
+                : selectedCodes.length === 0
+                ? 'Add Selected Sizes to Catalog'
+                : `Save ${selectedCodes.length} Size${selectedCodes.length === 1 ? '' : 's'} (+${totalUnitsToAdd} Units)`}
             </span>
           </button>
         </div>
@@ -318,7 +413,7 @@ export default function ToolLibraryPicker({
       {/* Tool Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-[360px] overflow-y-auto pr-1">
         {filteredTools.map((tool) => {
-          const addedCount = tool.sizes.filter((s) => existingSkus.has(makeSku(tool, s))).length;
+          const addedCount = tool.sizes.filter((s) => Boolean(existingItemsMap[makeSku(tool, s)])).length;
           return (
             <button
               key={tool.id}

@@ -283,14 +283,16 @@ export default function Catalog() {
     setShowAddModal(true);
   };
 
-  const handleBulkAddFromLibrary = async (selectedItems) => {
+  const handleBulkAddFromLibrary = async (selectedItems, totalUnits) => {
     if (!window.api || !window.api.bulkImportItems) return;
     const res = await window.api.bulkImportItems(selectedItems);
     if (res && res.success) {
       setShowAddModal(false);
       await loadItems();
       window.dispatchEvent(new CustomEvent('stock-updated'));
-      showToast(`Added ${res.count} tool size${res.count === 1 ? '' : 's'} to catalog.`);
+      showToast(
+        `Saved ${res.count} size${res.count === 1 ? '' : 's'}${totalUnits ? ` (+${totalUnits} units)` : ''} to catalog.`
+      );
     } else {
       alert(res?.error || 'Failed to add selected tools.');
     }
@@ -308,7 +310,7 @@ export default function Catalog() {
       brand: itemPayload.brand || 'Generic',
       selling_price: String(itemPayload.selling_price ?? ''),
       cost_price: String(itemPayload.cost_price ?? ''),
-      quantity: String(itemPayload.quantity ?? '25'),
+      quantity: String(itemPayload.quantity ?? '10'),
       reorder_level: String(itemPayload.reorder_level ?? '10'),
       bin_id: itemPayload.bin_id || availableBins[0]?.code || 'R01-L1-S1',
       image_url: itemPayload.image_url || '',
@@ -317,6 +319,10 @@ export default function Catalog() {
   };
 
   const existingSkus = new Set(items.map((i) => String(i.sku || '').toUpperCase()));
+  const existingItemsMap = items.reduce((acc, i) => {
+    acc[String(i.sku || '').toUpperCase()] = i;
+    return acc;
+  }, {});
 
   // CSV Export
   const handleExportCsv = () => {
@@ -731,7 +737,7 @@ export default function Catalog() {
             {!editingItem && modalMode === 'library' ? (
               <div className="p-5 overflow-y-auto">
                 <ToolLibraryPicker
-                  existingSkus={existingSkus}
+                  existingItemsMap={existingItemsMap}
                   availableBins={availableBins}
                   onFillManualForm={handleFillFromLibrary}
                   onBulkAddSizes={handleBulkAddFromLibrary}
