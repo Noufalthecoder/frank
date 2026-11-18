@@ -122,8 +122,8 @@ export default function SalesHistory() {
     <div className="space-y-5">
       {/* Floating Top-Right Toast Notification (2s) */}
       {toast && (
-        <div className="fixed top-4 right-5 z-[100] flex items-center gap-2 bg-white text-emerald-700 border border-emerald-200 shadow-lg px-3.5 py-2.5 rounded-xl text-xs font-semibold">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>{toast}</span>
         </div>
       )}
@@ -131,8 +131,8 @@ export default function SalesHistory() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('hist_title')}</h1>
-          <p className="text-xs text-slate-500 mt-0.5">{t('hist_subtitle')}</p>
+          <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('hist_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">{t('hist_subtitle')}</p>
         </div>
 
         {/* Action Controls */}
@@ -161,7 +161,7 @@ export default function SalesHistory() {
       </div>
 
       {/* Search Input Bar */}
-      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+      <div className="surface-card p-3.5 rounded-2xl flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -188,7 +188,7 @@ export default function SalesHistory() {
       </div>
 
       {/* Invoices Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="surface-card rounded-2xl overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">

@@ -259,8 +259,8 @@ export default function Finance() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('fin_title')}</h1>
-          <p className="text-xs text-slate-500 mt-0.5">{t('fin_subtitle')}</p>
+          <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('fin_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">{t('fin_subtitle')}</p>
         </div>
 
         <select

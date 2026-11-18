@@ -122,8 +122,8 @@ export default function Settings() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('set_title')}</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('set_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
             {t('set_subtitle')}
           </p>
         </div>
@@ -132,7 +132,7 @@ export default function Settings() {
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
         {/* Left Side: Settings Navigation Tabs */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 space-y-1">
+        <div className="surface-card rounded-2xl p-3 space-y-1">
           {[
             { id: 'Shop Profile', label: t('set_tab_profile'), icon: Store },
             { id: 'Racks & Bins', label: t('set_tab_racks'), icon: Grid3X3 },
@@ -160,7 +160,7 @@ export default function Settings() {
         </div>
 
         {/* Right Side: Form Panel */}
-        <div className="md:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+        <div className="md:col-span-3 surface-card rounded-2xl p-6 space-y-6">
           {activeTab === 'Shop Profile' && (
             <form onSubmit={handleSave} className="space-y-6">
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">

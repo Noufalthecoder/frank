@@ -32,6 +32,7 @@ export default function Layout({ children }) {
     address_line2: 'Tharuvaikulam',
   });
   const notifRef = useRef(null);
+  const globalSearchRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -76,12 +77,20 @@ export default function Layout({ children }) {
         setShowNotifDropdown(false);
       }
     };
+    const handleGlobalShortcut = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        globalSearchRef.current?.focus();
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleGlobalShortcut);
 
     return () => {
       window.removeEventListener('stock-updated', handleStockUpdate);
       window.removeEventListener('shop-profile-updated', handleProfileUpdate);
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleGlobalShortcut);
     };
   }, []);
 
@@ -107,17 +116,17 @@ export default function Layout({ children }) {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 text-slate-800">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#f6f8fb] text-slate-800">
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between">
+      <aside className="w-[248px] flex-shrink-0 bg-white border-r border-slate-200/80 flex flex-col justify-between">
         <div>
-          {/* Logo */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
-            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-200">
-              <Layers className="w-5 h-5" />
+          {/* Brand Logo Header */}
+          <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-100">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-600/20 ring-1 ring-blue-700/20 flex-shrink-0">
+              <Layers className="w-4.5 h-4.5" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-bold text-slate-900 tracking-tight leading-snug truncate">
+              <h1 className="text-[13.5px] font-extrabold text-slate-900 tracking-[-0.015em] leading-snug truncate">
                 {shopProfile.shop_name || 'T. S. P Enterprises'}
               </h1>
               <p className="text-[11px] font-medium text-slate-400 truncate">
@@ -135,14 +144,17 @@ export default function Layout({ children }) {
                 <NavLink
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-150 ${
                     isActive
-                      ? 'bg-blue-50 text-blue-600 font-semibold'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-blue-50/90 text-blue-700 font-semibold ring-1 ring-blue-600/15 shadow-2xs'
+                      : 'text-slate-600 font-medium hover:bg-slate-100/80 hover:text-slate-900'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-                  <span>{item.name}</span>
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-blue-600" />
+                  )}
+                  <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <span className="truncate">{item.name}</span>
                 </NavLink>
               );
             })}
@@ -150,45 +162,65 @@ export default function Layout({ children }) {
         </div>
 
         {/* Footer info */}
-        <div className="p-4 border-t border-slate-100">
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <p className="text-xs font-semibold text-slate-700">StockMate v2.0</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">{t('offline_ready')}</p>
+        <div className="p-3.5 border-t border-slate-100">
+          <div className="bg-slate-50/90 p-3 rounded-xl border border-slate-200/70">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-slate-800 tracking-tight">StockMate v2.0</p>
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">{t('offline_ready')}</p>
           </div>
         </div>
       </aside>
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-20">
-          {/* Global Search Bar */}
-          <div className="relative w-96">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Glassmorphic Top Header */}
+        <header className="h-16 bg-white/85 backdrop-blur-md border-b border-slate-200/80 flex items-center justify-between px-6 z-20 flex-shrink-0">
+          {/* Global Search Bar with Ctrl+K Shortcut */}
+          <div className="relative w-96 max-w-md group">
+            <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
+              ref={globalSearchRef}
               type="text"
               placeholder={t('search_global')}
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
               onKeyDown={handleSearchSubmit}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              className="w-full bg-slate-100/70 hover:bg-slate-100 border border-slate-200/80 rounded-xl pl-10 pr-14 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 focus:bg-white transition-all font-medium"
             />
+            {globalSearch ? (
+              <button
+                type="button"
+                onClick={() => setGlobalSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-md"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 bg-white border border-slate-200/90 rounded-md shadow-2xs">
+                Ctrl K
+              </kbd>
+            )}
           </div>
 
           {/* Right Header items */}
           <div className="flex items-center gap-3">
             {/* Language Switcher Pill: EN / தமிழ் */}
             <div
-              className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200"
+              className="flex items-center bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/80"
               role="group"
               aria-label="Language switcher"
             >
               <button
                 type="button"
                 onClick={() => setLang('en')}
-                className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
                   lang === 'en'
-                    ? 'bg-white text-blue-600 shadow-xs'
+                    ? 'bg-white text-blue-600 shadow-xs ring-1 ring-slate-200/60'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -197,9 +229,9 @@ export default function Layout({ children }) {
               <button
                 type="button"
                 onClick={() => setLang('ta')}
-                className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
                   lang === 'ta'
-                    ? 'bg-white text-blue-600 shadow-xs'
+                    ? 'bg-white text-blue-600 shadow-xs ring-1 ring-slate-200/60'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -211,14 +243,16 @@ export default function Layout({ children }) {
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setShowNotifDropdown((prev) => !prev)}
-                className={`relative p-2 rounded-lg transition-colors ${
-                  showNotifDropdown ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                className={`relative p-2 rounded-xl border transition-all ${
+                  showNotifDropdown
+                    ? 'bg-slate-100 border-slate-200 text-slate-900'
+                    : 'bg-white border-slate-200/80 text-slate-500 hover:text-slate-800 hover:bg-slate-50 hover:border-slate-300/80 shadow-2xs'
                 }`}
                 title={t('notification_title')}
               >
                 <Bell className="w-4 h-4" />
                 {outOfStockItems.length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-xs animate-pulse">
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-white tabular-nums">
                     {outOfStockItems.length}
                   </span>
                 )}
@@ -226,18 +260,18 @@ export default function Layout({ children }) {
 
               {/* Notification Dropdown Panel */}
               {showNotifDropdown && (
-                <div className="absolute right-0 mt-2 w-84 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
-                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div className="animate-popover absolute right-0 mt-2 w-84 bg-white rounded-2xl shadow-2xl shadow-slate-900/12 border border-slate-200/90 overflow-hidden z-50">
+                  <div className="px-4 py-3 bg-slate-50/90 border-b border-slate-200/80 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Bell className="w-4 h-4 text-slate-700" />
                       <span className="text-xs font-bold text-slate-900">{t('notification_title')}</span>
                     </div>
                     {outOfStockItems.length > 0 ? (
-                      <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full border border-rose-200">
+                      <span className="text-[10px] font-bold bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full border border-rose-200 tabular-nums">
                         {outOfStockItems.length} {t('out_of_stock_count')}
                       </span>
                     ) : (
-                      <span className="text-[10px] font-medium bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
                         {t('all_stock_healthy')}
                       </span>
                     )}
@@ -256,9 +290,9 @@ export default function Layout({ children }) {
                         <div
                           key={item.id || item.sku}
                           onClick={() => handleNotifItemClick(item.sku)}
-                          className="p-3 hover:bg-slate-50 transition-colors cursor-pointer flex items-start gap-3 group"
+                          className="p-3.5 hover:bg-blue-50/40 transition-colors cursor-pointer flex items-start gap-3 group"
                         >
-                          <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0 mt-0.5 border border-rose-100">
+                          <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0 mt-0.5 border border-rose-200/70">
                             <AlertTriangle className="w-3.5 h-3.5" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -266,7 +300,7 @@ export default function Layout({ children }) {
                               <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
                                 {tName(item.name)}
                               </p>
-                              <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 flex-shrink-0">
+                              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200 flex-shrink-0 tabular-nums">
                                 0 {item.unit || 'PCS'}
                               </span>
                             </div>
@@ -287,21 +321,23 @@ export default function Layout({ children }) {
             </div>
 
             {/* Profile */}
-            <div className="flex items-center gap-3 pl-2 border-l border-slate-200">
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs flex items-center justify-center border border-blue-200">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200/80">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-[11px] flex items-center justify-center shadow-sm ring-2 ring-blue-100">
                 AA
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-800 leading-tight">A. Adithya</p>
-                <p className="text-[11px] text-slate-400 font-medium">{t('admin')}</p>
+                <p className="text-xs font-bold text-slate-900 leading-tight">A. Adithya</p>
+                <p className="text-[10px] text-slate-400 font-semibold">{t('admin')}</p>
               </div>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-slate-50">
-          {children}
+        <main className="flex-1 overflow-y-auto p-6 bg-[#f6f8fb]">
+          <div className="max-w-[1440px] mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -597,7 +597,7 @@ export default function POSBilling() {
 
             {/* Inline Product Lookup Results Table (As in reference image) */}
             {searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden z-30">
+              <div className="animate-popover absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200/90 rounded-2xl shadow-2xl shadow-slate-900/12 overflow-hidden z-30">
                 <div className="max-h-72 overflow-y-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
@@ -703,7 +703,7 @@ export default function POSBilling() {
           </div>
 
           {/* Active Cart Table */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between min-h-[380px]">
+          <div className="surface-card rounded-2xl overflow-hidden flex flex-col justify-between min-h-[390px]">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
@@ -877,8 +877,8 @@ export default function POSBilling() {
             )}
           </div>
 
-          {/* Keyboard Hotkey Bar (As in reference image) */}
-          <div className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-2xs flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+          {/* Keyboard Hotkey Bar */}
+          <div className="surface-card rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
             <button
               onClick={() => searchInputRef.current?.focus()}
               className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded-md border border-slate-200 transition-colors"
@@ -949,27 +949,27 @@ export default function POSBilling() {
         </div>
 
         {/* Right Column: Checkout Summary & Customer Details */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <div className="surface-card rounded-2xl p-5 space-y-4">
           {/* Bill Calculation Box */}
-          <div className="space-y-2.5 pb-4 border-b border-slate-200 text-xs">
+          <div className="space-y-2.5 pb-4 border-b border-slate-200/80 text-xs">
             <div className="flex items-center justify-between text-slate-500 font-medium">
               <span>{t('pos_subtotal')}</span>
-              <span className="font-semibold text-slate-800">₹ {itemSubtotal.toFixed(2)}</span>
+              <span className="font-semibold text-slate-800 tabular-nums">₹ {itemSubtotal.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between text-slate-500 font-medium">
               <span>{t('pos_discount')}</span>
-              <span className="font-semibold text-emerald-600">– ₹ {totalDiscount.toFixed(2)}</span>
+              <span className="font-semibold text-emerald-600 tabular-nums">– ₹ {totalDiscount.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between text-slate-400 text-[11px]">
               <span>{t('pos_round_off')}</span>
-              <span>{roundOff >= 0 ? `+ ₹ ${roundOff.toFixed(2)}` : `– ₹ ${Math.abs(roundOff).toFixed(2)}`}</span>
+              <span className="tabular-nums">{roundOff >= 0 ? `+ ₹ ${roundOff.toFixed(2)}` : `– ₹ ${Math.abs(roundOff).toFixed(2)}`}</span>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-              <span className="text-sm font-bold text-slate-900">{t('pos_total')}</span>
-              <span className="text-3xl font-black text-blue-600 tracking-tight">
+            <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-white border border-blue-200/70 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-900/70">{t('pos_total')}</span>
+              <span className="text-[28px] font-black text-blue-600 tracking-[-0.03em] tabular-nums leading-none">
                 ₹ {roundedTotal.toFixed(2)}
               </span>
             </div>
@@ -1086,10 +1086,10 @@ export default function POSBilling() {
           <button
             onClick={handleGenerateBill}
             disabled={activeBill.cart.length === 0}
-            className={`w-full py-3.5 rounded-xl text-xs font-bold tracking-wide transition-all shadow-md flex items-center justify-center gap-2 ${
+            className={`w-full py-3.5 rounded-xl text-xs font-bold tracking-wide transition-all flex items-center justify-center gap-2 ${
               activeBill.cart.length === 0
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 active:scale-[0.99]'
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+                : 'bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-600/25 active:scale-[0.985]'
             }`}
           >
             <CheckCircle2 className="w-4 h-4" />

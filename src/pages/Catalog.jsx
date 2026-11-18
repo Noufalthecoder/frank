@@ -519,8 +519,8 @@ export default function Catalog() {
     <div className="space-y-5">
       {/* Floating Top-Right Toast Notification (2s) */}
       {toast && (
-        <div className="fixed top-4 right-5 z-[100] flex items-center gap-2 bg-white text-emerald-700 border border-emerald-200 shadow-lg px-3.5 py-2.5 rounded-xl text-xs font-semibold">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>{toast}</span>
         </div>
       )}
@@ -535,17 +535,54 @@ export default function Catalog() {
       />
 
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('cat_title')}</h1>
-          <p className="text-xs text-slate-500 mt-0.5">{t('cat_subtitle')}</p>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('cat_title')}</h1>
+            <div className="hidden sm:flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => { setStatusFilter('All'); setPage(1); }}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all tabular-nums ${
+                  statusFilter === 'All'
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {items.length} {t('cat_all')}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStatusFilter('Available'); setPage(1); }}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all tabular-nums ${
+                  statusFilter === 'Available'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                }`}
+              >
+                {items.filter(isItemAvailable).length} {t('cat_available')}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStatusFilter('Unavailable'); setPage(1); }}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all tabular-nums ${
+                  statusFilter === 'Unavailable'
+                    ? 'bg-rose-600 text-white border-rose-600'
+                    : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                }`}
+              >
+                {items.filter((i) => !isItemAvailable(i)).length} {t('cat_unavailable')}
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">{t('cat_subtitle')}</p>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all"
             title="Import products from CSV (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id)"
           >
             <Upload className="w-3.5 h-3.5 text-slate-500" />
@@ -553,14 +590,14 @@ export default function Catalog() {
           </button>
           <button
             onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
             <span>{t('cat_export_csv')}</span>
           </button>
           <button
             onClick={openAdd}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 rounded-lg text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl text-xs font-bold text-white shadow-sm shadow-blue-600/25 active:scale-[0.98] transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t('cat_add_item')}</span>
@@ -569,7 +606,7 @@ export default function Catalog() {
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="surface-card p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-[260px] max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -655,7 +692,7 @@ export default function Catalog() {
             {showViewMenu && (
               <div
                 role="menu"
-                className="absolute right-0 mt-1.5 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-40"
+                className="animate-popover absolute right-0 mt-1.5 w-48 bg-white rounded-xl shadow-2xl shadow-slate-900/12 border border-slate-200/90 py-1.5 z-40"
               >
                 {VIEW_MODES.map(({ id, labelKey, icon: Icon }) => {
                   const active = viewMode === id;
@@ -686,7 +723,7 @@ export default function Catalog() {
       </div>
 
       {/* Product Listing Container */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="surface-card rounded-2xl overflow-hidden">
         {paginatedItems.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-400">
             {t('cat_no_products')}
@@ -1028,8 +1065,8 @@ export default function Catalog() {
 
       {/* Add / Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`bg-white rounded-xl shadow-2xl border border-slate-200 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-3xl' : 'max-w-lg'}`}>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className={`animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-3xl' : 'max-w-lg'}`}>
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
