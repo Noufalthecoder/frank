@@ -537,44 +537,7 @@ export default function Catalog() {
       {/* Page Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('cat_title')}</h1>
-            <div className="hidden sm:flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => { setStatusFilter('All'); setPage(1); }}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all tabular-nums ${
-                  statusFilter === 'All'
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                {items.length} {t('cat_all')}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setStatusFilter('Available'); setPage(1); }}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all tabular-nums ${
-                  statusFilter === 'Available'
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                }`}
-              >
-                {items.filter(isItemAvailable).length} {t('cat_available')}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setStatusFilter('Unavailable'); setPage(1); }}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all tabular-nums ${
-                  statusFilter === 'Unavailable'
-                    ? 'bg-rose-600 text-white border-rose-600'
-                    : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                }`}
-              >
-                {items.filter((i) => !isItemAvailable(i)).length} {t('cat_unavailable')}
-              </button>
-            </div>
-          </div>
+          <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('cat_title')}</h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">{t('cat_subtitle')}</p>
         </div>
 

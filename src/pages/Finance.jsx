@@ -8,7 +8,8 @@ import {
   X,
   Trash2,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Download
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -33,6 +34,12 @@ export default function Finance() {
   const [items, setItems] = useState([]);
   const [dayClosings, setDayClosings] = useState([]);
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2000);
+  };
 
   // Day closing state
   const todayStr = new Date().toISOString().split('T')[0];
@@ -99,6 +106,30 @@ export default function Finance() {
       await window.api.deleteExpense(id);
       loadAllFinanceData();
     }
+  };
+
+  const handleExportExpensesCsv = () => {
+    const headers = ['Date', 'Category', 'Description', 'Payment Mode', 'Amount'];
+    const esc = (val) => {
+      const s = String(val ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = filteredExpenses.map((e) => [
+      esc(e.date || ''),
+      esc(e.category || ''),
+      esc(e.description || ''),
+      esc(e.payment_mode || 'Cash'),
+      Number(e.amount || 0).toFixed(2),
+    ]);
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${filteredExpenses.length} expense${filteredExpenses.length === 1 ? '' : 's'} to CSV.`);
   };
 
   // Date range helper
@@ -256,6 +287,14 @@ export default function Finance() {
 
   return (
     <div className="space-y-5">
+      {/* Floating Top-Right Toast (2s) */}
+      {toast && (
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{toast}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -407,13 +446,22 @@ export default function Finance() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-800">Expense Ledger ({filteredExpenses.length})</h2>
-            <button
-              onClick={() => setShowAddExpense(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Expense</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportExpensesCsv}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-500" />
+                <span>{t('cat_export_csv')}</span>
+              </button>
+              <button
+                onClick={() => setShowAddExpense(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t('fin_add_expense')}</span>
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

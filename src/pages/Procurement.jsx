@@ -8,7 +8,8 @@ import {
   Truck,
   CheckCircle2,
   PackageCheck,
-  UserPlus
+  UserPlus,
+  Download
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 
@@ -206,6 +207,53 @@ export default function Procurement() {
 
   const openOrders = orders.filter((o) => o.status === 'Open');
 
+  const handleExportCsv = () => {
+    const esc = (val) => {
+      const s = String(val ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const today = new Date().toISOString().split('T')[0];
+
+    if (activeTab === 'Vendors') {
+      const headers = ['Vendor Name', 'Contact Person', 'Phone', 'Email', 'City'];
+      const rows = vendors.map((v) => [
+        esc(v.name || ''),
+        esc(v.contact_person || ''),
+        esc(v.phone || ''),
+        esc(v.email || ''),
+        esc(v.city || ''),
+      ]);
+      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vendors_${today}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${vendors.length} vendor${vendors.length === 1 ? '' : 's'} to CSV.`);
+    } else {
+      const source = activeTab === 'Goods Receipt (GRN)' ? openOrders : filteredOrders;
+      const headers = ['PO Number', 'Vendor', 'Order Date', 'Status', 'Amount'];
+      const rows = source.map((o) => [
+        esc(o.po_number || ''),
+        esc(o.vendor_name || ''),
+        esc(o.order_date || ''),
+        esc(o.status || ''),
+        Number(o.amount || 0).toFixed(2),
+      ]);
+      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `purchase_orders_${today}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${source.length} purchase order${source.length === 1 ? '' : 's'} to CSV.`);
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Floating Top-Right Toast Notification (2s) */}
@@ -226,6 +274,13 @@ export default function Procurement() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>{t('cat_export_csv')}</span>
+          </button>
           <button
             onClick={() => setShowAddVendorModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
