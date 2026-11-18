@@ -39,6 +39,8 @@ contextBridge.exposeInMainWorld('api', {
   getRacks: () => ipcRenderer.invoke('getRacks'),
   addRack: (rack) => ipcRenderer.invoke('addRack', rack),
   deleteRack: (code) => ipcRenderer.invoke('deleteRack', code),
+  updateRack: (rack) => ipcRenderer.invoke('updateRack', rack),
+  moveItemToBin: (itemId, binCode) => ipcRenderer.invoke('moveItemToBin', itemId, binCode),
 
   // Invoices & POS
   getInvoices: () => ipcRenderer.invoke('getInvoices'),

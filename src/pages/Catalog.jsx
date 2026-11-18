@@ -53,7 +53,7 @@ const EMPTY_FORM = {
   cost_price: '',
   quantity: '',
   reorder_level: '20',
-  bin_id: 'R01-L1-S1',
+  bin_id: '',
   image_url: '',
   status: 'Available',
 };
@@ -332,7 +332,7 @@ export default function Catalog() {
     setModalMode('library');
     setForm({
       ...EMPTY_FORM,
-      bin_id: availableBins[0]?.code || 'R01-L1-S1',
+      bin_id: availableBins[0]?.code || '',
     });
     loadRackBins();
     setShowAddModal(true);
@@ -353,7 +353,7 @@ export default function Catalog() {
       cost_price: item.cost_price,
       quantity: item.quantity,
       reorder_level: item.reorder_level,
-      bin_id: item.bin_id || 'R01-L1-S1',
+      bin_id: item.bin_id || '',
       image_url: item.image_url || '',
       status: item.status === 'Unavailable' || item.status === 'Inactive' ? 'Unavailable' : 'Available',
     });
@@ -394,7 +394,7 @@ export default function Catalog() {
       cost_price: String(itemPayload.cost_price ?? ''),
       quantity: String(itemPayload.quantity ?? '10'),
       reorder_level: String(itemPayload.reorder_level ?? '10'),
-      bin_id: itemPayload.bin_id || availableBins[0]?.code || 'R01-L1-S1',
+      bin_id: itemPayload.bin_id || availableBins[0]?.code || '',
       image_url: itemPayload.image_url || '',
     });
     setModalMode('manual');
@@ -490,6 +490,13 @@ export default function Catalog() {
         const res = await window.api.bulkImportItems(parsedItems);
         if (res && res.success) {
           showToast(`Imported / updated ${res.count} products from CSV.`);
+          if (res.invalidBins && res.invalidBins.length) {
+            await showAlert({
+              title: 'Some bins were not found',
+              message: `These bin codes do not exist and were left Unassigned: ${res.invalidBins.join(', ')}. Create the rack first, then assign them in Settings → Racks & Bins.`,
+              tone: 'warning',
+            });
+          }
           await loadItems();
           window.dispatchEvent(new CustomEvent('stock-updated'));
         } else {
@@ -1085,7 +1092,7 @@ export default function Catalog() {
                       setFormError('');
                       setForm({
                         ...EMPTY_FORM,
-                        bin_id: availableBins[0]?.code || 'R01-L1-S1',
+                        bin_id: availableBins[0]?.code || '',
                       });
                       setModalMode('manual');
                     }}
@@ -1335,21 +1342,21 @@ export default function Catalog() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack / Shelf Bin</label>
-                  <input
-                    type="text"
-                    list="rack-bins-list"
-                    placeholder="e.g. R01-L1-S1"
+                  <select
                     value={form.bin_id}
                     onChange={(e) => setForm({ ...form, bin_id: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  />
-                  <datalist id="rack-bins-list">
+                  >
+                    <option value="">Unassigned</option>
+                    {form.bin_id && !availableBins.some((b) => b.code === form.bin_id) && (
+                      <option value={form.bin_id}>{form.bin_id} (bin not found)</option>
+                    )}
                     {availableBins.map((b) => (
                       <option key={b.code} value={b.code}>
                         {b.label}
                       </option>
                     ))}
-                  </datalist>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">

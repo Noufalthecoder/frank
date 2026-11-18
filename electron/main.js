@@ -417,10 +417,17 @@ ipcMain.handle('searchItems', (event, query) => {
   `).all(q, q, q, q);
 });
 
+// Rack / bin helpers: an item's bin must be '' (unassigned) or an existing rack bin
+const normBin = (v) => String(v || '').trim().toUpperCase();
+const binExists = (code) => !!db.prepare('SELECT 1 FROM rack_bins WHERE bin_code = ?').get(code);
+const binError = (code) => `Bin "${code}" does not exist. Pick a bin from Racks & Bins or leave it unassigned.`;
+
 ipcMain.handle('addItem', (event, item) => {
   try {
     const normalizedSku = String(item.sku || '').trim().toUpperCase();
     if (!normalizedSku) return { success: false, error: 'SKU is required.' };
+    const bin = normBin(item.bin_id);
+    if (bin && !binExists(bin)) return { success: false, error: binError(bin) };
     const stmt = db.prepare(`
       INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
       VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, @status)
@@ -429,7 +436,7 @@ ipcMain.handle('addItem', (event, item) => {
       ...item,
       sku: normalizedSku,
       name: String(item.name || '').trim(),
-      bin_id: String(item.bin_id || '').trim().toUpperCase(),
+      bin_id: bin,
       image_url: String(item.image_url || '').trim(),
       status: item.status || 'Available',
     });
@@ -445,6 +452,8 @@ ipcMain.handle('addItem', (event, item) => {
 ipcMain.handle('updateItem', (event, item) => {
   try {
     const normalizedSku = String(item.sku || '').trim().toUpperCase();
+    const bin = normBin(item.bin_id);
+    if (bin && !binExists(bin)) return { success: false, error: binError(bin) };
     const stmt = db.prepare(`
       UPDATE items 
       SET sku = @sku, name = @name, size = @size, unit = @unit, category = @category, brand = @brand,
@@ -456,7 +465,7 @@ ipcMain.handle('updateItem', (event, item) => {
       ...item,
       sku: normalizedSku,
       name: String(item.name || '').trim(),
-      bin_id: String(item.bin_id || '').trim().toUpperCase(),
+      bin_id: bin,
       image_url: String(item.image_url || '').trim(),
     });
     return { success: true };
@@ -521,9 +530,70 @@ ipcMain.handle('addRack', (event, rack) => {
 });
 
 ipcMain.handle('deleteRack', (event, code) => {
-  db.prepare('DELETE FROM rack_bins WHERE rack_code = ?').run(code);
-  db.prepare('DELETE FROM racks WHERE code = ?').run(code);
+  const rackCode = normBin(code);
+  const used = db.prepare(
+    'SELECT COUNT(*) AS c FROM items WHERE UPPER(bin_id) IN (SELECT bin_code FROM rack_bins WHERE rack_code = ?)'
+  ).get(rackCode).c;
+  if (used > 0) {
+    return { success: false, error: `Rack ${rackCode} still holds ${used} product(s). Move them to another bin first.` };
+  }
+  db.transaction(() => {
+    db.prepare('DELETE FROM rack_bins WHERE rack_code = ?').run(rackCode);
+    db.prepare('DELETE FROM racks WHERE code = ?').run(rackCode);
+  })();
   return { success: true };
+});
+
+ipcMain.handle('updateRack', (event, rack) => {
+  try {
+    const code = normBin(rack.code);
+    const existing = db.prepare('SELECT * FROM racks WHERE code = ?').get(code);
+    if (!existing) return { success: false, error: `Rack ${code} not found.` };
+    const name = String(rack.name || '').trim();
+    if (!name) return { success: false, error: 'Rack name is required.' };
+    const levels = Math.min(10, Math.max(1, parseInt(rack.levels) || existing.levels));
+    const slots = Math.min(10, Math.max(1, parseInt(rack.slots_per_level) || existing.slots_per_level));
+
+    // Bins that would disappear when shrinking must be empty
+    const doomed = db.prepare(
+      'SELECT bin_code FROM rack_bins WHERE rack_code = ? AND (level_no > ? OR slot_no > ?)'
+    ).all(code, levels, slots).map((b) => b.bin_code);
+    if (doomed.length) {
+      const placeholders = doomed.map(() => '?').join(',');
+      const used = db.prepare(`SELECT COUNT(*) AS c FROM items WHERE UPPER(bin_id) IN (${placeholders})`).get(...doomed).c;
+      if (used > 0) {
+        return { success: false, error: `Cannot shrink: ${used} product(s) are stored in bins that would be removed. Move them first.` };
+      }
+    }
+    db.transaction(() => {
+      db.prepare('UPDATE racks SET name = ?, zone = ?, levels = ?, slots_per_level = ? WHERE code = ?')
+        .run(name, String(rack.zone || existing.zone || 'General').trim(), levels, slots, code);
+      if (doomed.length) {
+        const del = db.prepare('DELETE FROM rack_bins WHERE bin_code = ?');
+        doomed.forEach((b) => del.run(b));
+      }
+      const insertBin = db.prepare('INSERT OR IGNORE INTO rack_bins (bin_code, rack_code, level_no, slot_no, quantity) VALUES (?, ?, ?, ?, 0)');
+      for (let l = 1; l <= levels; l++) {
+        for (let s = 1; s <= slots; s++) insertBin.run(`${code}-L${l}-S${s}`, code, l, s);
+      }
+    })();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message || 'Failed to update rack.' };
+  }
+});
+
+// Assign / move a product to a bin ('' = unassign)
+ipcMain.handle('moveItemToBin', (event, itemId, binCode) => {
+  try {
+    const bin = normBin(binCode);
+    if (bin && !binExists(bin)) return { success: false, error: binError(bin) };
+    const res = db.prepare('UPDATE items SET bin_id = ? WHERE id = ?').run(bin, itemId);
+    if (res.changes === 0) return { success: false, error: 'Product not found.' };
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message || 'Failed to move product.' };
+  }
 });
 
 ipcMain.handle('bulkImportItems', (event, itemsList) => {
@@ -544,6 +614,7 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
         bin_id = excluded.bin_id,
         image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE items.image_url END
     `);
+    const invalidBins = new Set();
     const insertMany = db.transaction((rows) => {
       let imported = 0;
       for (const row of rows) {
@@ -561,7 +632,11 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
           cost_price: parseFloat(row.cost_price) || 0,
           quantity: parseFloat(row.quantity) || 0,
           reorder_level: parseFloat(row.reorder_level) || 10,
-          bin_id: String(row.bin_id || '').trim().toUpperCase(),
+          bin_id: (() => {
+            const b = normBin(row.bin_id);
+            if (b && !binExists(b)) { invalidBins.add(b); return ''; }
+            return b;
+          })(),
           image_url: String(row.image_url || '').trim(),
         });
         imported++;
@@ -569,7 +644,7 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
       return imported;
     });
     const count = insertMany(itemsList || []);
-    return { success: true, count };
+    return { success: true, count, invalidBins: Array.from(invalidBins) };
   } catch (err) {
     return { success: false, error: err.message || 'CSV import failed.' };
   }
