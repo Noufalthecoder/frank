@@ -131,6 +131,13 @@ table th {
   appearance: textfield;
 }
 
+/* Softer, lower-brightness placeholder text across all inputs */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(148, 163, 184, 0.55) !important;
+  opacity: 1 !important;
+}
+
 /* Refined button press feel */
 button {
   cursor: pointer;

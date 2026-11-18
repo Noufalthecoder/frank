@@ -39,6 +39,7 @@ import {
 } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
+import { fuzzyFilter } from '../lib/fuzzySearch.js';
 
 const isItemAvailable = (item) =>
   Number(item.quantity) > 0 && item.status !== 'Unavailable' && item.status !== 'Inactive';
@@ -237,17 +238,21 @@ export default function POSBilling() {
       setSearchResults([]);
       return;
     }
-    const q = val.toLowerCase().trim();
-    const matches = allItems.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        tName(item.name).toLowerCase().includes(q) ||
-        item.sku.toLowerCase().includes(q) ||
-        (item.size && item.size.toLowerCase().includes(q)) ||
-        (item.brand && item.brand.toLowerCase().includes(q)) ||
-        (item.bin_id && item.bin_id.toLowerCase().includes(q))
+    const matches = fuzzyFilter(
+      allItems,
+      val,
+      (item) => [
+        item.name,
+        tName(item.name),
+        item.size,
+        item.brand,
+        item.category,
+        item.bin_id,
+        item.sku,
+      ],
+      10
     );
-    setSearchResults(matches.slice(0, 8));
+    setSearchResults(matches);
   };
 
   const handleBarcodeKeyDown = (e) => {
@@ -386,10 +391,6 @@ export default function POSBilling() {
     const liveItem = allItems.find((x) => x.sku === cartItem.sku || x.id === cartItem.id);
     return liveItem ? Number(liveItem.quantity) || 0 : Number(cartItem.maxStock) || 0;
   };
-
-  const overStockItems = activeBill.cart.filter(
-    (item) => getBaseQty(item) > getLiveAvailableStock(item) + 1e-9
-  );
 
   const clearCart = async () => {
     if (activeBill.cart.length === 0) return;
@@ -813,7 +814,11 @@ export default function POSBilling() {
                                 <p className={`font-bold leading-tight ${available ? 'text-slate-900' : 'text-slate-500'}`}>
                                   {tName(item.name)}
                                 </p>
-                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{item.sku}</p>
+                                {(item.size || item.category) && (
+                                  <p className="text-[10px] text-slate-400 mt-0.5">
+                                    {item.size ? tName(item.size) : item.category}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -926,8 +931,12 @@ export default function POSBilling() {
                           <td className="py-3 px-4">
                             <p className="font-bold text-slate-900 leading-snug">{tName(item.name)}</p>
                             <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                              <span className="font-mono text-slate-600">{item.sku}</span>
-                              <span>·</span>
+                              {item.size && (
+                                <>
+                                  <span className="text-slate-600 font-medium">{tName(item.size)}</span>
+                                  <span>·</span>
+                                </>
+                              )}
                               <span>{t('dash_shelf')}: {item.bin || 'R01-L1-S1'}</span>
                               <span>·</span>
                               <span className={exceedsStock ? 'text-rose-600 font-bold' : 'text-emerald-600 font-medium'}>
@@ -1051,16 +1060,6 @@ export default function POSBilling() {
                 </tbody>
               </table>
             </div>
-
-            {/* Inline Over-Stock Warning Banner */}
-            {overStockItems.length > 0 && (
-              <div className="px-4 py-2.5 bg-rose-50 border-t border-rose-200 flex items-center gap-2 text-xs font-semibold text-rose-700">
-                <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                <span>
-                  Quantity exceeds available stock for {overStockItems.length} item{overStockItems.length === 1 ? '' : 's'} — please reduce quantity or verify physical stock.
-                </span>
-              </div>
-            )}
 
             {/* Bottom table helper toolbar */}
             {activeBill.cart.length > 0 && (

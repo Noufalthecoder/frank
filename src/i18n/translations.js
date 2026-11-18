@@ -57,7 +57,8 @@ export const translations = {
     cat_title: 'Product Catalog',
     cat_subtitle: 'Manage items, permanent rates, shelf bins and stock',
     cat_import_csv: 'Import CSV',
-    cat_export_csv: 'Export CSV',
+    cat_export_csv: 'Export',
+    cat_orders: 'Orders',
     cat_add_item: 'Add Item',
     cat_search: 'Search by SKU, name or size...',
     cat_category: 'Category',
@@ -259,7 +260,8 @@ export const translations = {
     cat_title: 'பொருள் பட்டியல்',
     cat_subtitle: 'பொருட்கள், விலை, ரேக் இடம் மற்றும் கையிருப்பை நிர்வகிக்கவும்',
     cat_import_csv: 'CSV பதிவேற்று',
-    cat_export_csv: 'CSV ஏற்றுமதி',
+    cat_export_csv: 'ஏற்றுமதி',
+    cat_orders: 'ஆர்டர்கள்',
     cat_add_item: 'பொருள் சேர்',
     cat_search: 'பெயர், குறியீடு அல்லது அளவு தேடு...',
     cat_category: 'பிரிவு',
@@ -347,7 +349,7 @@ export const translations = {
 
     // Sales History
     hist_title: 'விற்பனை வரலாறு',
-    hist_subtitle: 'அனைத்து பில்களையும் பார்க்க, மீண்டும் அச்சிட மற்றும் CSV ஏற்றுமதி செய்ய',
+    hist_subtitle: 'அனைத்து பில்களையும் பார்க்க, மீண்டும் அச்சிட மற்றும் ஏற்றுமதி செய்ய',
     hist_search: 'பில் எண், வாடிக்கையாளர், முறை அல்லது தொகை தேடு...',
     hist_filtered_total: 'மொத்த தொகை:',
     hist_col_inv: 'பில் எண்',

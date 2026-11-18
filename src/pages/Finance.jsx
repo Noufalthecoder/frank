@@ -23,6 +23,7 @@ import {
 } from 'chart.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
+import ExportMenu from '../components/ExportMenu.jsx';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -120,29 +121,15 @@ export default function Finance() {
     }
   };
 
-  const handleExportExpensesCsv = () => {
-    const headers = ['Date', 'Category', 'Description', 'Payment Mode', 'Amount'];
-    const esc = (val) => {
-      const s = String(val ?? '');
-      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const rows = filteredExpenses.map((e) => [
-      esc(e.date || ''),
-      esc(e.category || ''),
-      esc(e.description || ''),
-      esc(e.payment_mode || 'Cash'),
-      Number(e.amount || 0).toFixed(2),
-    ]);
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast(`Exported ${filteredExpenses.length} expense${filteredExpenses.length === 1 ? '' : 's'} to CSV.`);
-  };
+  const getExpensesExport = () => ({
+    title: 'Expense Ledger',
+    filename: `expenses_${new Date().toISOString().split('T')[0]}`,
+    headers: ['Date', 'Category', 'Description', 'Payment Mode', 'Amount'],
+    rows: filteredExpenses.map((e) => [
+      e.date || '', e.category || '', e.description || '', e.payment_mode || 'Cash', Number(e.amount || 0),
+    ]),
+  });
+
 
   // Date range helper
   const inRange = (dateStr) => {
@@ -475,13 +462,7 @@ export default function Finance() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-800">Expense Ledger ({filteredExpenses.length})</h2>
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleExportExpensesCsv}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5 text-slate-500" />
-                <span>{t('cat_export_csv')}</span>
-              </button>
+              <ExportMenu getSpec={getExpensesExport} onDone={showToast} />
               <button
                 onClick={() => setShowAddExpense(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors"
