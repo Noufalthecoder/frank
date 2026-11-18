@@ -96,7 +96,7 @@ export default function Layout({ children }) {
 
   const navItems = [
     { name: t('nav_pos'), path: '/pos', icon: ShoppingCart },
-    { name: t('nav_dashboard'), path: '/', icon: LayoutDashboard },
+    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard },
     { name: t('nav_catalog'), path: '/catalog', icon: Boxes },
     { name: t('nav_history'), path: '/history', icon: Receipt },
     { name: t('nav_vendors'), path: '/vendors', icon: Truck },

@@ -378,13 +378,72 @@ export function initBrowserApiFallback() {
         items_json: JSON.stringify(items),
       });
       if (poStatus === 'Received' && items.length > 0) {
-        items.forEach((i) => {
-          const target = db.items.find((x) => x.sku === i.sku);
+        items.forEach((line) => {
+          const pid = Number(line.product_id) || 0;
+          const sku = String(line.sku || '').trim().toUpperCase();
+          const target =
+            (pid > 0 ? db.items.find((x) => x.id === pid) : null) ||
+            db.items.find((x) => String(x.sku || '').trim().toUpperCase() === sku);
           if (target) {
-            target.quantity = Number((Number(target.quantity) + Number(i.quantity || 0)).toFixed(6));
+            target.quantity = Number(Math.max(0, Number(target.quantity || 0) + Number(line.quantity || 0)).toFixed(6));
+            if (target.quantity > 0 && (target.status === 'Unavailable' || target.status === 'Inactive')) {
+              target.status = 'Available';
+            }
           }
         });
       }
+      writeDb(db);
+      return { success: true };
+    },
+    updatePurchaseOrder: async (po) => {
+      const db = readDb();
+      const existing = db.purchase_orders.find((p) => p.id === po.id);
+      if (!existing) return { success: false, error: 'PO not found.' };
+      const prevStatus = existing.status === 'Received' || existing.status === 'Closed' ? 'Received' : 'Request';
+      const nextStatus = po.status === 'Received' ? 'Received' : 'Request';
+      const prevItems = JSON.parse(existing.items_json || '[]');
+      const nextItems = Array.isArray(po.items) ? po.items : prevItems;
+
+      const aggregate = (list) => {
+        const m = new Map();
+        (Array.isArray(list) ? list : []).forEach((l) => {
+          const pid = Number(l.product_id) || 0;
+          const sku = String(l.sku || '').trim().toUpperCase();
+          const key = pid > 0 ? `id:${pid}` : sku ? `sku:${sku}` : '';
+          if (!key) return;
+          const cur = m.get(key) || { product_id: pid, sku, qty: 0 };
+          cur.qty = Number((cur.qty + (Number(l.quantity) || 0)).toFixed(6));
+          m.set(key, cur);
+        });
+        return m;
+      };
+
+      const prevMap = prevStatus === 'Received' ? aggregate(prevItems) : new Map();
+      const nextMap = nextStatus === 'Received' ? aggregate(nextItems) : new Map();
+      const keys = new Set([...prevMap.keys(), ...nextMap.keys()]);
+      keys.forEach((key) => {
+        const pEntry = prevMap.get(key);
+        const nEntry = nextMap.get(key);
+        const delta = Number(((nEntry?.qty || 0) - (pEntry?.qty || 0)).toFixed(6));
+        if (Math.abs(delta) > 1e-9) {
+          const ref = nEntry || pEntry;
+          const target =
+            (ref.product_id > 0 ? db.items.find((x) => x.id === ref.product_id) : null) ||
+            db.items.find((x) => String(x.sku || '').trim().toUpperCase() === ref.sku);
+          if (target) {
+            target.quantity = Number(Math.max(0, Number(target.quantity || 0) + delta).toFixed(6));
+            if (target.quantity > 0 && (target.status === 'Unavailable' || target.status === 'Inactive')) {
+              target.status = 'Available';
+            }
+          }
+        }
+      });
+
+      existing.vendor_name = po.vendor_name ?? existing.vendor_name;
+      existing.order_date = po.order_date ?? existing.order_date;
+      existing.amount = po.amount ?? existing.amount;
+      existing.status = nextStatus;
+      existing.items_json = JSON.stringify(nextItems);
       writeDb(db);
       return { success: true };
     },
@@ -392,13 +451,27 @@ export function initBrowserApiFallback() {
       const db = readDb();
       const po = db.purchase_orders.find((p) => p.id === id);
       if (!po) return { success: false, error: 'PO not found.' };
+      const prevStatus = po.status === 'Received' || po.status === 'Closed' ? 'Received' : 'Request';
       const nextStatus = status === 'Received' ? 'Received' : 'Request';
-      if (po.status !== 'Received' && nextStatus === 'Received') {
-        const items = JSON.parse(po.items_json || '[]');
-        items.forEach((i) => {
-          const target = db.items.find((x) => x.sku === i.sku);
+      const items = JSON.parse(po.items_json || '[]');
+      const factor =
+        prevStatus !== 'Received' && nextStatus === 'Received'
+          ? 1
+          : prevStatus === 'Received' && nextStatus !== 'Received'
+          ? -1
+          : 0;
+      if (factor !== 0) {
+        items.forEach((line) => {
+          const pid = Number(line.product_id) || 0;
+          const sku = String(line.sku || '').trim().toUpperCase();
+          const target =
+            (pid > 0 ? db.items.find((x) => x.id === pid) : null) ||
+            db.items.find((x) => String(x.sku || '').trim().toUpperCase() === sku);
           if (target) {
-            target.quantity = Number((Number(target.quantity) + Number(i.quantity || 0)).toFixed(6));
+            target.quantity = Number(Math.max(0, Number(target.quantity || 0) + factor * Number(line.quantity || 0)).toFixed(6));
+            if (target.quantity > 0 && (target.status === 'Unavailable' || target.status === 'Inactive')) {
+              target.status = 'Available';
+            }
           }
         });
       }
