@@ -19,6 +19,20 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import PrintableReceipt, { getPrintPreferences } from '../components/PrintableReceipt.jsx';
+import {
+  normalizeUnit,
+  isMeasurableUnit,
+  getCompatibleUnits,
+  convertUnit,
+  formatQty,
+} from '../lib/units.js';
+
+const getBaseQty = (cartItem) => {
+  const numericQty = parseFloat(cartItem.qty) || 0;
+  const baseUnit = normalizeUnit(cartItem.baseUnit || cartItem.unit || 'PCS');
+  const billingUnit = normalizeUnit(cartItem.billingUnit || baseUnit);
+  return convertUnit(numericQty, billingUnit, baseUnit);
+};
 
 const DRAFT_BILLS_KEY = 'tsp_pos_draft_bills_v1';
 
@@ -196,6 +210,7 @@ export default function POSBilling() {
   };
 
   const handleAddToCart = (item) => {
+    const baseUnit = normalizeUnit(item.unit || 'PCS');
     const existingIndex = activeBill.cart.findIndex(
       (i) => i.id === item.id || i.sku === item.sku
     );
@@ -203,7 +218,9 @@ export default function POSBilling() {
     let newCart;
     if (existingIndex >= 0) {
       newCart = activeBill.cart.map((cartItem, idx) =>
-        idx === existingIndex ? { ...cartItem, qty: cartItem.qty + 1 } : cartItem
+        idx === existingIndex
+          ? { ...cartItem, qty: Number(((parseFloat(cartItem.qty) || 0) + 1).toFixed(4)) }
+          : cartItem
       );
     } else {
       newCart = [
@@ -216,6 +233,8 @@ export default function POSBilling() {
           brand: item.brand || 'Generic',
           category: item.category || 'Hardware',
           bin: item.bin_id || 'R01-L1-S1',
+          baseUnit,
+          billingUnit: baseUnit,
           qty: 1,
           rate: Number(item.selling_price) || 0,
           mrp: (Number(item.selling_price) || 0) * 1.15,
@@ -235,7 +254,9 @@ export default function POSBilling() {
   const updateQty = (index, delta) => {
     const newCart = activeBill.cart.map((item, idx) => {
       if (idx === index) {
-        const nextQty = Math.max(1, item.qty + delta);
+        const current = parseFloat(item.qty) || 0;
+        const minVal = isMeasurableUnit(item.baseUnit) ? 0.1 : 1;
+        const nextQty = Math.max(minVal, Number((current + delta).toFixed(4)));
         return { ...item, qty: nextQty };
       }
       return item;
@@ -244,9 +265,35 @@ export default function POSBilling() {
   };
 
   const setExplicitQty = (index, val) => {
-    const nextQty = Math.max(1, parseInt(val) || 1);
+    const newCart = activeBill.cart.map((item, idx) => {
+      if (idx !== index) return item;
+      if (val === '') return { ...item, qty: '' };
+      if (isMeasurableUnit(item.baseUnit)) {
+        const parsed = parseFloat(val);
+        if (isNaN(parsed) || parsed < 0) return item;
+        return { ...item, qty: val };
+      }
+      const nextQty = Math.max(1, parseInt(val, 10) || 1);
+      return { ...item, qty: nextQty };
+    });
+    updateActiveBill({ cart: newCart });
+  };
+
+  const finalizeQtyOnBlur = (index) => {
+    const newCart = activeBill.cart.map((item, idx) => {
+      if (idx !== index) return item;
+      const parsed = parseFloat(item.qty);
+      if (isMeasurableUnit(item.baseUnit)) {
+        return { ...item, qty: !isNaN(parsed) && parsed > 0 ? Number(parsed.toFixed(4)) : 1 };
+      }
+      return { ...item, qty: !isNaN(parsed) && parsed >= 1 ? Math.round(parsed) : 1 };
+    });
+    updateActiveBill({ cart: newCart });
+  };
+
+  const updateBillingUnit = (index, nextUnit) => {
     const newCart = activeBill.cart.map((item, idx) =>
-      idx === index ? { ...item, qty: nextQty } : item
+      idx === index ? { ...item, billingUnit: normalizeUnit(nextUnit) } : item
     );
     updateActiveBill({ cart: newCart });
   };
@@ -324,10 +371,10 @@ export default function POSBilling() {
     updateActiveBill({ paymentMode: nextMode });
   };
 
-  // Financial Calculations (Non-GST Clean Retail Calculation)
-  const itemSubtotal = activeBill.cart.reduce((acc, i) => acc + i.qty * i.rate, 0);
+  // Financial Calculations (Non-GST Clean Retail Calculation with Length/Weight Unit Conversion)
+  const itemSubtotal = activeBill.cart.reduce((acc, i) => acc + getBaseQty(i) * i.rate, 0);
   const itemDiscounts = activeBill.cart.reduce(
-    (acc, i) => acc + (i.qty * i.rate * (i.discountPercent || 0)) / 100,
+    (acc, i) => acc + (getBaseQty(i) * i.rate * (i.discountPercent || 0)) / 100,
     0
   );
   const afterItemDiscount = Math.max(0, itemSubtotal - itemDiscounts);
@@ -344,14 +391,26 @@ export default function POSBilling() {
       return;
     }
 
-    // Check if any item exceeds current available stock
+    const invalidQty = activeBill.cart.find((i) => (parseFloat(i.qty) || 0) <= 0);
+    if (invalidQty) {
+      alert(`Please enter a valid quantity greater than 0 for "${invalidQty.name}".`);
+      return;
+    }
+
+    // Check if any item exceeds current available stock (in base unit)
     const overStock = activeBill.cart.filter((i) => {
       const liveItem = allItems.find((x) => x.sku === i.sku || x.id === i.id);
       const avail = liveItem ? Number(liveItem.quantity) : Number(i.maxStock || 0);
-      return i.qty > avail;
+      return getBaseQty(i) > avail;
     });
     if (overStock.length > 0) {
-      const list = overStock.map((i) => `• ${i.name} (billing ${i.qty}, stock ${i.maxStock})`).join('\n');
+      const list = overStock
+        .map((i) => {
+          const baseU = normalizeUnit(i.baseUnit || 'PCS');
+          const billU = normalizeUnit(i.billingUnit || baseU);
+          return `• ${i.name} (billing ${formatQty(i.qty)} ${billU} = ${formatQty(getBaseQty(i))} ${baseU}, stock ${formatQty(i.maxStock)} ${baseU})`;
+        })
+        .join('\n');
       if (!confirm(`Warning: Stock is lower than billed quantity for:\n${list}\n\nProceed anyway (stock will be set to 0)?`)) {
         return;
       }
@@ -364,16 +423,27 @@ export default function POSBilling() {
       discount: totalDiscount,
       total: roundedTotal,
       payment_mode: activeBill.paymentMode || 'Cash',
-      items: activeBill.cart.map((i) => ({
-        id: i.id,
-        sku: i.sku,
-        name: i.name,
-        bin: i.bin,
-        quantity: i.qty,
-        rate: i.rate,
-        discount: (i.qty * i.rate * (i.discountPercent || 0)) / 100,
-        total: i.qty * i.rate * (1 - (i.discountPercent || 0) / 100),
-      })),
+      items: activeBill.cart.map((i) => {
+        const baseU = normalizeUnit(i.baseUnit || 'PCS');
+        const billU = normalizeUnit(i.billingUnit || baseU);
+        const billedQty = parseFloat(i.qty) || 0;
+        const baseQty = getBaseQty(i);
+        const lineSub = baseQty * i.rate;
+        const lineDisc = (lineSub * (i.discountPercent || 0)) / 100;
+        return {
+          id: i.id,
+          sku: i.sku,
+          name: i.name,
+          bin: i.bin,
+          quantity: billedQty,
+          unit: billU,
+          base_unit: baseU,
+          stock_deduction_qty: baseQty,
+          rate: i.rate,
+          discount: lineDisc,
+          total: lineSub - lineDisc,
+        };
+      }),
     };
 
     if (window.api && window.api.createInvoice) {
@@ -423,7 +493,7 @@ export default function POSBilling() {
           {bills.map((bill, index) => {
             const isActive = bill.id === activeBillId;
             const billTotal = bill.cart.reduce(
-              (acc, i) => acc + i.qty * i.rate * (1 - (i.discountPercent || 0) / 100),
+              (acc, i) => acc + getBaseQty(i) * i.rate * (1 - (i.discountPercent || 0) / 100),
               0
             );
             return (
@@ -568,7 +638,7 @@ export default function POSBilling() {
                                   : 'text-emerald-700'
                               }`}
                             >
-                              {item.quantity} {item.unit || 'PCS'}
+                              {formatQty(item.quantity)} {normalizeUnit(item.unit || 'PCS')}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 text-right text-slate-400 line-through">
@@ -576,6 +646,11 @@ export default function POSBilling() {
                           </td>
                           <td className="py-2.5 px-3 text-right font-bold text-slate-900">
                             ₹ {Number(item.selling_price).toFixed(2)}
+                            {isMeasurableUnit(item.unit) && (
+                              <span className="text-[10px] font-medium text-slate-400">
+                                /{normalizeUnit(item.unit)}
+                              </span>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 text-slate-500 text-[11px]">
                             {item.size || item.brand || '—'}
@@ -607,7 +682,7 @@ export default function POSBilling() {
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                     <th className="py-3 px-4">Product</th>
-                    <th className="py-3 px-3 text-center w-36">Qty</th>
+                    <th className="py-3 px-3 text-center w-44">Qty / Measure</th>
                     <th className="py-3 px-3 text-right w-28">Rate (₹)</th>
                     <th className="py-3 px-3 text-right w-24">Disc %</th>
                     <th className="py-3 px-4 text-right w-28">Total</th>
@@ -627,7 +702,12 @@ export default function POSBilling() {
                     </tr>
                   ) : (
                     activeBill.cart.map((item, index) => {
-                      const lineSub = item.qty * item.rate;
+                      const baseUnit = normalizeUnit(item.baseUnit || item.unit || 'PCS');
+                      const billingUnit = normalizeUnit(item.billingUnit || baseUnit);
+                      const compatibleUnits = getCompatibleUnits(baseUnit);
+                      const measurable = isMeasurableUnit(baseUnit);
+                      const baseQty = getBaseQty(item);
+                      const lineSub = baseQty * item.rate;
                       const lineTotal = lineSub * (1 - (item.discountPercent || 0) / 100);
 
                       return (
@@ -641,33 +721,58 @@ export default function POSBilling() {
                               <span>Shelf: {item.bin || 'R01-L1-S1'}</span>
                               <span>·</span>
                               <span className="text-emerald-600 font-medium">
-                                Stock: {item.maxStock || '100+'}
+                                Stock: {formatQty(item.maxStock)} {baseUnit}
                               </span>
                             </div>
                           </td>
 
-                          {/* Quantity Stepper */}
+                          {/* Quantity / Length / Weight Input */}
                           <td className="py-3 px-3">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => updateQty(index, -1)}
-                                className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-colors"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </button>
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.qty}
-                                onChange={(e) => setExplicitQty(index, e.target.value)}
-                                className="no-spinner w-12 text-center bg-slate-50 border border-slate-200 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                              <button
-                                onClick={() => updateQty(index, 1)}
-                                className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-colors"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => updateQty(index, -1)}
+                                  className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-colors"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <input
+                                  type="number"
+                                  min={measurable ? '0.001' : '1'}
+                                  step={measurable ? 'any' : '1'}
+                                  value={item.qty}
+                                  onChange={(e) => setExplicitQty(index, e.target.value)}
+                                  onBlur={() => finalizeQtyOnBlur(index)}
+                                  className={`no-spinner text-center bg-slate-50 border border-slate-200 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                    measurable ? 'w-14' : 'w-12'
+                                  }`}
+                                />
+                                {measurable && compatibleUnits.length > 1 ? (
+                                  <select
+                                    value={billingUnit}
+                                    onChange={(e) => updateBillingUnit(index, e.target.value)}
+                                    aria-label="Billing unit"
+                                    className="bg-blue-50 border border-blue-200 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                                  >
+                                    {compatibleUnits.map((u) => (
+                                      <option key={u} value={u}>
+                                        {u}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : null}
+                                <button
+                                  onClick={() => updateQty(index, 1)}
+                                  className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-colors"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                              {measurable && billingUnit !== baseUnit && (
+                                <span className="text-[10px] font-medium text-blue-600">
+                                  = {formatQty(baseQty)} {baseUnit}
+                                </span>
+                              )}
                             </div>
                           </td>
 
@@ -685,6 +790,11 @@ export default function POSBilling() {
                                 className="no-spinner w-full text-right bg-slate-50 border border-slate-200 rounded-md pl-5 pr-2 py-1 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
+                            {measurable && (
+                              <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                per {baseUnit}
+                              </div>
+                            )}
                           </td>
 
                           {/* Discount % */}

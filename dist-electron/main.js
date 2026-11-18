@@ -1,15 +1,15 @@
 import { app as R, ipcMain as a, dialog as h, BrowserWindow as y, screen as P } from "electron";
 import { createRequire as k } from "node:module";
 import { fileURLToPath as D } from "node:url";
-import p from "node:path";
+import T from "node:path";
 import g from "node:fs";
-const M = k(import.meta.url), b = p.dirname(D(import.meta.url));
-process.env.APP_ROOT = p.join(b, "..");
-const _ = process.env.VITE_DEV_SERVER_URL, X = p.join(process.env.APP_ROOT, "dist-electron"), O = p.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = _ ? p.join(process.env.APP_ROOT, "public") : O;
+const M = k(import.meta.url), b = T.dirname(D(import.meta.url));
+process.env.APP_ROOT = T.join(b, "..");
+const N = process.env.VITE_DEV_SERVER_URL, X = T.join(process.env.APP_ROOT, "dist-electron"), O = T.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = N ? T.join(process.env.APP_ROOT, "public") : O;
 let L;
-const N = M("better-sqlite3"), S = p.join(R.getPath("userData"), "billing.db");
-let r = new N(S);
+const _ = M("better-sqlite3"), S = T.join(R.getPath("userData"), "billing.db");
+let r = new _(S);
 function I() {
   r.exec(`
     CREATE TABLE IF NOT EXISTS shop_profile (
@@ -147,7 +147,7 @@ function I() {
       VALUES (1, 'T. S. P Enterprises', 'Hardware, Tools & Fasteners', '+91 98765 43210', 'tspenterprises@gmail.com', 'Beach Road', 'Tharuvaikulam', 'Thoothukudi', '628105')
     `).run();
   const e = r.prepare("SELECT count(*) as count FROM items").get().count;
-  _ && e === 0 && U();
+  N && e === 0 && U();
 }
 function F(s = /* @__PURE__ */ new Date()) {
   const e = (t) => String(t).padStart(2, "0");
@@ -198,10 +198,15 @@ function U() {
     { sku: "SW-6A", name: "Modular Switch 6A 1-Way", size: "6A", unit: "PCS", category: "Electrical", brand: "Generic", price: 35, cost: 24, qty: 150, reorder: 30, bin: "R05-L1-S3" },
     { sku: "TP-INS", name: "PVC Insulation Tape Black", size: "Standard", unit: "PCS", category: "Electrical", brand: "Generic", price: 15, cost: 9.5, qty: 340, reorder: 50, bin: "R05-L2-S1" },
     // Plumbing
-    { sku: "PVC-1", name: 'PVC Pipe 1" Class 3 6kg', size: "1 inch", unit: "MTR", category: "Plumbing", brand: "Finolex", price: 85, cost: 60, qty: 96, reorder: 30, bin: "R02-L2-S1" },
+    { sku: "PVC-1", name: 'PVC Pipe 1" Class 3 6kg', size: "1 inch", unit: "m", category: "Plumbing", brand: "Finolex", price: 85, cost: 60, qty: 96, reorder: 30, bin: "R02-L2-S1" },
     { sku: "PVC-ELB-1", name: 'PVC Elbow 90 deg 1"', size: "1 inch", unit: "PCS", category: "Plumbing", brand: "Finolex", price: 18, cost: 11.5, qty: 180, reorder: 40, bin: "R02-L2-S2" },
     { sku: "TF-TAPE", name: "Teflon Thread Seal Tape 12mm", size: "12mm", unit: "PCS", category: "Plumbing", brand: "Generic", price: 20, cost: 11, qty: 260, reorder: 50, bin: "R02-L2-S3" },
     { sku: "PVC-SOL", name: "PVC Solvent Cement 100ml", size: "100ml", unit: "PCS", category: "Plumbing", brand: "Generic", price: 65, cost: 45, qty: 42, reorder: 15, bin: "R02-L2-S4" },
+    // Length & Weight Hardware Materials
+    { sku: "GI-BW-20G", name: "GI Binding Wire 20 Gauge", size: "20 SWG", unit: "kg", category: "Fasteners", brand: "Tata Agrico", price: 120, cost: 90, qty: 50, reorder: 10, bin: "R01-L3-S3" },
+    { sku: "NYL-ROPE-8", name: "Nylon Braided Rope 8mm", size: "8mm", unit: "m", category: "Others", brand: "Generic", price: 25, cost: 16, qty: 150, reorder: 25, bin: "R02-L4-S1" },
+    { sku: "MS-NAIL-2IN", name: 'MS Wire Nails 2" (Loose)', size: "2 inch", unit: "kg", category: "Fasteners", brand: "Tata Agrico", price: 110, cost: 82, qty: 40, reorder: 10, bin: "R01-L3-S4" },
+    { sku: "CU-WND-24G", name: "Enamelled Copper Winding Wire", size: "24 SWG", unit: "g", category: "Electrical", brand: "Finolex", price: 1.5, cost: 1.05, qty: 2e3, reorder: 250, bin: "R05-L2-S2" },
     // Paints & Adhesives
     { sku: "FEV-1K", name: "Fevicol SH Resin Adhesive 1kg", size: "1 kg", unit: "PCS", category: "Paints & Adhesives", brand: "Pidilite", price: 240, cost: 190, qty: 25, reorder: 8, bin: "R02-L3-S1" },
     { sku: "MSEAL-100", name: "M-Seal Epoxy Compound 100g", size: "100g", unit: "PCS", category: "Paints & Adhesives", brand: "Pidilite", price: 25, cost: 17.5, qty: 85, reorder: 20, bin: "R02-L3-S2" },
@@ -222,10 +227,10 @@ function U() {
   ], c = r.prepare("INSERT OR IGNORE INTO racks (code, name, zone, levels, slots_per_level) VALUES (?, ?, ?, 4, 4)"), n = r.prepare("INSERT OR IGNORE INTO rack_bins (bin_code, rack_code, level_no, slot_no, quantity) VALUES (?, ?, ?, ?, ?)");
   if (d.forEach((o) => {
     c.run(o.code, o.name, o.zone);
-    for (let m = 1; m <= 4; m++)
-      for (let T = 1; T <= 4; T++) {
-        const C = `${o.code}-L${m}-S${T}`;
-        n.run(C, o.code, m, T, 0);
+    for (let p = 1; p <= 4; p++)
+      for (let m = 1; m <= 4; m++) {
+        const C = `${o.code}-L${p}-S${m}`;
+        n.run(C, o.code, p, m, 0);
       }
   }), r.prepare("SELECT count(*) as count FROM vendors").get().count === 0) {
     const o = [
@@ -234,8 +239,8 @@ function U() {
       { name: "Shree Metals", person: "Anand Patel", phone: "+91 97123 45678", city: "Ahmedabad" },
       { name: "Nice Hardware", person: "V. Naresh", phone: "+91 99401 11223", city: "Madurai" },
       { name: "A1 Tools Distributors", person: "Mohan Lal", phone: "+91 98200 99887", city: "Mumbai" }
-    ], m = r.prepare("INSERT INTO vendors (name, contact_person, phone, city) VALUES (?, ?, ?, ?)");
-    o.forEach((T) => m.run(T.name, T.person, T.phone, T.city));
+    ], p = r.prepare("INSERT INTO vendors (name, contact_person, phone, city) VALUES (?, ?, ?, ?)");
+    o.forEach((m) => p.run(m.name, m.person, m.phone, m.city));
   }
 }
 function f() {
@@ -451,7 +456,7 @@ a.handle("bulkImportItems", (s, e) => {
           sku: n,
           name: l,
           size: String(c.size || "").trim(),
-          unit: String(c.unit || "PCS").trim().toUpperCase(),
+          unit: String(c.unit || "PCS").trim(),
           category: String(c.category || "Others").trim(),
           brand: String(c.brand || "Generic").trim(),
           selling_price: parseFloat(c.selling_price) || 0,
@@ -484,9 +489,10 @@ a.handle("createInvoice", (s, e) => {
     e.payment_mode || "Cash",
     e.items.length,
     JSON.stringify(e.items)
-  ), c = r.prepare("UPDATE items SET quantity = MAX(0, quantity - ?) WHERE sku = ? OR id = ?"), n = r.prepare("SELECT id, sku, name, quantity FROM items WHERE (sku = ? OR id = ?)"), l = [];
+  ), c = r.prepare("UPDATE items SET quantity = ROUND(MAX(0, quantity - ?), 6) WHERE sku = ? OR id = ?"), n = r.prepare("SELECT id, sku, name, quantity FROM items WHERE (sku = ? OR id = ?)"), l = [];
   return e.items.forEach((o) => {
-    c.run(o.quantity, o.sku || "", o.id || 0);
+    const p = Number(o.stock_deduction_qty ?? o.quantity ?? 0);
+    c.run(p, o.sku || "", o.id || 0);
     const m = n.get(o.sku || "", o.id || 0);
     m && m.quantity <= 0 && l.push(m);
   }), { success: !0, id: Number(d.lastInsertRowid), invoice_number: i, zeroStockAlerts: l };
@@ -496,10 +502,11 @@ a.handle("returnInvoice", (s, e) => {
     const t = r.prepare("SELECT * FROM invoices WHERE id = ?").get(e);
     if (!t) return { success: !1, error: "Invoice not found." };
     if (t.status === "Returned") return { success: !1, error: "Invoice was already returned." };
-    const i = JSON.parse(t.items_json || "[]"), u = r.prepare("UPDATE items SET quantity = quantity + ? WHERE sku = ? OR id = ?");
+    const i = JSON.parse(t.items_json || "[]"), u = r.prepare("UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ? OR id = ?");
     return r.transaction(() => {
       i.forEach((d) => {
-        u.run(Number(d.quantity) || 0, d.sku || "", d.id || 0);
+        const c = Number(d.stock_deduction_qty ?? d.quantity ?? 0);
+        u.run(c, d.sku || "", d.id || 0);
       }), r.prepare("UPDATE invoices SET status = 'Returned' WHERE id = ?").run(e);
     })(), { success: !0, restockedCount: i.length };
   } catch (t) {
@@ -573,10 +580,10 @@ a.handle("restoreDatabase", async () => {
       g.copyFileSync(S, i);
     } catch {
     }
-    return r.close(), g.copyFileSync(t, S), r = new N(S), I(), { success: !0, path: t };
+    return r.close(), g.copyFileSync(t, S), r = new _(S), I(), { success: !0, path: t };
   } catch (t) {
     try {
-      r = new N(S);
+      r = new _(S);
     } catch {
     }
     return { success: !1, error: t.message || "Restore failed." };
@@ -603,13 +610,13 @@ function A() {
     minWidth: 1024,
     minHeight: 700,
     title: "T. S. P Enterprises - Inventory & Billing",
-    icon: p.join(process.env.VITE_PUBLIC, "icon.png"),
+    icon: T.join(process.env.VITE_PUBLIC, "icon.png"),
     webPreferences: {
-      preload: p.join(b, "preload.mjs"),
+      preload: T.join(b, "preload.mjs"),
       nodeIntegration: !1,
       contextIsolation: !0
     }
-  }), _ ? L.loadURL(_) : L.loadFile(p.join(O, "index.html"));
+  }), N ? L.loadURL(N) : L.loadFile(T.join(O, "index.html"));
 }
 R.on("window-all-closed", () => {
   process.platform !== "darwin" && (R.quit(), L = null);
@@ -621,5 +628,5 @@ R.whenReady().then(A);
 export {
   X as MAIN_DIST,
   O as RENDERER_DIST,
-  _ as VITE_DEV_SERVER_URL
+  N as VITE_DEV_SERVER_URL
 };

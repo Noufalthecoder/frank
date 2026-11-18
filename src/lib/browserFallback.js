@@ -1,3 +1,5 @@
+import { normalizeUnit } from './units.js';
+
 // LocalStorage-backed fallback for window.api when previewing in a regular browser.
 // Inside Electron (.exe), preload.js defines window.api (backed by SQLite), so this does nothing.
 
@@ -45,8 +47,12 @@ function getStarterItems() {
     { id: 8, sku: 'HM-500', name: 'Ball Peen Hammer 500g', size: '500g', unit: 'PCS', category: 'Tools', brand: 'Taparia', selling_price: 280.0, cost_price: 210.0, quantity: 45, reorder_level: 15, bin_id: 'R04-L2-S1', status: 'Active' },
     { id: 9, sku: 'DBL-4', name: 'Diamond Blade 4" Concrete', size: '4 inch', unit: 'PCS', category: 'Tools', brand: 'Bosch', selling_price: 290.0, cost_price: 210.0, quantity: 0, reorder_level: 10, bin_id: 'R04-L4-S1', status: 'Active' },
     { id: 10, sku: 'WR-15-RD', name: 'Copper House Wire 1.5 sq mm Red 90m', size: '1.5 sq mm', unit: 'BOX', category: 'Electrical', brand: 'Finolex', selling_price: 1950.0, cost_price: 1620.0, quantity: 18, reorder_level: 5, bin_id: 'R05-L1-S1', status: 'Active' },
-    { id: 11, sku: 'PVC-1', name: 'PVC Pipe 1" Class 3 6kg', size: '1 inch', unit: 'MTR', category: 'Plumbing', brand: 'Finolex', selling_price: 85.0, cost_price: 60.0, quantity: 96, reorder_level: 30, bin_id: 'R02-L2-S1', status: 'Active' },
+    { id: 11, sku: 'PVC-1', name: 'PVC Pipe 1" Class 3 6kg', size: '1 inch', unit: 'm', category: 'Plumbing', brand: 'Finolex', selling_price: 85.0, cost_price: 60.0, quantity: 96, reorder_level: 30, bin_id: 'R02-L2-S1', status: 'Active' },
     { id: 12, sku: 'PBR-3', name: 'Flat Paint Brush 3"', size: '3 inch', unit: 'PCS', category: 'Paints & Adhesives', brand: 'Generic', selling_price: 55.0, cost_price: 36.0, quantity: 0, reorder_level: 10, bin_id: 'R02-L3-S4', status: 'Active' },
+    { id: 13, sku: 'GI-BW-20G', name: 'GI Binding Wire 20 Gauge', size: '20 SWG', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', selling_price: 120.0, cost_price: 90.0, quantity: 50, reorder_level: 10, bin_id: 'R01-L3-S3', status: 'Active' },
+    { id: 14, sku: 'NYL-ROPE-8', name: 'Nylon Braided Rope 8mm', size: '8mm', unit: 'm', category: 'Others', brand: 'Generic', selling_price: 25.0, cost_price: 16.0, quantity: 150, reorder_level: 25, bin_id: 'R02-L4-S1', status: 'Active' },
+    { id: 15, sku: 'MS-NAIL-2IN', name: 'MS Wire Nails 2" (Loose)', size: '2 inch', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', selling_price: 110.0, cost_price: 82.0, quantity: 40, reorder_level: 10, bin_id: 'R01-L3-S4', status: 'Active' },
+    { id: 16, sku: 'CU-WND-24G', name: 'Enamelled Copper Winding Wire', size: '24 SWG', unit: 'g', category: 'Electrical', brand: 'Finolex', selling_price: 1.5, cost_price: 1.05, quantity: 2000, reorder_level: 250, bin_id: 'R05-L2-S2', status: 'Active' },
   ];
 }
 
@@ -214,7 +220,7 @@ export function initBrowserApiFallback() {
           sku,
           name,
           size: String(row.size || '').trim(),
-          unit: String(row.unit || 'PCS').trim().toUpperCase(),
+          unit: normalizeUnit(row.unit || 'PCS'),
           category: String(row.category || 'Others').trim(),
           brand: String(row.brand || 'Generic').trim(),
           selling_price: parseFloat(row.selling_price) || 0,
@@ -320,7 +326,8 @@ export function initBrowserApiFallback() {
       (inv.items || []).forEach((sold) => {
         const target = db.items.find((i) => i.sku === sold.sku || i.id === sold.id);
         if (target) {
-          target.quantity = Math.max(0, Number(target.quantity) - Number(sold.quantity || 0));
+          const deduct = Number(sold.stock_deduction_qty ?? sold.quantity ?? 0);
+          target.quantity = Math.max(0, Number((Number(target.quantity) - deduct).toFixed(6)));
           if (target.quantity <= 0) {
             zeroStockAlerts.push({ id: target.id, sku: target.sku, name: target.name, quantity: target.quantity });
           }
@@ -338,7 +345,10 @@ export function initBrowserApiFallback() {
       const items = JSON.parse(inv.items_json || '[]');
       items.forEach((sold) => {
         const target = db.items.find((i) => i.sku === sold.sku || i.id === sold.id);
-        if (target) target.quantity = Number(target.quantity) + Number(sold.quantity || 0);
+        if (target) {
+          const addBack = Number(sold.stock_deduction_qty ?? sold.quantity ?? 0);
+          target.quantity = Number((Number(target.quantity) + addBack).toFixed(6));
+        }
       });
       inv.status = 'Returned';
       writeDb(db);

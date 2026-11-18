@@ -19,6 +19,13 @@ import {
 } from 'lucide-react';
 import ToolLibraryPicker from '../components/ToolLibraryPicker.jsx';
 import { TOOL_LIBRARY } from '../data/toolLibrary.js';
+import {
+  UNIT_OPTIONS,
+  normalizeUnit,
+  getUnitGroup,
+  isMeasurableUnit,
+  formatQty,
+} from '../lib/units.js';
 
 const PAGE_SIZE = 15;
 
@@ -221,6 +228,7 @@ export default function Catalog() {
         ...form,
         sku: resolvedSku,
         name: form.name.trim(),
+        unit: normalizeUnit(form.unit),
         brand: (form.brand || 'Generic').trim(),
         bin_id: (form.bin_id || '').trim().toUpperCase(),
         selling_price: parseFloat(form.selling_price) || 0,
@@ -269,7 +277,7 @@ export default function Catalog() {
       sku: item.sku,
       name: item.name,
       size: item.size || '',
-      unit: item.unit || 'PCS',
+      unit: normalizeUnit(item.unit || 'PCS'),
       category: item.category || 'Fasteners',
       brand: item.brand || 'Generic',
       selling_price: item.selling_price,
@@ -603,9 +611,30 @@ export default function Catalog() {
                     </div>
                   </td>
                   <td className="py-3 px-4 text-slate-600">{item.size || '—'}</td>
-                  <td className="py-3 px-4 text-slate-600 font-medium">{item.unit}</td>
+                  <td className="py-3 px-4">
+                    {(() => {
+                      const u = normalizeUnit(item.unit);
+                      const grp = getUnitGroup(u);
+                      return (
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                            grp === 'length'
+                              ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                              : grp === 'weight'
+                              ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                              : 'text-slate-600'
+                          }`}
+                        >
+                          {u}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="py-3 px-4 font-bold text-slate-900">
                     ₹ {Number(item.selling_price).toFixed(2)}
+                    {isMeasurableUnit(item.unit) && (
+                      <span className="text-[10px] font-medium text-slate-400"> / {normalizeUnit(item.unit)}</span>
+                    )}
                   </td>
                   <td className="py-3 px-4">
                     <span
@@ -617,7 +646,7 @@ export default function Catalog() {
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       }`}
                     >
-                      {Number(item.quantity).toLocaleString('en-IN')}
+                      {formatQty(item.quantity)}{isMeasurableUnit(item.unit) ? ` ${normalizeUnit(item.unit)}` : ''}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right">
@@ -879,24 +908,48 @@ export default function Catalog() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Base Unit</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Measurement / Unit
+                  </label>
                   <select
-                    value={form.unit}
+                    value={normalizeUnit(form.unit)}
                     onChange={(e) => setForm({ ...form, unit: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="PCS">PCS (Pieces)</option>
-                    <option value="KG">KG (Kilograms)</option>
-                    <option value="BOX">BOX</option>
-                    <option value="MTR">MTR (Metre)</option>
-                    <option value="SET">SET</option>
+                    {UNIT_OPTIONS.map((grp) => (
+                      <optgroup key={grp.group} label={grp.group}>
+                        {grp.units.map((u) => (
+                          <option key={u.value} value={u.value}>
+                            {u.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
               </div>
 
+              {isMeasurableUnit(form.unit) && (
+                <div
+                  className={`rounded-lg px-3 py-2 text-[11px] font-medium border flex items-center justify-between ${
+                    getUnitGroup(form.unit) === 'length'
+                      ? 'bg-sky-50/70 border-sky-200 text-sky-800'
+                      : 'bg-violet-50/70 border-violet-200 text-violet-800'
+                  }`}
+                >
+                  <span>
+                    {getUnitGroup(form.unit) === 'length'
+                      ? `Measured by Length (${normalizeUnit(form.unit)}) — in POS Billing you can sell in m or cm and stock converts automatically.`
+                      : `Measured by Weight (${normalizeUnit(form.unit)}) — in POS Billing you can sell in kg, g, or mg and stock converts automatically.`}
+                  </span>
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Selling Price (₹) *</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Selling Price (₹ / {normalizeUnit(form.unit)}) *
+                  </label>
                   <input
                     type="number"
                     step="0.01"
@@ -909,7 +962,9 @@ export default function Catalog() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Cost Price (₹)</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Cost Price (₹ / {normalizeUnit(form.unit)})
+                  </label>
                   <input
                     type="number"
                     step="0.01"
@@ -921,11 +976,14 @@ export default function Catalog() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Initial Stock</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    {editingItem ? `Stock (${normalizeUnit(form.unit)})` : `Initial Stock (${normalizeUnit(form.unit)})`}
+                  </label>
                   <input
                     type="number"
+                    step={isMeasurableUnit(form.unit) ? 'any' : '1'}
                     min="0"
-                    placeholder="100"
+                    placeholder={isMeasurableUnit(form.unit) ? '25.5' : '100'}
                     value={form.quantity}
                     onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
@@ -968,9 +1026,12 @@ export default function Catalog() {
                   </datalist>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Reorder Level</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Reorder Level ({normalizeUnit(form.unit)})
+                  </label>
                   <input
                     type="number"
+                    step={isMeasurableUnit(form.unit) ? 'any' : '1'}
                     min="0"
                     placeholder="20"
                     value={form.reorder_level}

@@ -8,6 +8,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import PrintableReceipt from '../components/PrintableReceipt.jsx';
+import { formatQty, isMeasurableUnit } from '../lib/units.js';
 
 const PAGE_SIZE = 12;
 
@@ -356,19 +357,28 @@ export default function SalesHistory() {
                       </td>
                     </tr>
                   ) : (
-                    parseItems(selectedInvoice).map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="py-2 px-3">
-                          <p className="font-semibold text-slate-800">{item.name}</p>
-                          {item.sku && <p className="text-[10px] font-mono text-slate-400">{item.sku}</p>}
-                        </td>
-                        <td className="py-2 px-2 text-center font-medium text-slate-700">{item.quantity || item.qty}</td>
-                        <td className="py-2 px-2 text-right text-slate-600">₹ {Number(item.rate || 0).toFixed(2)}</td>
-                        <td className="py-2 px-3 text-right font-bold text-slate-900">
-                          ₹ {Number(item.total || (item.quantity || 1) * (item.rate || 0)).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))
+                    parseItems(selectedInvoice).map((item, idx) => {
+                      const qtyVal = item.quantity || item.qty || 1;
+                      const unitSuffix = item.unit ? ` ${item.unit}` : '';
+                      const rateSuffix = item.base_unit && isMeasurableUnit(item.base_unit) ? ` / ${item.base_unit}` : '';
+                      return (
+                        <tr key={idx}>
+                          <td className="py-2 px-3">
+                            <p className="font-semibold text-slate-800">{item.name}</p>
+                            {item.sku && <p className="text-[10px] font-mono text-slate-400">{item.sku}</p>}
+                          </td>
+                          <td className="py-2 px-2 text-center font-medium text-slate-700 whitespace-nowrap">
+                            {formatQty(qtyVal)}{unitSuffix}
+                          </td>
+                          <td className="py-2 px-2 text-right text-slate-600 whitespace-nowrap">
+                            ₹ {Number(item.rate || 0).toFixed(2)}{rateSuffix}
+                          </td>
+                          <td className="py-2 px-3 text-right font-bold text-slate-900">
+                            ₹ {Number(item.total ?? (item.stock_deduction_qty || qtyVal) * (item.rate || 0)).toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

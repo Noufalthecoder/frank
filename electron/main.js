@@ -233,10 +233,16 @@ function seedStarterCatalog() {
     { sku: 'TP-INS', name: 'PVC Insulation Tape Black', size: 'Standard', unit: 'PCS', category: 'Electrical', brand: 'Generic', price: 15.00, cost: 9.50, qty: 340, reorder: 50, bin: 'R05-L2-S1' },
     
     // Plumbing
-    { sku: 'PVC-1', name: 'PVC Pipe 1" Class 3 6kg', size: '1 inch', unit: 'MTR', category: 'Plumbing', brand: 'Finolex', price: 85.00, cost: 60.00, qty: 96, reorder: 30, bin: 'R02-L2-S1' },
+    { sku: 'PVC-1', name: 'PVC Pipe 1" Class 3 6kg', size: '1 inch', unit: 'm', category: 'Plumbing', brand: 'Finolex', price: 85.00, cost: 60.00, qty: 96, reorder: 30, bin: 'R02-L2-S1' },
     { sku: 'PVC-ELB-1', name: 'PVC Elbow 90 deg 1"', size: '1 inch', unit: 'PCS', category: 'Plumbing', brand: 'Finolex', price: 18.00, cost: 11.50, qty: 180, reorder: 40, bin: 'R02-L2-S2' },
     { sku: 'TF-TAPE', name: 'Teflon Thread Seal Tape 12mm', size: '12mm', unit: 'PCS', category: 'Plumbing', brand: 'Generic', price: 20.00, cost: 11.00, qty: 260, reorder: 50, bin: 'R02-L2-S3' },
     { sku: 'PVC-SOL', name: 'PVC Solvent Cement 100ml', size: '100ml', unit: 'PCS', category: 'Plumbing', brand: 'Generic', price: 65.00, cost: 45.00, qty: 42, reorder: 15, bin: 'R02-L2-S4' },
+
+    // Length & Weight Hardware Materials
+    { sku: 'GI-BW-20G', name: 'GI Binding Wire 20 Gauge', size: '20 SWG', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', price: 120.00, cost: 90.00, qty: 50, reorder: 10, bin: 'R01-L3-S3' },
+    { sku: 'NYL-ROPE-8', name: 'Nylon Braided Rope 8mm', size: '8mm', unit: 'm', category: 'Others', brand: 'Generic', price: 25.00, cost: 16.00, qty: 150, reorder: 25, bin: 'R02-L4-S1' },
+    { sku: 'MS-NAIL-2IN', name: 'MS Wire Nails 2" (Loose)', size: '2 inch', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', price: 110.00, cost: 82.00, qty: 40, reorder: 10, bin: 'R01-L3-S4' },
+    { sku: 'CU-WND-24G', name: 'Enamelled Copper Winding Wire', size: '24 SWG', unit: 'g', category: 'Electrical', brand: 'Finolex', price: 1.50, cost: 1.05, qty: 2000, reorder: 250, bin: 'R05-L2-S2' },
 
     // Paints & Adhesives
     { sku: 'FEV-1K', name: 'Fevicol SH Resin Adhesive 1kg', size: '1 kg', unit: 'PCS', category: 'Paints & Adhesives', brand: 'Pidilite', price: 240.00, cost: 190.00, qty: 25, reorder: 8, bin: 'R02-L3-S1' },
@@ -532,7 +538,7 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
           sku,
           name,
           size: String(row.size || '').trim(),
-          unit: String(row.unit || 'PCS').trim().toUpperCase(),
+          unit: String(row.unit || 'PCS').trim(),
           category: String(row.category || 'Others').trim(),
           brand: String(row.brand || 'Generic').trim(),
           selling_price: parseFloat(row.selling_price) || 0,
@@ -581,13 +587,14 @@ ipcMain.handle('createInvoice', (event, inv) => {
     JSON.stringify(inv.items)
   );
 
-  // Deduct stock for each item & identify items that went to zero
-  const updateStock = db.prepare('UPDATE items SET quantity = MAX(0, quantity - ?) WHERE sku = ? OR id = ?');
+  // Deduct stock for each item (using stock_deduction_qty in base unit for length/weight items)
+  const updateStock = db.prepare('UPDATE items SET quantity = ROUND(MAX(0, quantity - ?), 6) WHERE sku = ? OR id = ?');
   const checkStock = db.prepare('SELECT id, sku, name, quantity FROM items WHERE (sku = ? OR id = ?)');
 
   const zeroStockAlerts = [];
   inv.items.forEach(item => {
-    updateStock.run(item.quantity, item.sku || '', item.id || 0);
+    const deductQty = Number(item.stock_deduction_qty ?? item.quantity ?? 0);
+    updateStock.run(deductQty, item.sku || '', item.id || 0);
     const updated = checkStock.get(item.sku || '', item.id || 0);
     if (updated && updated.quantity <= 0) {
       zeroStockAlerts.push(updated);
@@ -604,10 +611,11 @@ ipcMain.handle('returnInvoice', (event, id) => {
     if (inv.status === 'Returned') return { success: false, error: 'Invoice was already returned.' };
 
     const items = JSON.parse(inv.items_json || '[]');
-    const restock = db.prepare('UPDATE items SET quantity = quantity + ? WHERE sku = ? OR id = ?');
+    const restock = db.prepare('UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ? OR id = ?');
     const tx = db.transaction(() => {
       items.forEach(item => {
-        restock.run(Number(item.quantity) || 0, item.sku || '', item.id || 0);
+        const addBack = Number(item.stock_deduction_qty ?? item.quantity ?? 0);
+        restock.run(addBack, item.sku || '', item.id || 0);
       });
       db.prepare(`UPDATE invoices SET status = 'Returned' WHERE id = ?`).run(id);
     });

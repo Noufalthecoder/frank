@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatQty, isMeasurableUnit } from '../lib/units.js';
 
 export function getPrintPreferences() {
   try {
@@ -81,19 +82,28 @@ export default function PrintableReceipt({ invoice, profile }) {
               </td>
             </tr>
           ) : (
-            items.map((item, idx) => (
-              <tr key={idx} style={{ borderBottom: '1px dotted #ccc' }}>
-                <td style={{ padding: '4px 2px 4px 0' }}>
-                  <div style={{ fontWeight: 600 }}>{item.name}</div>
-                  {item.sku && <div style={{ fontSize: '9px' }}>{item.sku}</div>}
-                </td>
-                <td style={{ textAlign: 'center', padding: '4px' }}>{item.quantity || item.qty}</td>
-                <td style={{ textAlign: 'right', padding: '4px' }}>{Number(item.rate || 0).toFixed(2)}</td>
-                <td style={{ textAlign: 'right', padding: '4px 0', fontWeight: 600 }}>
-                  {Number(item.total || (item.quantity || item.qty || 1) * (item.rate || 0)).toFixed(2)}
-                </td>
-              </tr>
-            ))
+            items.map((item, idx) => {
+              const qtyVal = item.quantity || item.qty || 1;
+              const unitStr = item.unit ? ` ${item.unit}` : '';
+              const rateUnit = item.base_unit && isMeasurableUnit(item.base_unit) ? `/${item.base_unit}` : '';
+              return (
+                <tr key={idx} style={{ borderBottom: '1px dotted #ccc' }}>
+                  <td style={{ padding: '4px 2px 4px 0' }}>
+                    <div style={{ fontWeight: 600 }}>{item.name}</div>
+                    {item.sku && <div style={{ fontSize: '9px' }}>{item.sku}</div>}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '4px', whiteSpace: 'nowrap' }}>
+                    {formatQty(qtyVal)}{unitStr}
+                  </td>
+                  <td style={{ textAlign: 'right', padding: '4px', whiteSpace: 'nowrap' }}>
+                    {Number(item.rate || 0).toFixed(2)}{rateUnit}
+                  </td>
+                  <td style={{ textAlign: 'right', padding: '4px 0', fontWeight: 600 }}>
+                    {Number(item.total ?? (item.stock_deduction_qty || qtyVal) * (item.rate || 0)).toFixed(2)}
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>

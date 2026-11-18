@@ -98,7 +98,8 @@ export default function Dashboard() {
         (c, l) => {
           const skuKey = String(l.sku || '').toUpperCase();
           const unitCost = costMap[skuKey] > 0 ? costMap[skuKey] : Number(l.rate || 0) * 0.72;
-          return c + Number(l.quantity || l.qty || 0) * unitCost;
+          const baseUnitsSold = Number(l.stock_deduction_qty ?? l.quantity ?? l.qty ?? 0);
+          return c + baseUnitsSold * unitCost;
         },
         0
       );
@@ -295,7 +296,7 @@ export default function Dashboard() {
             </span>
           </div>
           <p className="text-2xl font-bold tracking-tight mt-2 text-slate-900">
-            {totalUnits.toLocaleString('en-IN')}
+            {Number(totalUnits.toFixed(2)).toLocaleString('en-IN')}
           </p>
           <div className="flex items-center gap-1 text-[11px] mt-1 font-medium">
             <span className="text-slate-500">{items.length} SKUs</span>
