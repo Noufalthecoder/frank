@@ -184,204 +184,15 @@ function initSchema() {
     `).run();
   }
 
-  // Seed starter catalog items & racks ONLY in dev mode when catalog is empty — never seed fake sales/expenses
-  const itemCount = db.prepare('SELECT count(*) as count FROM items').get().count;
-  if (VITE_DEV_SERVER_URL && itemCount === 0) {
-    seedStarterCatalog();
-  }
+  // Seed only default category labels — never seed dummy products, racks, vendors, bills, POs, or expenses
+  const categories = ['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'];
+  const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
+  categories.forEach(c => insertCat.run(c));
 }
 
 function formatLocalDateTime(date = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
-
-function seedStarterCatalog() {
-  // Categories & Brands
-  const categories = ['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'];
-  const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
-  categories.forEach(c => insertCat.run(c));
-
-  const brands = ['Tata Agrico', 'Bosch', 'Unbrako', 'Taparia', 'Finolex', 'Asian Paints', 'Pidilite', 'Corroshield', 'Generic'];
-  const insertBrand = db.prepare('INSERT OR IGNORE INTO brands (name) VALUES (?)');
-  brands.forEach(b => insertBrand.run(b));
-
-  // Items: Starter Hardware Products
-  const sampleItems = [
-    // Fasteners
-    { sku: 'HB-M6-20', name: 'Hex Bolt M6 x 20mm', size: 'M6 x 20', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', price: 6.50, cost: 4.00, qty: 650, reorder: 50, bin: 'R01-L1-S1' },
-    { sku: 'HB-M6-30', name: 'Hex Bolt M6 x 30mm', size: 'M6 x 30', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', price: 8.00, cost: 5.20, qty: 420, reorder: 40, bin: 'R01-L1-S2' },
-    { sku: 'HB-M8-25', name: 'Hex Bolt M8 x 25mm', size: 'M8 x 25', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', price: 9.50, cost: 6.50, qty: 580, reorder: 50, bin: 'R01-L1-S3' },
-    { sku: 'HB-M8-40', name: 'Hex Bolt M8 x 40mm', size: 'M8 x 40', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', price: 12.00, cost: 8.50, qty: 1240, reorder: 50, bin: 'R01-L1-S4' },
-    { sku: 'HB-M10-50', name: 'Hex Bolt M10 x 50mm', size: 'M10 x 50', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', price: 18.00, cost: 12.50, qty: 842, reorder: 40, bin: 'R01-L2-S1' },
-    { sku: 'HB-M12-60', name: 'Hex Bolt M12 x 60mm', size: 'M12 x 60', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', price: 26.00, cost: 18.00, qty: 310, reorder: 30, bin: 'R01-L2-S2' },
-    { sku: 'HB-M16-75', name: 'Hex Bolt M16 x 75mm', size: 'M16 x 75', unit: 'PCS', category: 'Fasteners', brand: 'Tata Agrico', price: 48.00, cost: 34.00, qty: 140, reorder: 20, bin: 'R01-L2-S3' },
-    { sku: 'NT-M6', name: 'Hex Nut M6', size: 'M6', unit: 'PCS', category: 'Fasteners', brand: 'Generic', price: 1.20, cost: 0.70, qty: 2800, reorder: 200, bin: 'R02-L1-S1' },
-    { sku: 'NT-M8', name: 'Hex Nut M8', size: 'M8', unit: 'PCS', category: 'Fasteners', brand: 'Generic', price: 2.00, cost: 1.20, qty: 4980, reorder: 500, bin: 'R02-L1-S2' },
-    { sku: 'NT-M10', name: 'Hex Nut M10', size: 'M10', unit: 'PCS', category: 'Fasteners', brand: 'Generic', price: 3.50, cost: 2.10, qty: 2100, reorder: 300, bin: 'R02-L1-S3' },
-    { sku: 'NT-M12', name: 'Hex Nut M12', size: 'M12', unit: 'PCS', category: 'Fasteners', brand: 'Generic', price: 5.00, cost: 3.20, qty: 1650, reorder: 200, bin: 'R02-L1-S4' },
-    { sku: 'WS-M8', name: 'Flat Washer M8', size: 'M8', unit: 'PCS', category: 'Fasteners', brand: 'Generic', price: 1.50, cost: 0.80, qty: 5320, reorder: 500, bin: 'R03-L1-S1' },
-    { sku: 'WS-M10', name: 'Flat Washer M10', size: 'M10', unit: 'PCS', category: 'Fasteners', brand: 'Generic', price: 2.20, cost: 1.30, qty: 3200, reorder: 400, bin: 'R03-L1-S2' },
-    { sku: 'SP-W8', name: 'Spring Washer M8', size: 'M8', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', price: 2.50, cost: 1.50, qty: 1800, reorder: 300, bin: 'R03-L2-S1' },
-    { sku: 'DW-SC-15', name: 'Drywall Screw 1.5"', size: '1.5 inch', unit: 'PCS', category: 'Fasteners', brand: 'Corroshield', price: 0.85, cost: 0.45, qty: 12000, reorder: 1000, bin: 'R01-L3-S1' },
-    { sku: 'SD-SC-10', name: 'Self Drilling Screw 1"', size: '1 inch', unit: 'PCS', category: 'Fasteners', brand: 'Corroshield', price: 1.40, cost: 0.80, qty: 8500, reorder: 500, bin: 'R01-L3-S2' },
-    
-    // Tools
-    { sku: 'DB-06', name: 'SDS Plus Drill Bit 6mm', size: '6mm', unit: 'PCS', category: 'Tools', brand: 'Bosch', price: 140.00, cost: 95.00, qty: 24, reorder: 10, bin: 'R04-L1-S1' },
-    { sku: 'DB-08', name: 'SDS Plus Drill Bit 8mm', size: '8mm', unit: 'PCS', category: 'Tools', brand: 'Bosch', price: 175.00, cost: 120.00, qty: 19, reorder: 10, bin: 'R04-L1-S2' },
-    { sku: 'DB-10', name: 'SDS Plus Drill Bit 10mm', size: '10mm', unit: 'PCS', category: 'Tools', brand: 'Bosch', price: 220.00, cost: 160.00, qty: 118, reorder: 20, bin: 'R04-L1-S3' },
-    { sku: 'DB-12', name: 'SDS Plus Drill Bit 12mm', size: '12mm', unit: 'PCS', category: 'Tools', brand: 'Bosch', price: 280.00, cost: 200.00, qty: 0, reorder: 15, bin: 'R04-L1-S4' }, // ZERO STOCK ALERT
-    { sku: 'HM-500', name: 'Ball Peen Hammer 500g', size: '500g', unit: 'PCS', category: 'Tools', brand: 'Taparia', price: 280.00, cost: 210.00, qty: 45, reorder: 15, bin: 'R04-L2-S1' },
-    { sku: 'HM-CLAW', name: 'Claw Hammer Wooden Handle', size: '16 oz', unit: 'PCS', category: 'Tools', brand: 'Taparia', price: 350.00, cost: 260.00, qty: 14, reorder: 5, bin: 'R04-L2-S2' },
-    { sku: 'PL-08', name: 'Combination Plier 8"', size: '8 inch', unit: 'PCS', category: 'Tools', brand: 'Taparia', price: 240.00, cost: 175.00, qty: 38, reorder: 10, bin: 'R04-L2-S3' },
-    { sku: 'SP-10', name: 'Adjustable Spanner 10"', size: '10 inch', unit: 'PCS', category: 'Tools', brand: 'Taparia', price: 380.00, cost: 285.00, qty: 12, reorder: 5, bin: 'R04-L2-S4' },
-    { sku: 'PW-12', name: 'Heavy Duty Pipe Wrench 12"', size: '12 inch', unit: 'PCS', category: 'Tools', brand: 'Taparia', price: 520.00, cost: 390.00, qty: 8, reorder: 4, bin: 'R04-L3-S1' },
-    { sku: 'SD-SET', name: 'Screwdriver Set 6pcs', size: '6 pcs set', unit: 'SET', category: 'Tools', brand: 'Taparia', price: 290.00, cost: 215.00, qty: 22, reorder: 8, bin: 'R04-L3-S2' },
-    { sku: 'CD-4', name: 'Cutting Disc 4" Metal', size: '4 inch', unit: 'PCS', category: 'Tools', brand: 'Bosch', price: 40.00, cost: 26.00, qty: 320, reorder: 50, bin: 'R04-L3-S3' },
-    { sku: 'GW-4', name: 'Grinding Wheel 4"', size: '4 inch', unit: 'PCS', category: 'Tools', brand: 'Bosch', price: 65.00, cost: 44.00, qty: 140, reorder: 30, bin: 'R04-L3-S4' },
-    { sku: 'DBL-4', name: 'Diamond Blade 4" Concrete', size: '4 inch', unit: 'PCS', category: 'Tools', brand: 'Bosch', price: 290.00, cost: 210.00, qty: 0, reorder: 10, bin: 'R04-L4-S1' }, // ZERO STOCK ALERT
-    
-    // Electrical
-    { sku: 'WR-15-RD', name: 'Copper House Wire 1.5 sq mm Red 90m', size: '1.5 sq mm', unit: 'BOX', category: 'Electrical', brand: 'Finolex', price: 1950.00, cost: 1620.00, qty: 18, reorder: 5, bin: 'R05-L1-S1' },
-    { sku: 'WR-25-BL', name: 'Copper House Wire 2.5 sq mm Blue 90m', size: '2.5 sq mm', unit: 'BOX', category: 'Electrical', brand: 'Finolex', price: 2950.00, cost: 2480.00, qty: 12, reorder: 4, bin: 'R05-L1-S2' },
-    { sku: 'SW-6A', name: 'Modular Switch 6A 1-Way', size: '6A', unit: 'PCS', category: 'Electrical', brand: 'Generic', price: 35.00, cost: 24.00, qty: 150, reorder: 30, bin: 'R05-L1-S3' },
-    { sku: 'TP-INS', name: 'PVC Insulation Tape Black', size: 'Standard', unit: 'PCS', category: 'Electrical', brand: 'Generic', price: 15.00, cost: 9.50, qty: 340, reorder: 50, bin: 'R05-L2-S1' },
-    
-    // Plumbing
-    { sku: 'PVC-1', name: 'PVC Pipe 1" Class 3 6kg', size: '1 inch', unit: 'm', category: 'Plumbing', brand: 'Finolex', price: 85.00, cost: 60.00, qty: 96, reorder: 30, bin: 'R02-L2-S1' },
-    { sku: 'PVC-ELB-1', name: 'PVC Elbow 90 deg 1"', size: '1 inch', unit: 'PCS', category: 'Plumbing', brand: 'Finolex', price: 18.00, cost: 11.50, qty: 180, reorder: 40, bin: 'R02-L2-S2' },
-    { sku: 'TF-TAPE', name: 'Teflon Thread Seal Tape 12mm', size: '12mm', unit: 'PCS', category: 'Plumbing', brand: 'Generic', price: 20.00, cost: 11.00, qty: 260, reorder: 50, bin: 'R02-L2-S3' },
-    { sku: 'PVC-SOL', name: 'PVC Solvent Cement 100ml', size: '100ml', unit: 'PCS', category: 'Plumbing', brand: 'Generic', price: 65.00, cost: 45.00, qty: 42, reorder: 15, bin: 'R02-L2-S4' },
-
-    // Length & Weight Hardware Materials
-    { sku: 'GI-BW-20G', name: 'GI Binding Wire 20 Gauge', size: '20 SWG', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', price: 120.00, cost: 90.00, qty: 50, reorder: 10, bin: 'R01-L3-S3' },
-    { sku: 'NYL-ROPE-8', name: 'Nylon Braided Rope 8mm', size: '8mm', unit: 'm', category: 'Others', brand: 'Generic', price: 25.00, cost: 16.00, qty: 150, reorder: 25, bin: 'R02-L4-S1' },
-    { sku: 'MS-NAIL-2IN', name: 'MS Wire Nails 2" (Loose)', size: '2 inch', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', price: 110.00, cost: 82.00, qty: 40, reorder: 10, bin: 'R01-L3-S4' },
-    { sku: 'CU-WND-24G', name: 'Enamelled Copper Winding Wire', size: '24 SWG', unit: 'g', category: 'Electrical', brand: 'Finolex', price: 1.50, cost: 1.05, qty: 2000, reorder: 250, bin: 'R05-L2-S2' },
-
-    // Paints & Adhesives
-    { sku: 'FEV-1K', name: 'Fevicol SH Resin Adhesive 1kg', size: '1 kg', unit: 'PCS', category: 'Paints & Adhesives', brand: 'Pidilite', price: 240.00, cost: 190.00, qty: 25, reorder: 8, bin: 'R02-L3-S1' },
-    { sku: 'MSEAL-100', name: 'M-Seal Epoxy Compound 100g', size: '100g', unit: 'PCS', category: 'Paints & Adhesives', brand: 'Pidilite', price: 25.00, cost: 17.50, qty: 85, reorder: 20, bin: 'R02-L3-S2' },
-    { sku: 'PNT-RO-1L', name: 'Red Oxide Metal Primer 1 Litre', size: '1 Litre', unit: 'PCS', category: 'Paints & Adhesives', brand: 'Asian Paints', price: 190.00, cost: 145.00, qty: 16, reorder: 5, bin: 'R02-L3-S3' },
-    { sku: 'PBR-3', name: 'Flat Paint Brush 3"', size: '3 inch', unit: 'PCS', category: 'Paints & Adhesives', brand: 'Generic', price: 55.00, cost: 36.00, qty: 0, reorder: 10, bin: 'R02-L3-S4' } // ZERO STOCK ALERT
-  ];
-
-  const insertItem = db.prepare(`
-    INSERT OR IGNORE INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
-    VALUES (@sku, @name, @size, @unit, @category, @brand, @price, @cost, @qty, @reorder, @bin, 'Active')
-  `);
-  sampleItems.forEach(i => insertItem.run(i));
-
-  // Racks & Bins
-  const sampleRacks = [
-    { code: 'R01', name: 'Fasteners', zone: 'Fasteners', binsCount: 24 },
-    { code: 'R02', name: 'Bolts & Nuts', zone: 'Fasteners', binsCount: 12 },
-    { code: 'R03', name: 'Washers', zone: 'Fasteners', binsCount: 12 },
-    { code: 'R04', name: 'Tools', zone: 'Hardware', binsCount: 16 },
-    { code: 'R05', name: 'Electrical', zone: 'Electrical', binsCount: 20 },
-  ];
-  const insertRack = db.prepare('INSERT OR IGNORE INTO racks (code, name, zone, levels, slots_per_level) VALUES (?, ?, ?, 4, 4)');
-  const insertBin = db.prepare('INSERT OR IGNORE INTO rack_bins (bin_code, rack_code, level_no, slot_no, quantity) VALUES (?, ?, ?, ?, ?)');
-
-  sampleRacks.forEach(r => {
-    insertRack.run(r.code, r.name, r.zone);
-    for (let l = 1; l <= 4; l++) {
-      for (let s = 1; s <= 4; s++) {
-        const binCode = `${r.code}-L${l}-S${s}`;
-        insertBin.run(binCode, r.code, l, s, 0);
-      }
-    }
-  });
-
-  // Vendors
-  const existingVendors = db.prepare('SELECT count(*) as count FROM vendors').get().count;
-  if (existingVendors === 0) {
-    const sampleVendors = [
-      { name: 'KPR Fasteners', person: 'K. Ramesh', phone: '+91 94441 23456', city: 'Coimbatore' },
-      { name: 'Metro Tools Co.', person: 'S. Kumar', phone: '+91 98840 54321', city: 'Chennai' },
-      { name: 'Shree Metals', person: 'Anand Patel', phone: '+91 97123 45678', city: 'Ahmedabad' },
-      { name: 'Nice Hardware', person: 'V. Naresh', phone: '+91 99401 11223', city: 'Madurai' },
-      { name: 'A1 Tools Distributors', person: 'Mohan Lal', phone: '+91 98200 99887', city: 'Mumbai' }
-    ];
-    const insertVendor = db.prepare('INSERT INTO vendors (name, contact_person, phone, city) VALUES (?, ?, ?, ?)');
-    sampleVendors.forEach(v => insertVendor.run(v.name, v.person, v.phone, v.city));
-  }
-}
-
-function seedInitialData() {
-  seedStarterCatalog();
-
-  // Recent Invoices (with realistic dates around today)
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-  const twoDaysAgo = new Date(Date.now() - 172800000).toISOString().split('T')[0];
-  const sampleInvoices = [
-    {
-      num: 'INV-001248', date: `${today} 11:24:00`, cust: 'Raj Builders', count: 2, sub: 1240, disc: 0, total: 1240, mode: 'UPI',
-      items: [
-        { sku: 'HB-M8-40', name: 'Hex Bolt M8 x 40mm', quantity: 50, rate: 12, discount: 0, total: 600 },
-        { sku: 'DB-10', name: 'SDS Plus Drill Bit 10mm', quantity: 3, rate: 213.33, discount: 0, total: 640 },
-      ]
-    },
-    {
-      num: 'INV-001247', date: `${today} 10:56:00`, cust: 'Sree Constructions', count: 2, sub: 2500, disc: 40, total: 2460, mode: 'Cash',
-      items: [
-        { sku: 'WR-15-RD', name: 'Copper House Wire 1.5 sq mm Red 90m', quantity: 1, rate: 1950, discount: 0, total: 1950 },
-        { sku: 'HM-500', name: 'Ball Peen Hammer 500g', quantity: 2, rate: 275, discount: 40, total: 510 },
-      ]
-    },
-    {
-      num: 'INV-001246', date: `${yesterday} 17:41:00`, cust: 'KPN Interiors', count: 2, sub: 940, disc: 0, total: 940, mode: 'Card',
-      items: [
-        { sku: 'FEV-1K', name: 'Fevicol SH Resin Adhesive 1kg', quantity: 3, rate: 240, discount: 0, total: 720 },
-        { sku: 'DB-10', name: 'SDS Plus Drill Bit 10mm', quantity: 1, rate: 220, discount: 0, total: 220 },
-      ]
-    },
-    {
-      num: 'INV-001245', date: `${yesterday} 15:17:00`, cust: 'Sunil Traders', count: 2, sub: 1900, disc: 20, total: 1880, mode: 'Cash',
-      items: [
-        { sku: 'PVC-1', name: 'PVC Pipe 1" Class 3 6kg', quantity: 20, rate: 85, discount: 20, total: 1680 },
-        { sku: 'TF-TAPE', name: 'Teflon Thread Seal Tape 12mm', quantity: 10, rate: 20, discount: 0, total: 200 },
-      ]
-    },
-    {
-      num: 'INV-001244', date: `${twoDaysAgo} 11:02:00`, cust: 'Apex Enterprises', count: 2, sub: 760, disc: 0, total: 760, mode: 'UPI',
-      items: [
-        { sku: 'SP-10', name: 'Adjustable Spanner 10"', quantity: 2, rate: 380, discount: 0, total: 760 },
-      ]
-    },
-  ];
-  const insertInvoice = db.prepare(`
-    INSERT OR IGNORE INTO invoices (invoice_number, date_time, customer_name, subtotal, discount, total, payment_mode, items_count, items_json, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed')
-  `);
-  sampleInvoices.forEach(inv => {
-    insertInvoice.run(inv.num, inv.date, inv.cust, inv.sub, inv.disc, inv.total, inv.mode, inv.count, JSON.stringify(inv.items));
-  });
-
-  // Purchase Orders
-  const samplePOs = [
-    { num: 'PO-00284', vendor: 'KPR Fasteners', date: today, amount: 48500.00, status: 'Request', items: [{ sku: 'DB-12', name: 'SDS Plus Drill Bit 12mm', quantity: 50, rate: 200 }] },
-    { num: 'PO-00283', vendor: 'Metro Tools Co.', date: yesterday, amount: 72000.00, status: 'Received', items: [] },
-    { num: 'PO-00282', vendor: 'Shree Metals', date: twoDaysAgo, amount: 124000.00, status: 'Received', items: [] },
-    { num: 'PO-00281', vendor: 'Nice Hardware', date: twoDaysAgo, amount: 36750.00, status: 'Received', items: [] },
-    { num: 'PO-00280', vendor: 'A1 Tools Distributors', date: twoDaysAgo, amount: 58200.00, status: 'Received', items: [] }
-  ];
-  const insertPO = db.prepare('INSERT OR IGNORE INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json) VALUES (?, ?, ?, ?, ?, ?)');
-  samplePOs.forEach(p => insertPO.run(p.num, p.vendor, p.date, p.amount, p.status, JSON.stringify(p.items)));
-
-  // Expenses
-  const existingExp = db.prepare('SELECT count(*) as count FROM expenses').get().count;
-  if (existingExp === 0) {
-    const sampleExpenses = [
-      { cat: 'Shop Rent', desc: 'Monthly godown & shop lease', amount: 15000, date: twoDaysAgo, mode: 'Bank' },
-      { cat: 'Electricity', desc: 'TNEB commercial bill', amount: 4200, date: yesterday, mode: 'UPI' },
-      { cat: 'Transport', desc: 'Freight delivery & tempo', amount: 1200, date: today, mode: 'Cash' },
-      { cat: 'Others', desc: 'Tea, stationery, packing tape', amount: 450, date: today, mode: 'Cash' },
-    ];
-    const insertExpense = db.prepare('INSERT INTO expenses (category, description, amount, date, payment_mode) VALUES (?, ?, ?, ?, ?)');
-    sampleExpenses.forEach(e => insertExpense.run(e.cat, e.desc, e.amount, e.date, e.mode));
-  }
 }
 
 initSchema();
@@ -868,7 +679,6 @@ ipcMain.handle('restoreDatabase', async () => {
 });
 
 ipcMain.handle('seedDemoData', () => {
-  seedInitialData();
   return { success: true };
 });
 
