@@ -334,7 +334,7 @@ ipcMain.handle('getRacks', () => {
   const allBins = db.prepare('SELECT * FROM rack_bins ORDER BY rack_code, level_no, slot_no').all();
   // Only assigned items matter: an empty bin_id never equals a (non-empty) bin_code.
   const assigned = db.prepare(
-    "SELECT id, sku, name, quantity, unit, bin_id, reorder_level FROM items WHERE bin_id IS NOT NULL AND bin_id <> ''"
+    "SELECT id, sku, name, category, quantity, unit, bin_id, reorder_level FROM items WHERE bin_id IS NOT NULL AND bin_id <> ''"
   ).all();
 
   const itemsByBin = new Map(); // UPPER(bin_id) -> items (original row order preserved)

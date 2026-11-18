@@ -141,7 +141,7 @@ export default function PrintPreviewModal({
               <h3 className="text-sm font-extrabold text-slate-900 tracking-tight">
                 {t('st_print_preview')} · <span className="font-mono text-blue-600">#{invoice.invoice_number}</span>
               </h3>
-              <p className="text-[11px] text-slate-500 font-medium">
+              <p className="text-[13px] text-slate-500 font-medium">
                 {paperLabel(spec)} · {orientation === 'landscape' ? t('st_landscape') : t('st_portrait')} · {t('st_compat_line')}
               </p>
             </div>
@@ -184,7 +184,7 @@ export default function PrintPreviewModal({
                     <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
                     <span>{t('st_stock_exhausted')}</span>
                   </div>
-                  <ul className="list-disc list-inside text-[11px] text-rose-700 font-medium">
+                  <ul className="list-disc list-inside text-[13px] text-rose-700 font-medium">
                     {zeroStockAlerts.map((i) => (
                       <li key={i.id || i.sku}>
                         {i.name} ({i.sku})
@@ -197,14 +197,14 @@ export default function PrintPreviewModal({
               {/* Available Printers List */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                  <label className="text-[13px] font-bold uppercase tracking-wider text-slate-600">
                     {t('st_available_printers')}
                   </label>
                   <button
                     type="button"
                     onClick={loadPrinters}
                     disabled={loadingPrinters}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700"
+                    className="inline-flex items-center gap-1 text-[13px] font-semibold text-blue-600 hover:text-blue-700"
                   >
                     <RefreshCw className={`w-3 h-3 ${loadingPrinters ? 'animate-spin' : ''}`} />
                     <span>{t('st_refresh')}</span>
@@ -246,14 +246,14 @@ export default function PrintPreviewModal({
                               <p className="text-xs font-bold text-slate-900 truncate">
                                 {p.displayName || p.name}
                               </p>
-                              <p className="text-[10px] text-slate-500 truncate">
+                              <p className="text-[12px] text-slate-500 truncate">
                                 {p.connectionType || t('st_local')} · {p.isDefault ? t('st_default') : t('st_installed')}
                                 {p.portName ? ` (${p.portName})` : ''}
                               </p>
                             </div>
                           </div>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex-shrink-0 ${badgeCls}`}
+                            className={`px-2 py-0.5 rounded-full text-[12px] font-bold border flex-shrink-0 ${badgeCls}`}
                           >
                             {statusText(p.statusLabel)}
                           </span>
@@ -267,7 +267,7 @@ export default function PrintPreviewModal({
               {/* Paper Size (A1 to A6 + Thermal) */}
               <div className="grid grid-cols-3 gap-2.5">
                 <div className="col-span-2">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  <label className="block text-[13px] font-bold uppercase tracking-wider text-slate-600 mb-1">
                     {t('st_paper_size_label')}
                   </label>
                   <select
@@ -293,7 +293,7 @@ export default function PrintPreviewModal({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  <label className="block text-[13px] font-bold uppercase tracking-wider text-slate-600 mb-1">
                     {t('st_orientation')}
                   </label>
                   <select

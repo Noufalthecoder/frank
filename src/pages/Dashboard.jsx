@@ -307,7 +307,7 @@ export default function Dashboard() {
           <p className="text-[28px] font-extrabold tracking-[-0.03em] mt-2.5 text-slate-900 tabular-nums leading-none">
             ₹ {Math.round(totalSales).toLocaleString('en-IN')}
           </p>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-600 mt-2.5 font-semibold">
+          <div className="flex items-center gap-1 text-[13px] text-emerald-600 mt-2.5 font-semibold">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span>{dateRangeLabel}</span>
           </div>
@@ -324,7 +324,7 @@ export default function Dashboard() {
           <p className="text-[28px] font-extrabold tracking-[-0.03em] mt-2.5 text-slate-900 tabular-nums leading-none">
             {totalOrders.toLocaleString('en-IN')}
           </p>
-          <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-2.5 font-medium">
+          <div className="flex items-center gap-1 text-[13px] text-slate-500 mt-2.5 font-medium">
             <span>{t('dash_completed_invoices')}</span>
           </div>
         </div>
@@ -340,7 +340,7 @@ export default function Dashboard() {
           <p className="text-[28px] font-extrabold tracking-[-0.03em] mt-2.5 text-slate-900 tabular-nums leading-none">
             ₹ {Math.round(totalProfit).toLocaleString('en-IN')}
           </p>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-600 mt-2.5 font-semibold tabular-nums">
+          <div className="flex items-center gap-1 text-[13px] text-emerald-600 mt-2.5 font-semibold tabular-nums">
             <span>
               {totalSales > 0 ? `${((totalProfit / totalSales) * 100).toFixed(1)}% ${t('dash_avg_margin')}` : t('dash_no_sales_yet')}
             </span>
@@ -358,7 +358,7 @@ export default function Dashboard() {
           <p className="text-[28px] font-extrabold tracking-[-0.03em] mt-2.5 text-slate-900 tabular-nums leading-none">
             {Number(totalUnits.toFixed(2)).toLocaleString('en-IN')}
           </p>
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] mt-2.5 font-medium tabular-nums">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] mt-2.5 font-medium tabular-nums">
             <span className="text-slate-500 whitespace-nowrap">{items.length} {t('dash_skus')}</span>
             {outOfStockCount > 0 && (
               <span className="text-rose-600 font-bold whitespace-nowrap">· {outOfStockCount} {t('dash_out_of_stock')}</span>
@@ -379,7 +379,7 @@ export default function Dashboard() {
             <div className="h-56 w-full flex flex-col items-center justify-center text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
               <TrendingUp className="w-7 h-7 text-slate-300 mb-2" />
               <p className="text-xs font-semibold text-slate-600">{t('dash_no_sales_recorded')}</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">{t('dash_complete_bill_hint')}</p>
+              <p className="text-[13px] text-slate-400 mt-0.5">{t('dash_complete_bill_hint')}</p>
             </div>
           ) : (
             <div className="h-56 w-full">
@@ -401,7 +401,7 @@ export default function Dashboard() {
               <p className="text-xs font-semibold text-slate-600">{t('dash_no_products')}</p>
               <button
                 onClick={() => navigate('/catalog')}
-                className="text-[11px] font-semibold text-blue-600 hover:underline mt-1"
+                className="text-[13px] font-semibold text-blue-600 hover:underline mt-1"
               >
                 {t('dash_add_in_catalog')}
               </button>
@@ -411,14 +411,14 @@ export default function Dashboard() {
               <div className="relative h-40 w-full flex items-center justify-center my-2">
                 <div className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-xl font-bold text-slate-900 tabular-nums">{items.length}</span>
-                  <span className="text-[11px] text-slate-400 font-medium">{t('dash_skus')}</span>
+                  <span className="text-[13px] text-slate-400 font-medium">{t('dash_skus')}</span>
                 </div>
                 <div className="relative z-10 w-full h-full">
                   <Doughnut data={categoryData} options={categoryOptions} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[11px] text-slate-600 mt-3 pt-3 border-t border-slate-100">
+              <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[13px] text-slate-600 mt-3 pt-3 border-t border-slate-100">
                 {categoryEntries.map(([cat, count], idx) => (
                   <div key={cat} className="flex items-center gap-1.5 truncate">
                     <span
@@ -469,7 +469,7 @@ export default function Dashboard() {
                     <p className="text-xs font-semibold text-slate-800">
                       {tName(item.name)} <span className="text-slate-400 font-normal">({item.sku})</span>
                     </p>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[13px] text-slate-400">
                       {t('dash_shelf')} {item.bin_id || t('fi_unassigned')} · {tCategory(item.category)}
                     </p>
                   </div>
@@ -520,7 +520,7 @@ export default function Dashboard() {
                       <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
                         {sale.customer_name || t('fi_walkin')}
                       </p>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                      <p className="text-[13px] text-slate-400 truncate mt-0.5">
                         <span className="font-mono text-slate-600 font-medium">{sale.invoice_number}</span> · {t('fi_n_items', { n: sale.items_count || 1 })} · {sale.date_time ? String(sale.date_time).slice(5, 16) : t('date_today')}
                       </p>
                     </div>
@@ -529,7 +529,7 @@ export default function Dashboard() {
                         ₹ {Number(sale.total || 0).toLocaleString('en-IN')}
                       </p>
                       <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded border inline-block mt-0.5 ${
+                        className={`text-[12px] font-bold px-1.5 py-0.5 rounded border inline-block mt-0.5 ${
                           sale.status === 'Returned'
                             ? 'bg-rose-50 text-rose-700 border-rose-200'
                             : sale.payment_mode === 'Cash'

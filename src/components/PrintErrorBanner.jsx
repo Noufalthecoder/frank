@@ -58,7 +58,7 @@ export default function PrintErrorBanner({
         </button>
       </div>
 
-      <p className="text-[11px] text-slate-500 font-medium pt-0.5">
+      <p className="text-[13px] text-slate-500 font-medium pt-0.5">
         {t('st_invoice_saved_note', { no: '\u0000' }).split('\u0000').map((part, i, arr) => (
           <React.Fragment key={i}>
             {part}

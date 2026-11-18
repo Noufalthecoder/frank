@@ -63,7 +63,7 @@ export default function BinLocation({ bin, racks = [], className = '' }) {
                 <p className="text-xs font-bold text-slate-900 truncate">
                   {t('rk_rack_label', { code: rack.code, name: rack.name })}
                 </p>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[13px] text-slate-500">
                   {t('rk_level_slot_opt', { level: binInfo.level_no, slot: binInfo.slot_no })} · <span className="font-mono">{code}</span>
                 </p>
               </div>
@@ -105,7 +105,7 @@ export function LocationModal({ item, racks, onClose }) {
   return createPortal(
     <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-xs flex items-center justify-center p-4 z-[90]" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl max-h-[92vh] overflow-y-auto p-5"
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[92vh] overflow-y-auto p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 mb-3">

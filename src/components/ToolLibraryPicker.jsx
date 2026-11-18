@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import BinPicker from './BinPicker.jsx';
+import { suggestBin } from '../lib/rackCategory.js';
 import {
   Search,
   ArrowLeft,
@@ -17,6 +18,9 @@ import { getBilingualSearchFields } from '../i18n/productTamil.js';
 export default function ToolLibraryPicker({
   existingItemsMap = {},
   availableBins = [],
+  racks,
+  customItems = [],
+  onOpenItem,
   onFillManualForm,
   onBulkAddSizes,
 }) {
@@ -31,7 +35,22 @@ export default function ToolLibraryPicker({
   const [defaultBin, setDefaultBin] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const categories = ['All', 'Tools', 'Fasteners', 'Electrical', 'Plumbing', 'Paints & Adhesives'];
+  // Catalog products that are not part of the built-in library (user-created) show up under their category too.
+  const librarySkus = new Set(
+    TOOL_LIBRARY.flatMap((tool) => tool.sizes.map((sz) => `${tool.skuPrefix}-${sz.code}`.toUpperCase()))
+  );
+  const customProducts = customItems.filter((i) => !librarySkus.has(String(i.sku || '').toUpperCase()));
+  const categories = [
+    'All',
+    ...Array.from(
+      new Set(['Tools', 'Fasteners', 'Electrical', 'Plumbing', 'Paints & Adhesives', ...customProducts.map((i) => i.category).filter(Boolean)])
+    ),
+  ];
+  const filteredCustom = fuzzyFilter(
+    customProducts.filter((i) => catFilter === 'All' || i.category === catFilter),
+    query,
+    (i) => [i.name, i.sku, i.brand, i.size, i.category]
+  );
 
   const catFilteredTools = TOOL_LIBRARY.filter(
     (tool) => catFilter === 'All' || tool.category === catFilter
@@ -45,9 +64,7 @@ export default function ToolLibraryPicker({
 
   const openTool = (tool) => {
     setSelectedTool(tool);
-    setDefaultBin(
-      availableBins.some((b) => b.code === tool.defaultBin) ? tool.defaultBin : availableBins[0]?.code || ''
-    );
+    setDefaultBin(suggestBin(racks || [], tool.category));
     setSelectedQtyMap({});
   };
 
@@ -163,22 +180,22 @@ export default function ToolLibraryPicker({
               <button
                 type="button"
                 onClick={() => setSelectedTool(null)}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700"
+                className="inline-flex items-center gap-1 text-[13px] font-bold text-blue-600 hover:text-blue-700"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>{t('ct_all_tools')}</span>
               </button>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600">
+              <span className="text-[12px] font-bold px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600">
                 {selectedTool.brand} · {tCategory(selectedTool.category)}
               </span>
             </div>
             <h4 className="text-sm font-bold text-slate-900 mt-1">{tName(selectedTool.name)}</h4>
-            <p className="text-[11px] text-slate-500 mt-0.5">{tName(selectedTool.description)}</p>
+            <p className="text-[13px] text-slate-500 mt-0.5">{tName(selectedTool.description)}</p>
 
             {/* Quick Defaults for Newly Selected Sizes */}
             <div className="grid grid-cols-3 gap-2.5 mt-3">
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">{t('ct_default_qty')}</label>
+                <label className="block text-[12px] font-semibold text-slate-600 mb-0.5">{t('ct_default_qty')}</label>
                 <input
                   type="number"
                   min="1"
@@ -188,7 +205,7 @@ export default function ToolLibraryPicker({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">{t('ct_reorder_level')}</label>
+                <label className="block text-[12px] font-semibold text-slate-600 mb-0.5">{t('ct_reorder_level')}</label>
                 <input
                   type="number"
                   min="0"
@@ -198,8 +215,10 @@ export default function ToolLibraryPicker({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">{t('ct_rack_bin_short')}</label>
+                <label className="block text-[12px] font-semibold text-slate-600 mb-0.5">{t('ct_rack_bin_short')}</label>
                 <BinPicker
+                  racks={racks}
+                  category={selectedTool.category}
                   value={defaultBin}
                   onChange={setDefaultBin}
                   selectClassName="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
@@ -218,7 +237,7 @@ export default function ToolLibraryPicker({
             <button
               type="button"
               onClick={selectMissingOnly}
-              className="text-[11px] font-semibold text-blue-600 hover:underline"
+              className="text-[13px] font-semibold text-blue-600 hover:underline"
             >
               {t('ct_select_new')}
             </button>
@@ -226,7 +245,7 @@ export default function ToolLibraryPicker({
             <button
               type="button"
               onClick={selectAllSizes}
-              className="text-[11px] font-semibold text-blue-600 hover:underline"
+              className="text-[13px] font-semibold text-blue-600 hover:underline"
             >
               {t('ct_select_all')}
             </button>
@@ -234,7 +253,7 @@ export default function ToolLibraryPicker({
             <button
               type="button"
               onClick={() => setSelectedQtyMap({})}
-              className="text-[11px] font-semibold text-slate-500 hover:underline"
+              className="text-[13px] font-semibold text-slate-500 hover:underline"
             >
               {t('ct_clear')}
             </button>
@@ -263,7 +282,7 @@ export default function ToolLibraryPicker({
                 <div className="flex items-start justify-between gap-1.5">
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900 leading-tight">{tName(s.size)}</p>
-                    <p className="text-[10px] font-mono text-slate-400 mt-0.5">₹ {existing ? Number(existing.selling_price) : s.price}</p>
+                    <p className="text-[12px] font-mono text-slate-400 mt-0.5">₹ {existing ? Number(existing.selling_price) : s.price}</p>
                   </div>
                   <div
                     className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border ${
@@ -283,7 +302,7 @@ export default function ToolLibraryPicker({
                     className="mt-2 pt-2 border-t border-blue-200/70 space-y-1.5"
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-semibold text-blue-700">
+                      <span className="text-[12px] font-semibold text-blue-700">
                         {existing ? t('ct_add_colon') : t('ct_qty_colon')}
                       </span>
                       <div className="flex items-center gap-1">
@@ -313,7 +332,7 @@ export default function ToolLibraryPicker({
                       </div>
                     </div>
                     {existing && (
-                      <p className="text-[10px] font-bold text-emerald-700 text-right">
+                      <p className="text-[12px] font-bold text-emerald-700 text-right">
                         {t('ct_stock_change', { from: currentStock, to: currentStock + addCount })}
                       </p>
                     )}
@@ -321,11 +340,11 @@ export default function ToolLibraryPicker({
                 ) : (
                   <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100">
                     {existing ? (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
                         {t('ct_stock_n', { n: currentStock })}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-slate-400">{t('ct_tap_to_add')}</span>
+                      <span className="text-[12px] text-slate-400">{t('ct_tap_to_add')}</span>
                     )}
                     <button
                       type="button"
@@ -334,7 +353,7 @@ export default function ToolLibraryPicker({
                         onFillManualForm(buildItemPayload(selectedTool, s, Math.max(1, parseInt(defaultQty) || 1)));
                       }}
                       title={t('ct_customize')}
-                      className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 px-1.5 py-0.5 rounded hover:bg-blue-100/70"
+                      className="text-[12px] font-semibold text-blue-600 hover:text-blue-800 px-1.5 py-0.5 rounded hover:bg-blue-100/70"
                     >
                       {t('ct_edit')}
                     </button>
@@ -347,7 +366,7 @@ export default function ToolLibraryPicker({
 
         {/* Bottom Action Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[13px] text-slate-500">
             {t('ct_picker_hint')}
           </p>
           <button
@@ -395,7 +414,7 @@ export default function ToolLibraryPicker({
               key={cat}
               type="button"
               onClick={() => setCatFilter(cat)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors border ${
+              className={`px-2.5 py-1 rounded-full text-[13px] font-semibold transition-colors border ${
                 catFilter === cat
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -426,7 +445,7 @@ export default function ToolLibraryPicker({
                     className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
                   />
                   {addedCount > 0 && (
-                    <span className="absolute top-1 right-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                    <span className="absolute top-1 right-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                       <CheckCircle2 className="w-2.5 h-2.5" />
                       {addedCount}
                     </span>
@@ -435,13 +454,13 @@ export default function ToolLibraryPicker({
                 <p className="text-xs font-bold text-slate-900 mt-2 leading-snug group-hover:text-blue-600 line-clamp-2">
                   {tName(tool.name)}
                 </p>
-                <p className="text-[10px] text-slate-400 mt-0.5">{tool.brand}</p>
+                <p className="text-[12px] text-slate-400 mt-0.5">{tool.brand}</p>
               </div>
               <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100">
-                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                <span className="text-[12px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
                   {t('ct_n_sizes', { n: tool.sizes.length })}
                 </span>
-                <span className="text-[10px] font-semibold text-slate-400 group-hover:text-blue-600">
+                <span className="text-[12px] font-semibold text-slate-400 group-hover:text-blue-600">
                   {t('ct_pick')}
                 </span>
               </div>
@@ -449,7 +468,40 @@ export default function ToolLibraryPicker({
           );
         })}
 
-        {filteredTools.length === 0 && (
+        {filteredCustom.map((item) => (
+          <button
+            key={`custom-${item.id}`}
+            type="button"
+            onClick={() => onOpenItem && onOpenItem(item)}
+            className="group bg-white border border-slate-200 hover:border-blue-500 hover:shadow-md rounded-xl p-2.5 text-left transition-all flex flex-col justify-between"
+          >
+            <div>
+              <div className="h-24 w-full bg-slate-50 rounded-lg border border-slate-100 p-1.5 flex items-center justify-center overflow-hidden">
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.name} className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <Package className="w-8 h-8 text-slate-300" />
+                )}
+              </div>
+              <p className="text-xs font-bold text-slate-900 mt-2 leading-snug group-hover:text-blue-600 line-clamp-2">
+                {tName(item.name)}
+              </p>
+              <p className="text-[12px] text-slate-400 mt-0.5 truncate">
+                {item.brand || tCategory(item.category)}{item.size ? ` · ${item.size}` : ''}
+              </p>
+            </div>
+            <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100">
+              <span className="text-[12px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                {t('ct_custom_badge')}
+              </span>
+              <span className="text-[12px] font-semibold text-slate-400 group-hover:text-blue-600">
+                {t('ct_edit_arrow')}
+              </span>
+            </div>
+          </button>
+        ))}
+
+        {filteredTools.length === 0 && filteredCustom.length === 0 && (
           <div className="col-span-4 py-10 text-center text-xs text-slate-400">
             <Package className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
             {t('ct_no_tools_a', { query })}<strong>{t('ct_create_product')}</strong>{t('ct_no_tools_b')}

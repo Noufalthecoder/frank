@@ -15,6 +15,17 @@
   --font-weight-extrabold: 600;
   --font-weight-black: 600;
 
+  /* Larger, easier-to-read type scale (was 12/14/16) */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.4rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.6rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.625rem;
+
   /* Shape: 6-10px radii */
   --radius-md: 6px;
   --radius-lg: 8px;
@@ -319,3 +330,11 @@ button:disabled {
     width: 100% !important;
   }
 }
+
+/* Dialogs: roomier, easier-to-hit form controls */
+.fixed.inset-0 :is(input:not([type="checkbox"]):not([type="radio"]), select) {
+  min-height: 2.75rem;
+  font-size: 0.9375rem;
+}
+.fixed.inset-0 textarea { font-size: 0.9375rem; }
+.fixed.inset-0 label { font-size: 0.875rem; }

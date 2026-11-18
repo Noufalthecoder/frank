@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import { racksForCategory } from '../lib/rackCategory.js';
 
 /**
  * Two-step bin picker: choose a Rack first, then a Level/Slot inside it.
@@ -14,14 +15,15 @@ export default function BinPicker({
   racks: racksProp,
   autoPickFirst = true,
   allowUnassigned = true,
+  category = '',
   rackPlaceholder,
   binPlaceholder,
   className = '',
   selectClassName = 'w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white',
 }) {
-  const { t } = useLanguage();
+  const { t, tCategory } = useLanguage();
   const [loaded, setLoaded] = useState([]);
-  const racks = racksProp || loaded;
+  const allRacks = racksProp || loaded;
   const [rackSel, setRackSel] = useState('');
 
   useEffect(() => {
@@ -34,6 +36,8 @@ export default function BinPicker({
   }, [racksProp]);
 
   // Keep the rack dropdown in sync with the current value
+  // With a category: only same-category racks + racks that still have free slots.
+  const racks = racksForCategory(allRacks, category, value);
   const valueUpper = String(value || '').toUpperCase();
   const ownerRack = racks.find((r) => (r.bins || []).some((b) => b.bin_code.toUpperCase() === valueUpper));
   useEffect(() => {
@@ -69,7 +73,25 @@ export default function BinPicker({
         {allowUnassigned && <option value="">{rackPlaceholder ?? t('rk_unassigned')}</option>}
         {!allowUnassigned && <option value="" disabled>{t('rk_select_rack')}</option>}
         {unknownValue && <option value="__bad__">{t('rk_bin_not_found_opt', { bin: value })}</option>}
-        {racks.map((r) => (
+        {category && racks.some((r) => r._match) && (
+          <optgroup label={t('rk_same_category', { category: tCategory(category) })}>
+            {racks.filter((r) => r._match).map((r) => (
+              <option key={r.code} value={r.code}>
+                {r.code} – {r.name} · {t('rk_free_slots', { n: r._free })}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {category && racks.some((r) => !r._match) && (
+          <optgroup label={t('rk_free_space')}>
+            {racks.filter((r) => !r._match).map((r) => (
+              <option key={r.code} value={r.code}>
+                {r.code} – {r.name} · {t('rk_free_slots', { n: r._free })}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {!category && racks.map((r) => (
           <option key={r.code} value={r.code}>
             {r.code} – {r.name}
           </option>

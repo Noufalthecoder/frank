@@ -579,6 +579,7 @@ export default function Procurement() {
 
         <div className="flex items-center gap-2.5">
           <ExportMenu getSpec={getProcurementExport} onDone={showToast} />
+          {activeTab === 'Vendors' && (
           <button
             onClick={() => setShowAddVendorModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
@@ -586,6 +587,8 @@ export default function Procurement() {
             <UserPlus className="w-3.5 h-3.5 text-slate-500" />
             <span>{t('vend_add_vendor')}</span>
           </button>
+          )}
+          {activeTab === 'Purchase Orders' && (
           <button
             onClick={openCreatePoModal}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 rounded-lg text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
@@ -593,6 +596,7 @@ export default function Procurement() {
             <Plus className="w-3.5 h-3.5" />
             <span>{t('vend_new_po')}</span>
           </button>
+          )}
         </div>
       </div>
 
@@ -614,7 +618,7 @@ export default function Procurement() {
           >
             <span>{label}</span>
             {tab === 'Goods Receipt (GRN)' && openOrders.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+              <span className="px-1.5 py-0.5 rounded-full text-[12px] font-bold bg-blue-100 text-blue-700">
                 {openOrders.length}
               </span>
             )}
@@ -655,7 +659,7 @@ export default function Procurement() {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                <tr className="bg-slate-50 border-b border-slate-200 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
                   <th className="py-3 px-4">{t('pr_h_vendor')}</th>
                   <th className="py-3 px-4">{t('pr_h_date')}</th>
                   <th className="py-3 px-4">{t('pr_h_amount')}</th>
@@ -678,7 +682,7 @@ export default function Procurement() {
                         const poStatus = normalizePoStatus(po.status);
                         return (
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-semibold ${
                               poStatus === 'Request'
                                 ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                 : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -694,7 +698,7 @@ export default function Procurement() {
                         {normalizePoStatus(po.status) === 'Request' && (
                           <button
                             onClick={() => handleStatusChange(po, 'Received')}
-                            className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[11px] font-semibold hover:bg-emerald-100 transition-colors"
+                            className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[13px] font-semibold hover:bg-emerald-100 transition-colors"
                             title={t('pr_title_receive')}
                           >
                             {t('pr_receive')}
@@ -758,7 +762,7 @@ export default function Procurement() {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-sm font-bold text-slate-900">{po.vendor_name}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">{t('pr_ordered', { date: po.order_date })}</p>
+                        <p className="text-[13px] text-slate-400 mt-0.5">{t('pr_ordered', { date: po.order_date })}</p>
                       </div>
                       <span className="text-sm font-black text-slate-900">
                         ₹ {Number(po.amount).toLocaleString('en-IN')}
@@ -766,7 +770,7 @@ export default function Procurement() {
                     </div>
 
                     {lines.length > 0 && (
-                      <div className="bg-slate-50 rounded-lg border border-slate-100 p-2.5 space-y-1 text-[11px]">
+                      <div className="bg-slate-50 rounded-lg border border-slate-100 p-2.5 space-y-1 text-[13px]">
                         {lines.map((l, idx) => (
                           <div key={idx} className="flex justify-between">
                             <span className="text-slate-700 font-medium">{l.name}</span>
@@ -797,7 +801,7 @@ export default function Procurement() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase">
+              <tr className="bg-slate-50 border-b border-slate-200 text-[13px] font-semibold text-slate-500 uppercase">
                 <th className="py-3 px-4">{t('pr_h_vendor_name')}</th>
                 <th className="py-3 px-4">{t('pr_h_contact')}</th>
                 <th className="py-3 px-4">{t('pr_h_phone')}</th>
@@ -839,14 +843,14 @@ export default function Procurement() {
       {/* Create / Edit PO Modal (Dynamic Vendors + Searchable 10-Item Product Picker + Inline Catalog Creator) */}
       {receivingPo && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-7">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-slate-900">{t('pr_receive_title', { po: receivingPo.po_number })}</h3>
               <button onClick={() => setReceivingPo(null)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-[11px] text-slate-500 mb-3">
+            <p className="text-[13px] text-slate-500 mb-3">
               {t('pr_receive_hint')}
             </p>
             <div className="space-y-2 max-h-72 overflow-y-auto">
@@ -857,7 +861,7 @@ export default function Procurement() {
                   <div key={l.sku} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-xs">
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-slate-800 truncate">{l.name} ({l.sku})</p>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-[13px] text-slate-500">
                         {t('pr_ordered_qty', { qty: l.quantity })}
                         {cur ? t('pr_stock_change', { from: Number(cur.quantity) }) : t('pr_not_in_catalog_inline')}
                         {cur && <span className="font-bold text-emerald-700">{Number((Number(cur.quantity) + qty).toFixed(6))}</span>}
@@ -889,9 +893,9 @@ export default function Procurement() {
 
       {showNewPoModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="animate-modal bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-xl max-h-[92vh] overflow-visible p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
+          <div className="animate-modal bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-visible p-6 gap-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
+              <h3 className="text-lg font-bold text-slate-900">
                 {editingPo ? t('pr_edit_po') : t('pr_create_po')}
               </h3>
               <button
@@ -907,10 +911,12 @@ export default function Procurement() {
               </button>
             </div>
 
-            <form onSubmit={handleCreatePo} className="space-y-3.5">
+            <form onSubmit={handleCreatePo} className="flex-1 min-h-0 flex flex-col gap-4">
+              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-5">
+              <section className="lg:col-span-2 min-h-0 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_vendor_req_lbl')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_vendor_req_lbl')}</label>
                   <select
                     required
                     value={poForm.vendor_name}
@@ -927,7 +933,7 @@ export default function Procurement() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_order_date')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_h_order_date')}</label>
                   <input
                     type="date"
                     value={poForm.order_date}
@@ -937,14 +943,27 @@ export default function Procurement() {
                 </div>
               </div>
 
+
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_status_req')}</label>
+                  <select
+                    value={poForm.status}
+                    onChange={(e) => setPoForm({ ...poForm, status: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Request">{t('pr_st_request')}</option>
+                    <option value="Received">{t('pr_st_received')}</option>
+                  </select>
+                </div>
+
               {/* Itemized Restock Builder */}
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-bold text-slate-700">{t('pr_order_items')}</p>
+                  <p className="text-[13px] font-bold text-slate-700">{t('pr_order_items')}</p>
                   <button
                     type="button"
                     onClick={() => setShowQuickItemForm((prev) => !prev)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 text-[11px] font-semibold flex-shrink-0 transition-colors"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 text-[13px] font-semibold flex-shrink-0 transition-colors"
                   >
                     {showQuickItemForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
                     <span>{showQuickItemForm ? t('pr_close') : t('pr_new_product')}</span>
@@ -954,7 +973,7 @@ export default function Procurement() {
                 {/* Inline New Product Creator */}
                 {showQuickItemForm && (
                   <div className="bg-white p-3 rounded-lg border border-blue-200/80 space-y-2.5">
-                    <p className="text-[11px] font-bold text-slate-800">{t('pr_new_product')}</p>
+                    <p className="text-[13px] font-bold text-slate-800">{t('pr_new_product')}</p>
                     <div className="grid grid-cols-12 gap-2">
                       <input
                         type="text"
@@ -1029,7 +1048,7 @@ export default function Procurement() {
                       <button
                         type="button"
                         onClick={handleQuickCreateCatalogItem}
-                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors"
+                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[13px] font-bold transition-colors"
                       >
                         {t('pr_create_product')}
                       </button>
@@ -1038,8 +1057,8 @@ export default function Procurement() {
                 )}
 
                 <div className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-6 relative" ref={productPickerRef}>
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">
+                  <div className="col-span-12 relative" ref={productPickerRef}>
+                    <label className="block text-[12px] font-semibold text-slate-500 mb-0.5">
                       {t('pr_product')}
                     </label>
                     <button
@@ -1089,7 +1108,7 @@ export default function Procurement() {
                         {/* Max 10 closest matching products */}
                         <div className="max-h-60 overflow-y-auto divide-y divide-slate-100">
                           {pickerVisibleItems.length === 0 ? (
-                            <div className="py-5 px-3 text-center text-[11px] text-slate-400">
+                            <div className="py-5 px-3 text-center text-[13px] text-slate-400">
                               {t('pr_no_match')}
                             </div>
                           ) : (
@@ -1112,17 +1131,17 @@ export default function Procurement() {
                                 >
                                   <div className="min-w-0">
                                     <p className="text-xs font-semibold truncate">{tName(i.name)}</p>
-                                    <p className="text-[10px] text-slate-400 truncate">
+                                    <p className="text-[12px] text-slate-400 truncate">
                                       {i.size ? `${tName(i.size)} · ` : ''}
                                       {tCategory(i.category || 'Hardware')}
                                     </p>
                                   </div>
                                   <div className="text-right flex-shrink-0">
-                                    <p className="text-[11px] font-bold text-slate-700 tabular-nums">
+                                    <p className="text-[13px] font-bold text-slate-700 tabular-nums">
                                       ₹ {Number(i.cost_price || i.selling_price || 0).toFixed(0)}
                                     </p>
                                     <p
-                                      className={`text-[10px] font-semibold tabular-nums ${
+                                      className={`text-[12px] font-semibold tabular-nums ${
                                         Number(i.quantity) <= 0 ? 'text-rose-600' : 'text-emerald-600'
                                       }`}
                                     >
@@ -1136,15 +1155,15 @@ export default function Procurement() {
                         </div>
 
                         {pickerTotalMatches.length > 10 && (
-                          <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-400 text-center font-medium">
+                          <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-100 text-[12px] text-slate-400 text-center font-medium">
                             {t('pr_showing_top', { n: pickerTotalMatches.length })}
                           </div>
                         )}
                       </div>
                     )}
                   </div>
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">{t('pr_qty')}</label>
+                  <div className="col-span-4">
+                    <label className="block text-[12px] font-semibold text-slate-500 mb-0.5">{t('pr_qty')}</label>
                     <input
                       type="number"
                       step="any"
@@ -1155,8 +1174,8 @@ export default function Procurement() {
                       className="no-spinner w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
                     />
                   </div>
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">{t('pr_cost_rate')}</label>
+                  <div className="col-span-4">
+                    <label className="block text-[12px] font-semibold text-slate-500 mb-0.5">{t('pr_cost_rate')}</label>
                     <input
                       type="number"
                       step="0.01"
@@ -1169,36 +1188,54 @@ export default function Procurement() {
                   <button
                     type="button"
                     onClick={addLineToPo}
-                    className="col-span-2 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
+                    className="col-span-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
                   >
                     {t('pr_add')}
                   </button>
                 </div>
-
-                {poForm.items.length > 0 && (
-                  <div className="divide-y divide-slate-200 max-h-36 overflow-y-auto pt-1">
-                    {poForm.items.map((l, idx) => (
-                      <div key={idx} className="py-1.5 flex items-center justify-between text-[11px]">
-                        <span className="font-medium text-slate-700">
-                          {l.name} ({formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')} × ₹{l.rate})
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">
-                            ₹ {(Number(l.quantity) * Number(l.rate)).toFixed(2)}
-                          </span>
-                          <button type="button" onClick={() => removeLineFromPo(idx)} className="text-rose-500 hover:text-rose-700">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              </section>
+              <section className="lg:col-span-3 min-h-0 flex flex-col rounded-xl border border-slate-200 overflow-hidden bg-white">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+                  <p className="text-sm font-bold text-slate-800">{t('pr_order_items')}</p>
+                  <span className="text-xs font-semibold text-slate-500 tabular-nums">{poForm.items.length}</span>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="sticky top-0 bg-white z-10">
+                      <tr className="text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                        <th className="py-2.5 px-3 text-left w-10">#</th>
+                        <th className="py-2.5 px-3 text-left">{t('pr_product')}</th>
+                        <th className="py-2.5 px-3 text-right">{t('pr_qty')}</th>
+                        <th className="py-2.5 px-3 text-right">{t('pr_cost_rate')}</th>
+                        <th className="py-2.5 px-3 text-right">{t('pr_total_amount_req').replace(/\s*\*$/, '')}</th>
+                        <th className="w-10" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                    {poForm.items.map((l, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/70">
+                        <td className="py-2.5 px-3 text-slate-400 tabular-nums">{idx + 1}</td>
+                        <td className="py-2.5 px-3 font-medium text-slate-800">{l.name}</td>
+                        <td className="py-2.5 px-3 text-right tabular-nums">{formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')}</td>
+                        <td className="py-2.5 px-3 text-right tabular-nums">₹ {l.rate}</td>
+                        <td className="py-2.5 px-3 text-right font-semibold text-slate-900 tabular-nums">₹ {(Number(l.quantity) * Number(l.rate)).toFixed(2)}</td>
+                        <td className="py-2.5 px-2 text-right">
+                          <button type="button" onClick={() => removeLineFromPo(idx)} className="p-1 text-rose-500 hover:text-rose-700 rounded" aria-label="Remove">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    </tbody>
+                  </table>
+                  {poForm.items.length === 0 && (
+                    <p className="py-16 text-center text-sm text-slate-400">{t('pr_order_items')} — 0</p>
+                  )}
+                </div>
+                <div className="p-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_total_amount_req')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_total_amount_req')}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1210,20 +1247,11 @@ export default function Procurement() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_status_req')}</label>
-                  <select
-                    value={poForm.status}
-                    onChange={(e) => setPoForm({ ...poForm, status: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Request">{t('pr_st_request')}</option>
-                    <option value="Received">{t('pr_st_received')}</option>
-                  </select>
                 </div>
+              </section>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -1250,7 +1278,7 @@ export default function Procurement() {
       {/* Add Vendor Modal */}
       {showAddVendorModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden p-5 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden p-7 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">{t('pr_add_new_vendor')}</h3>
               <button onClick={() => setShowAddVendorModal(false)} className="p-1 text-slate-400 hover:text-slate-600">
@@ -1260,7 +1288,7 @@ export default function Procurement() {
 
             <form onSubmit={handleAddVendor} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_vendor_company')}</label>
+                <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_vendor_company')}</label>
                 <input
                   type="text"
                   required
@@ -1272,7 +1300,7 @@ export default function Procurement() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_contact')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_h_contact')}</label>
                   <input
                     type="text"
                     placeholder={t('pr_ph_contact')}
@@ -1282,7 +1310,7 @@ export default function Procurement() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_phone')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_h_phone')}</label>
                   <input
                     type="text"
                     placeholder="+91 98765 43210"
@@ -1294,7 +1322,7 @@ export default function Procurement() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_email')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_h_email')}</label>
                   <input
                     type="email"
                     placeholder="vendor@example.com"
@@ -1304,7 +1332,7 @@ export default function Procurement() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_city')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_h_city')}</label>
                   <input
                     type="text"
                     placeholder={t('pr_ph_city')}
@@ -1337,7 +1365,7 @@ export default function Procurement() {
       {/* PO Detail Modal */}
       {selectedPo && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden p-5 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden p-7 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">{selectedPo.vendor_name}</h3>
@@ -1358,7 +1386,7 @@ export default function Procurement() {
               </div>
               {parsePoItems(selectedPo).length > 0 && (
                 <div className="pt-2 border-t border-slate-100 space-y-1">
-                  <p className="font-bold text-slate-700 text-[11px] uppercase">{t('pr_ordered_items')}</p>
+                  <p className="font-bold text-slate-700 text-[13px] uppercase">{t('pr_ordered_items')}</p>
                   {parsePoItems(selectedPo).map((l, idx) => (
                     <div key={idx} className="flex justify-between bg-slate-50 p-2 rounded">
                       <span>{l.name}</span>
