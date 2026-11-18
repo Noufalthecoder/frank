@@ -115,6 +115,9 @@ export default function Catalog() {
     const q = searchParams.get('q');
     if (q) {
       setSearch(q);
+      setCategoryFilter('All');
+      setBrandFilter('All');
+      setPage(1);
     }
   }, [searchParams]);
 

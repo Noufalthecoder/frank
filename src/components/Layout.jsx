@@ -181,7 +181,7 @@ export default function Layout({ children }) {
                 className={`relative p-2 rounded-lg transition-colors ${
                   showNotifDropdown ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                 }`}
-                title="Stock Notifications"
+                title="Notification"
               >
                 <Bell className="w-4 h-4" />
                 {outOfStockItems.length > 0 && (
@@ -197,7 +197,7 @@ export default function Layout({ children }) {
                   <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Bell className="w-4 h-4 text-slate-700" />
-                      <span className="text-xs font-bold text-slate-900">Inventory Alerts</span>
+                      <span className="text-xs font-bold text-slate-900">Notification</span>
                     </div>
                     {outOfStockItems.length > 0 ? (
                       <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full border border-rose-200">
@@ -215,7 +215,7 @@ export default function Layout({ children }) {
                     {outOfStockItems.length === 0 ? (
                       <div className="p-6 text-center">
                         <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-                        <p className="text-xs font-semibold text-slate-800">No Stock Alerts</p>
+                        <p className="text-xs font-semibold text-slate-800">No Notifications</p>
                         <p className="text-[11px] text-slate-400 mt-0.5">All products have available stock.</p>
                       </div>
                     ) : (
@@ -249,21 +249,6 @@ export default function Layout({ children }) {
                       ))
                     )}
                   </div>
-
-                  {/* Dropdown Footer */}
-                  {outOfStockItems.length > 0 && (
-                    <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => {
-                          setShowNotifDropdown(false);
-                          navigate('/vendors');
-                        }}
-                        className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg text-center shadow-xs transition-colors"
-                      >
-                        Create Vendor Purchase Order
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
