@@ -87,7 +87,7 @@ export default function Dashboard() {
   // Real margin profit calculation
   const costMap = {};
   items.forEach((i) => {
-    costMap[i.sku] = Number(i.cost_price) || 0;
+    if (i.sku) costMap[String(i.sku).toUpperCase()] = Number(i.cost_price) || 0;
   });
 
   const totalProfit = validInvoices.reduce((sum, inv) => {
@@ -95,7 +95,11 @@ export default function Dashboard() {
       const lines = JSON.parse(inv.items_json || '[]');
       if (lines.length === 0) return sum + Number(inv.total || 0) * 0.25;
       const lineCost = lines.reduce(
-        (c, l) => c + Number(l.quantity || l.qty || 0) * (costMap[l.sku] || Number(l.rate || 0) * 0.72),
+        (c, l) => {
+          const skuKey = String(l.sku || '').toUpperCase();
+          const unitCost = costMap[skuKey] > 0 ? costMap[skuKey] : Number(l.rate || 0) * 0.72;
+          return c + Number(l.quantity || l.qty || 0) * unitCost;
+        },
         0
       );
       return sum + (Number(inv.total || 0) - lineCost);

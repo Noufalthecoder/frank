@@ -169,10 +169,19 @@ function initSchema() {
     `).run();
   }
 
-  // Start clean with zero dummy numbers (owner can optionally load sample data in Settings -> Database)
+  // Seed starter catalog items & racks ONLY in dev mode when catalog is empty — never seed fake sales/expenses
+  const itemCount = db.prepare('SELECT count(*) as count FROM items').get().count;
+  if (VITE_DEV_SERVER_URL && itemCount === 0) {
+    seedStarterCatalog();
+  }
 }
 
-function seedInitialData() {
+function formatLocalDateTime(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function seedStarterCatalog() {
   // Categories & Brands
   const categories = ['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'];
   const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
@@ -182,7 +191,7 @@ function seedInitialData() {
   const insertBrand = db.prepare('INSERT OR IGNORE INTO brands (name) VALUES (?)');
   brands.forEach(b => insertBrand.run(b));
 
-  // Items: 30 Realistic Hardware Products
+  // Items: Starter Hardware Products
   const sampleItems = [
     // Fasteners
     { sku: 'HB-M6-20', name: 'Hex Bolt M6 x 20mm', size: 'M6 x 20', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', price: 6.50, cost: 4.00, qty: 650, reorder: 50, bin: 'R01-L1-S1' },
@@ -237,7 +246,7 @@ function seedInitialData() {
   ];
 
   const insertItem = db.prepare(`
-    INSERT OR REPLACE INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
+    INSERT OR IGNORE INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
     VALUES (@sku, @name, @size, @unit, @category, @brand, @price, @cost, @qty, @reorder, @bin, 'Active')
   `);
   sampleItems.forEach(i => insertItem.run(i));
@@ -262,6 +271,24 @@ function seedInitialData() {
       }
     }
   });
+
+  // Vendors
+  const existingVendors = db.prepare('SELECT count(*) as count FROM vendors').get().count;
+  if (existingVendors === 0) {
+    const sampleVendors = [
+      { name: 'KPR Fasteners', person: 'K. Ramesh', phone: '+91 94441 23456', city: 'Coimbatore' },
+      { name: 'Metro Tools Co.', person: 'S. Kumar', phone: '+91 98840 54321', city: 'Chennai' },
+      { name: 'Shree Metals', person: 'Anand Patel', phone: '+91 97123 45678', city: 'Ahmedabad' },
+      { name: 'Nice Hardware', person: 'V. Naresh', phone: '+91 99401 11223', city: 'Madurai' },
+      { name: 'A1 Tools Distributors', person: 'Mohan Lal', phone: '+91 98200 99887', city: 'Mumbai' }
+    ];
+    const insertVendor = db.prepare('INSERT INTO vendors (name, contact_person, phone, city) VALUES (?, ?, ?, ?)');
+    sampleVendors.forEach(v => insertVendor.run(v.name, v.person, v.phone, v.city));
+  }
+}
+
+function seedInitialData() {
+  seedStarterCatalog();
 
   // Recent Invoices (with realistic dates around today)
   const today = new Date().toISOString().split('T')[0];
@@ -321,20 +348,6 @@ function seedInitialData() {
   ];
   const insertPO = db.prepare('INSERT OR IGNORE INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json) VALUES (?, ?, ?, ?, ?, ?)');
   samplePOs.forEach(p => insertPO.run(p.num, p.vendor, p.date, p.amount, p.status, JSON.stringify(p.items)));
-
-  // Vendors
-  const existingVendors = db.prepare('SELECT count(*) as count FROM vendors').get().count;
-  if (existingVendors === 0) {
-    const sampleVendors = [
-      { name: 'KPR Fasteners', person: 'K. Ramesh', phone: '+91 94441 23456', city: 'Coimbatore' },
-      { name: 'Metro Tools Co.', person: 'S. Kumar', phone: '+91 98840 54321', city: 'Chennai' },
-      { name: 'Shree Metals', person: 'Anand Patel', phone: '+91 97123 45678', city: 'Ahmedabad' },
-      { name: 'Nice Hardware', person: 'V. Naresh', phone: '+91 99401 11223', city: 'Madurai' },
-      { name: 'A1 Tools Distributors', person: 'Mohan Lal', phone: '+91 98200 99887', city: 'Mumbai' }
-    ];
-    const insertVendor = db.prepare('INSERT INTO vendors (name, contact_person, phone, city) VALUES (?, ?, ?, ?)');
-    sampleVendors.forEach(v => insertVendor.run(v.name, v.person, v.phone, v.city));
-  }
 
   // Expenses
   const existingExp = db.prepare('SELECT count(*) as count FROM expenses').get().count;
@@ -548,7 +561,7 @@ ipcMain.handle('getInvoices', () => {
 ipcMain.handle('createInvoice', (event, inv) => {
   const genNum = `INV-${String(Math.floor(100000 + Math.random() * 900000))}`;
   const invNumber = inv.invoice_number || genNum;
-  const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const nowStr = formatLocalDateTime();
 
   const insert = db.prepare(`
     INSERT INTO invoices (invoice_number, date_time, customer_name, customer_phone, subtotal, discount, total, payment_mode, items_count, items_json, status)
