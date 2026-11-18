@@ -11,6 +11,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import { Line, Doughnut } from 'react-chartjs-2';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -40,6 +41,7 @@ const CATEGORY_COLORS = ['#2563eb', '#38bdf8', '#f59e0b', '#8b5cf6', '#10b981', 
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [dateRange, setDateRange] = useState('All Time');
   const [items, setItems] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -212,13 +214,22 @@ export default function Dashboard() {
     cutout: '72%',
   };
 
+  const dateRangeLabel =
+    dateRange === 'Today'
+      ? t('date_today')
+      : dateRange === 'Last 7 Days'
+      ? t('date_7d')
+      : dateRange === 'Last 30 Days'
+      ? t('date_30d')
+      : t('date_all');
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Live overview of inventory, sales and operations</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('dash_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5">{t('dash_subtitle')}</p>
         </div>
 
         {/* Live Date Filter */}
@@ -227,10 +238,10 @@ export default function Dashboard() {
           onChange={(e) => setDateRange(e.target.value)}
           className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="All Time">All Time</option>
-          <option value="Today">Today</option>
-          <option value="Last 7 Days">Last 7 Days</option>
-          <option value="Last 30 Days">Last 30 Days</option>
+          <option value="All Time">{t('date_all')}</option>
+          <option value="Today">{t('date_today')}</option>
+          <option value="Last 7 Days">{t('date_7d')}</option>
+          <option value="Last 30 Days">{t('date_30d')}</option>
         </select>
       </div>
 
@@ -239,7 +250,7 @@ export default function Dashboard() {
         {/* Sales Card */}
         <div className="bg-white text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Sales</span>
+            <span>{t('dash_sales')}</span>
             <span className="p-1.5 bg-emerald-50 rounded-lg text-emerald-600">
               <TrendingUp className="w-4 h-4" />
             </span>
@@ -249,14 +260,14 @@ export default function Dashboard() {
           </p>
           <div className="flex items-center gap-1 text-[11px] text-emerald-600 mt-1 font-medium">
             <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>{dateRange}</span>
+            <span>{dateRangeLabel}</span>
           </div>
         </div>
 
         {/* Orders Card */}
         <div className="bg-white text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Orders</span>
+            <span>{t('dash_orders')}</span>
             <span className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
               <ShoppingBag className="w-4 h-4" />
             </span>
@@ -265,14 +276,14 @@ export default function Dashboard() {
             {totalOrders.toLocaleString('en-IN')}
           </p>
           <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1 font-medium">
-            <span>Completed invoices</span>
+            <span>{t('dash_completed_invoices')}</span>
           </div>
         </div>
 
         {/* Profit Card */}
         <div className="bg-white text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Estimated Profit</span>
+            <span>{t('dash_profit')}</span>
             <span className="p-1.5 bg-emerald-50 rounded-lg text-emerald-600">
               <CircleDollarSign className="w-4 h-4" />
             </span>
@@ -282,7 +293,7 @@ export default function Dashboard() {
           </p>
           <div className="flex items-center gap-1 text-[11px] text-emerald-600 mt-1 font-medium">
             <span>
-              {totalSales > 0 ? `${((totalProfit / totalSales) * 100).toFixed(1)}% avg margin` : 'No sales yet'}
+              {totalSales > 0 ? `${((totalProfit / totalSales) * 100).toFixed(1)}% ${t('dash_avg_margin')}` : t('dash_no_sales_yet')}
             </span>
           </div>
         </div>
@@ -290,7 +301,7 @@ export default function Dashboard() {
         {/* Items in Stock Card */}
         <div className="bg-white text-slate-800 rounded-xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Items in Stock</span>
+            <span>{t('dash_items_in_stock')}</span>
             <span className="p-1.5 bg-amber-50 rounded-lg text-amber-600">
               <Package className="w-4 h-4" />
             </span>
@@ -299,9 +310,9 @@ export default function Dashboard() {
             {Number(totalUnits.toFixed(2)).toLocaleString('en-IN')}
           </p>
           <div className="flex items-center gap-1 text-[11px] mt-1 font-medium">
-            <span className="text-slate-500">{items.length} SKUs</span>
+            <span className="text-slate-500">{items.length} {t('dash_skus')}</span>
             {outOfStockCount > 0 && (
-              <span className="text-rose-600 font-bold">· {outOfStockCount} out of stock</span>
+              <span className="text-rose-600 font-bold">· {outOfStockCount} {t('dash_out_of_stock')}</span>
             )}
           </div>
         </div>
@@ -312,14 +323,14 @@ export default function Dashboard() {
         {/* Sales Trend Line Chart (2 cols) */}
         <div className="lg:col-span-2 bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Sales Trend</h2>
-            <p className="text-xs text-slate-400 mb-3">Revenue grouped by invoice date</p>
+            <h2 className="text-sm font-bold text-slate-900">{t('dash_sales_trend')}</h2>
+            <p className="text-xs text-slate-400 mb-3">{t('dash_sales_trend_sub')}</p>
           </div>
           {validInvoices.length === 0 ? (
             <div className="h-56 w-full flex flex-col items-center justify-center text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
               <TrendingUp className="w-7 h-7 text-slate-300 mb-2" />
-              <p className="text-xs font-semibold text-slate-600">No sales recorded yet</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Complete a bill in POS Billing to see live revenue trends</p>
+              <p className="text-xs font-semibold text-slate-600">{t('dash_no_sales_recorded')}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">{t('dash_complete_bill_hint')}</p>
             </div>
           ) : (
             <div className="h-56 w-full">
@@ -331,19 +342,19 @@ export default function Dashboard() {
         {/* Stock by Category Donut Chart (1 col) */}
         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Catalog by Category</h2>
-            <p className="text-xs text-slate-400 mb-3">Live SKU distribution</p>
+            <h2 className="text-sm font-bold text-slate-900">{t('dash_catalog_category')}</h2>
+            <p className="text-xs text-slate-400 mb-3">{t('dash_sku_dist')}</p>
           </div>
 
           {items.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-10 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
               <Package className="w-7 h-7 text-slate-300 mb-2" />
-              <p className="text-xs font-semibold text-slate-600">No products in catalog</p>
+              <p className="text-xs font-semibold text-slate-600">{t('dash_no_products')}</p>
               <button
                 onClick={() => navigate('/catalog')}
                 className="text-[11px] font-semibold text-blue-600 hover:underline mt-1"
               >
-                Add items in Catalog →
+                {t('dash_add_in_catalog')}
               </button>
             </div>
           ) : (
@@ -352,7 +363,7 @@ export default function Dashboard() {
                 <Doughnut data={categoryData} options={categoryOptions} />
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-xl font-bold text-slate-900">{items.length}</span>
-                  <span className="text-[11px] text-slate-400 font-medium">SKUs</span>
+                  <span className="text-[11px] text-slate-400 font-medium">{t('dash_skus')}</span>
                 </div>
               </div>
 
@@ -383,19 +394,19 @@ export default function Dashboard() {
               <div className="p-1 rounded bg-amber-50 text-amber-600">
                 <AlertTriangle className="w-4 h-4" />
               </div>
-              <h2 className="text-sm font-bold text-slate-900">Low Stock Alerts</h2>
+              <h2 className="text-sm font-bold text-slate-900">{t('dash_low_stock')}</h2>
             </div>
             <button
               onClick={() => navigate('/catalog')}
               className="text-xs text-blue-600 hover:text-blue-700 font-medium"
             >
-              View All
+              {t('dash_view_all')}
             </button>
           </div>
 
           <div className="divide-y divide-slate-100">
             {lowStockItems.length === 0 ? (
-              <p className="text-xs text-slate-400 py-6 text-center">All inventory stock levels are healthy.</p>
+              <p className="text-xs text-slate-400 py-6 text-center">{t('dash_all_healthy')}</p>
             ) : (
               lowStockItems.map((item) => (
                 <div
@@ -408,16 +419,16 @@ export default function Dashboard() {
                       {item.name} <span className="text-slate-400 font-normal">({item.sku})</span>
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      Shelf {item.bin_id || 'Unassigned'} · {item.category}
+                      {t('dash_shelf')} {item.bin_id || 'Unassigned'} · {item.category}
                     </p>
                   </div>
                   {Number(item.quantity) <= 0 ? (
                     <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 animate-pulse">
-                      0 left (Out of Stock)
+                      {t('dash_zero_left')}
                     </span>
                   ) : (
                     <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-                      {item.quantity} left
+                      {item.quantity} {t('dash_left')}
                     </span>
                   )}
                 </div>
@@ -434,19 +445,19 @@ export default function Dashboard() {
                 <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
                   <Receipt className="w-4 h-4" />
                 </div>
-                <h2 className="text-sm font-bold text-slate-900">Recent Sales</h2>
+                <h2 className="text-sm font-bold text-slate-900">{t('dash_recent_sales')}</h2>
               </div>
               <button
                 onClick={() => navigate('/history')}
                 className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline"
               >
-                View All
+                {t('dash_view_all')}
               </button>
             </div>
 
             <div className="divide-y divide-slate-100">
               {recentSales.length === 0 ? (
-                <p className="text-xs text-slate-400 py-8 text-center">No sales recorded yet.</p>
+                <p className="text-xs text-slate-400 py-8 text-center">{t('dash_no_sales_recorded')}</p>
               ) : (
                 recentSales.map((sale) => (
                   <div
@@ -492,7 +503,7 @@ export default function Dashboard() {
               className="w-full py-2 bg-blue-50 text-blue-600 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Create New Bill (POS)</span>
+              <span>{t('dash_create_bill')}</span>
             </button>
           </div>
         </div>

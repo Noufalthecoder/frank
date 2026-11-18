@@ -16,10 +16,13 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
-  X
+  X,
+  Languages
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 export default function Layout({ children }) {
+  const { lang, setLang, t } = useLanguage();
   const [globalSearch, setGlobalSearch] = useState('');
   const [outOfStockItems, setOutOfStockItems] = useState([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -83,13 +86,13 @@ export default function Layout({ children }) {
   }, []);
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Catalog', path: '/catalog', icon: Boxes },
-    { name: 'POS Billing', path: '/pos', icon: ShoppingCart },
-    { name: 'Sales History', path: '/history', icon: Receipt },
-    { name: 'Vendors', path: '/vendors', icon: Truck },
-    { name: 'Finance', path: '/finance', icon: Wallet },
-    { name: 'Settings', path: '/settings', icon: Settings },
+    { name: t('nav_dashboard'), path: '/', icon: LayoutDashboard },
+    { name: t('nav_catalog'), path: '/catalog', icon: Boxes },
+    { name: t('nav_pos'), path: '/pos', icon: ShoppingCart },
+    { name: t('nav_history'), path: '/history', icon: Receipt },
+    { name: t('nav_vendors'), path: '/vendors', icon: Truck },
+    { name: t('nav_finance'), path: '/finance', icon: Wallet },
+    { name: t('nav_settings'), path: '/settings', icon: Settings },
   ];
 
   const handleSearchSubmit = (e) => {
@@ -150,7 +153,7 @@ export default function Layout({ children }) {
         <div className="p-4 border-t border-slate-100">
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
             <p className="text-xs font-semibold text-slate-700">StockMate v2.0</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Single Store · Offline Ready</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{t('offline_ready')}</p>
           </div>
         </div>
       </aside>
@@ -164,7 +167,7 @@ export default function Layout({ children }) {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search products, invoices, vendors..."
+              placeholder={t('search_global')}
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
               onKeyDown={handleSearchSubmit}
@@ -173,7 +176,37 @@ export default function Layout({ children }) {
           </div>
 
           {/* Right Header items */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Language Switcher Pill: EN / தமிழ் */}
+            <div
+              className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200"
+              role="group"
+              aria-label="Language switcher"
+            >
+              <button
+                type="button"
+                onClick={() => setLang('en')}
+                className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                  lang === 'en'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                EN
+              </button>
+              <button
+                type="button"
+                onClick={() => setLang('ta')}
+                className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                  lang === 'ta'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                தமிழ்
+              </button>
+            </div>
+
             {/* Bell Notification Container */}
             <div className="relative" ref={notifRef}>
               <button
@@ -181,7 +214,7 @@ export default function Layout({ children }) {
                 className={`relative p-2 rounded-lg transition-colors ${
                   showNotifDropdown ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                 }`}
-                title="Notification"
+                title={t('notification_title')}
               >
                 <Bell className="w-4 h-4" />
                 {outOfStockItems.length > 0 && (
@@ -197,15 +230,15 @@ export default function Layout({ children }) {
                   <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Bell className="w-4 h-4 text-slate-700" />
-                      <span className="text-xs font-bold text-slate-900">Notification</span>
+                      <span className="text-xs font-bold text-slate-900">{t('notification_title')}</span>
                     </div>
                     {outOfStockItems.length > 0 ? (
                       <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full border border-rose-200">
-                        {outOfStockItems.length} Out of Stock
+                        {outOfStockItems.length} {t('out_of_stock_count')}
                       </span>
                     ) : (
                       <span className="text-[10px] font-medium bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                        All Stock Healthy
+                        {t('all_stock_healthy')}
                       </span>
                     )}
                   </div>
@@ -215,8 +248,8 @@ export default function Layout({ children }) {
                     {outOfStockItems.length === 0 ? (
                       <div className="p-6 text-center">
                         <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-                        <p className="text-xs font-semibold text-slate-800">No Notifications</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">All products have available stock.</p>
+                        <p className="text-xs font-semibold text-slate-800">{t('no_notifications')}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{t('all_products_available')}</p>
                       </div>
                     ) : (
                       outOfStockItems.map((item) => (
@@ -241,7 +274,7 @@ export default function Layout({ children }) {
                               SKU: <span className="font-mono font-medium text-slate-700">{item.sku}</span> · Rack: <span className="font-medium text-slate-700">{item.bin_id || 'Unassigned'}</span>
                             </p>
                             <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 mt-1.5 group-hover:translate-x-0.5 transition-transform">
-                              <span>Update Stock in Catalog</span>
+                              <span>{t('update_stock_catalog')}</span>
                               <ArrowRight className="w-2.5 h-2.5" />
                             </div>
                           </div>
@@ -260,7 +293,7 @@ export default function Layout({ children }) {
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-800 leading-tight">A. Adithya</p>
-                <p className="text-[11px] text-slate-400 font-medium">Admin</p>
+                <p className="text-[11px] text-slate-400 font-medium">{t('admin')}</p>
               </div>
             </div>
           </div>

@@ -26,6 +26,7 @@ import {
   convertUnit,
   formatQty,
 } from '../lib/units.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 const getBaseQty = (cartItem) => {
   const numericQty = parseFloat(cartItem.qty) || 0;
@@ -61,6 +62,7 @@ function loadInitialBills() {
 
 export default function POSBilling() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const initialDrafts = loadInitialBills();
 
   // Multi-Bill Tabs System (Up to 10 concurrent carts, persisted in localStorage)
@@ -539,7 +541,7 @@ export default function POSBilling() {
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-blue-300 bg-blue-50/50 text-blue-600 hover:bg-blue-100/60 text-xs font-semibold transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New bill {bills.length}/10</span>
+              <span>{t('pos_new_bill')} {bills.length}/10</span>
             </button>
           )}
         </div>
@@ -551,7 +553,7 @@ export default function POSBilling() {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
           >
             <History className="w-3.5 h-3.5 text-slate-400" />
-            <span>Bill History</span>
+            <span>{t('pos_bill_history')}</span>
           </button>
         </div>
       </div>
@@ -567,7 +569,7 @@ export default function POSBilling() {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search product by name, SKU or size (e.g. M8, Taparia, DB-10) [F2]..."
+                placeholder={t('pos_search_placeholder')}
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onKeyDown={handleBarcodeKeyDown}
@@ -681,11 +683,11 @@ export default function POSBilling() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                    <th className="py-3 px-4">Product</th>
-                    <th className="py-3 px-3 text-center w-44">Qty / Measure</th>
-                    <th className="py-3 px-3 text-right w-28">Rate (₹)</th>
-                    <th className="py-3 px-3 text-right w-24">Disc %</th>
-                    <th className="py-3 px-4 text-right w-28">Total</th>
+                    <th className="py-3 px-4">{t('pos_col_product')}</th>
+                    <th className="py-3 px-3 text-center w-44">{t('pos_col_qty')}</th>
+                    <th className="py-3 px-3 text-right w-28">{t('pos_col_rate')}</th>
+                    <th className="py-3 px-3 text-right w-24">{t('pos_col_disc')}</th>
+                    <th className="py-3 px-4 text-right w-28">{t('pos_col_total')}</th>
                     <th className="py-3 px-3 text-center w-12"></th>
                   </tr>
                 </thead>
@@ -694,9 +696,9 @@ export default function POSBilling() {
                     <tr>
                       <td colSpan="6" className="py-16 text-center text-slate-400">
                         <Receipt className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                        <p className="text-xs font-semibold text-slate-600">No items added to this bill</p>
+                        <p className="text-xs font-semibold text-slate-600">{t('pos_empty_cart')}</p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          Type in the search box above or scan with barcode reader [F2]
+                          {t('pos_empty_cart_hint')}
                         </p>
                       </td>
                     </tr>
@@ -926,22 +928,22 @@ export default function POSBilling() {
           {/* Bill Calculation Box */}
           <div className="space-y-2.5 pb-4 border-b border-slate-200 text-xs">
             <div className="flex items-center justify-between text-slate-500 font-medium">
-              <span>Subtotal</span>
+              <span>{t('pos_subtotal')}</span>
               <span className="font-semibold text-slate-800">₹ {itemSubtotal.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between text-slate-500 font-medium">
-              <span>Discount</span>
+              <span>{t('pos_discount')}</span>
               <span className="font-semibold text-emerald-600">– ₹ {totalDiscount.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between text-slate-400 text-[11px]">
-              <span>Round-off</span>
+              <span>{t('pos_round_off')}</span>
               <span>{roundOff >= 0 ? `+ ₹ ${roundOff.toFixed(2)}` : `– ₹ ${Math.abs(roundOff).toFixed(2)}`}</span>
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-              <span className="text-sm font-bold text-slate-900">Total</span>
+              <span className="text-sm font-bold text-slate-900">{t('pos_total')}</span>
               <span className="text-3xl font-black text-blue-600 tracking-tight">
                 ₹ {roundedTotal.toFixed(2)}
               </span>
@@ -952,7 +954,7 @@ export default function POSBilling() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                Bill Discount %
+                {t('pos_bill_discount_label')}
               </label>
               <span className="text-[10px] text-slate-400 font-mono">F6</span>
             </div>
@@ -980,16 +982,16 @@ export default function POSBilling() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                Payment Mode
+                {t('pos_payment_label')}
               </label>
               <span className="text-[10px] text-slate-400 font-mono">F8</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { mode: 'Cash', icon: Banknote },
-                { mode: 'Card', icon: CreditCard },
-                { mode: 'UPI', icon: Smartphone },
-              ].map(({ mode, icon: Icon }) => {
+                { mode: 'Cash', label: t('pos_cash'), icon: Banknote },
+                { mode: 'Card', label: t('pos_card'), icon: CreditCard },
+                { mode: 'UPI', label: t('pos_upi'), icon: Smartphone },
+              ].map(({ mode, label, icon: Icon }) => {
                 const isSelected = activeBill.paymentMode === mode;
                 return (
                   <button
@@ -1003,7 +1005,7 @@ export default function POSBilling() {
                     }`}
                   >
                     <Icon className="w-4 h-4" />
-                    <span>{mode.toUpperCase()}</span>
+                    <span>{label}</span>
                   </button>
                 );
               })}
@@ -1015,7 +1017,7 @@ export default function POSBilling() {
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                  Customer Name (Optional)
+                  {t('pos_customer_name')}
                 </label>
                 <span className="text-[10px] text-slate-400 font-mono">F4</span>
               </div>
@@ -1066,7 +1068,7 @@ export default function POSBilling() {
             }`}
           >
             <CheckCircle2 className="w-4 h-4" />
-            <span>Complete Sale (₹ {roundedTotal.toFixed(2)})</span>
+            <span>{t('pos_complete_btn')} (₹ {roundedTotal.toFixed(2)})</span>
             <kbd className="px-1.5 py-0.5 bg-blue-700/80 rounded text-[10px] font-mono ml-1 text-white">
               F9
             </kbd>

@@ -9,10 +9,12 @@ import {
 } from 'lucide-react';
 import PrintableReceipt from '../components/PrintableReceipt.jsx';
 import { formatQty, isMeasurableUnit } from '../lib/units.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 const PAGE_SIZE = 12;
 
 export default function SalesHistory() {
+  const { t } = useLanguage();
   const [invoices, setInvoices] = useState([]);
   const [shopProfile, setShopProfile] = useState(null);
   const [search, setSearch] = useState('');
@@ -121,8 +123,8 @@ export default function SalesHistory() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Sales History</h1>
-          <p className="text-xs text-slate-500 mt-0.5">View, reprint, and export all invoices</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('hist_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5">{t('hist_subtitle')}</p>
         </div>
 
         {/* Action Controls */}
@@ -141,17 +143,17 @@ export default function SalesHistory() {
             }}
             className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="All Time">All Time</option>
-            <option value="Today">Today</option>
-            <option value="Last 7 Days">Last 7 Days</option>
-            <option value="Last 30 Days">Last 30 Days</option>
+            <option value="All Time">{t('date_all')}</option>
+            <option value="Today">{t('date_today')}</option>
+            <option value="Last 7 Days">{t('date_7d')}</option>
+            <option value="Last 30 Days">{t('date_30d')}</option>
           </select>
           <button
             onClick={handleExportCsv}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export CSV</span>
+            <span>{t('cat_export_csv')}</span>
           </button>
         </div>
       </div>
@@ -162,7 +164,7 @@ export default function SalesHistory() {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by invoice no., customer, mode or amount..."
+            placeholder={t('hist_search')}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -172,7 +174,7 @@ export default function SalesHistory() {
           />
         </div>
         <div className="text-xs font-semibold text-slate-500">
-          Filtered Total:{' '}
+          {t('hist_filtered_total')}{' '}
           <span className="text-slate-900 font-bold">
             ₹{' '}
             {filteredInvoices
@@ -188,14 +190,14 @@ export default function SalesHistory() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              <th className="py-3 px-4">Invoice No.</th>
-              <th className="py-3 px-4">Date & Time</th>
-              <th className="py-3 px-4">Customer</th>
-              <th className="py-3 px-4 text-center">Items</th>
-              <th className="py-3 px-4">Mode</th>
-              <th className="py-3 px-4">Status</th>
-              <th className="py-3 px-4 text-right">Amount</th>
-              <th className="py-3 px-4 text-right">Actions</th>
+              <th className="py-3 px-4">{t('hist_col_inv')}</th>
+              <th className="py-3 px-4">{t('hist_col_date')}</th>
+              <th className="py-3 px-4">{t('hist_col_cust')}</th>
+              <th className="py-3 px-4 text-center">{t('hist_col_items')}</th>
+              <th className="py-3 px-4">{t('hist_col_mode')}</th>
+              <th className="py-3 px-4">{t('hist_col_status')}</th>
+              <th className="py-3 px-4 text-right">{t('hist_col_amount')}</th>
+              <th className="py-3 px-4 text-right">{t('hist_col_actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs">

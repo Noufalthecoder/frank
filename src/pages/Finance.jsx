@@ -20,10 +20,12 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function Finance() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Overview');
   const [dateRange, setDateRange] = useState('Last 30 Days');
   const [invoices, setInvoices] = useState([]);
@@ -257,8 +259,8 @@ export default function Finance() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Finance</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Live expenses, cash flow and daily cash closing</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('fin_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5">{t('fin_subtitle')}</p>
         </div>
 
         <select
@@ -266,16 +268,20 @@ export default function Finance() {
           onChange={(e) => setDateRange(e.target.value)}
           className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="All Time">All Time</option>
-          <option value="Today">Today</option>
-          <option value="Last 7 Days">Last 7 Days</option>
-          <option value="Last 30 Days">Last 30 Days</option>
+          <option value="All Time">{t('date_all')}</option>
+          <option value="Today">{t('date_today')}</option>
+          <option value="Last 7 Days">{t('date_7d')}</option>
+          <option value="Last 30 Days">{t('date_30d')}</option>
         </select>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-6 text-xs font-semibold text-slate-500">
-        {['Overview', 'Expenses', 'Day Close'].map((tab) => (
+        {[
+          { id: 'Overview', label: t('fin_tab_overview') },
+          { id: 'Expenses', label: t('fin_tab_expenses') },
+          { id: 'Day Close', label: t('fin_tab_dayclose') },
+        ].map(({ id: tab, label }) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -283,7 +289,7 @@ export default function Finance() {
               activeTab === tab ? 'text-blue-600 font-bold' : 'hover:text-slate-800'
             }`}
           >
-            {tab}
+            {label}
             {activeTab === tab && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"></span>
             )}

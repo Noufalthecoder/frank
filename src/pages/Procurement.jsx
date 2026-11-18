@@ -10,8 +10,10 @@ import {
   PackageCheck,
   UserPlus
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 export default function Procurement() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Purchase Orders');
   const [orders, setOrders] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -209,9 +211,9 @@ export default function Procurement() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Vendors</h1>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('vend_title')}</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Vendor directory, purchase orders and goods receipt (auto-restock)
+            {t('vend_subtitle')}
           </p>
         </div>
 
@@ -227,7 +229,7 @@ export default function Procurement() {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
           >
             <UserPlus className="w-3.5 h-3.5 text-slate-500" />
-            <span>Add Vendor</span>
+            <span>{t('vend_add_vendor')}</span>
           </button>
           <button
             onClick={() => {
@@ -239,14 +241,18 @@ export default function Procurement() {
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 rounded-lg text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>New PO</span>
+            <span>{t('vend_new_po')}</span>
           </button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-6 text-xs font-semibold text-slate-500">
-        {['Purchase Orders', 'Goods Receipt (GRN)', 'Vendors'].map((tab) => (
+        {[
+          { id: 'Purchase Orders', label: t('vend_tab_po') },
+          { id: 'Goods Receipt (GRN)', label: t('vend_tab_grn') },
+          { id: 'Vendors', label: t('vend_tab_vendors') },
+        ].map(({ id: tab, label }) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -256,7 +262,7 @@ export default function Procurement() {
                 : 'hover:text-slate-800'
             }`}
           >
-            <span>{tab}</span>
+            <span>{label}</span>
             {tab === 'Goods Receipt (GRN)' && openOrders.length > 0 && (
               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
                 {openOrders.length}

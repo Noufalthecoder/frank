@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import Racks from './Racks.jsx';
 import { getPrintPreferences } from '../components/PrintableReceipt.jsx';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 export default function Settings() {
+  const { lang, setLang, t } = useLanguage();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') === 'racks' ? 'Racks & Bins' : 'Shop Profile';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -120,9 +122,9 @@ export default function Settings() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Settings</h1>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('set_title')}</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage shop profile, users, billing/print and application preferences
+            {t('set_subtitle')}
           </p>
         </div>
       </div>
@@ -132,13 +134,13 @@ export default function Settings() {
         {/* Left Side: Settings Navigation Tabs */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 space-y-1">
           {[
-            { id: 'Shop Profile', icon: Store },
-            { id: 'Racks & Bins', icon: Grid3X3 },
-            { id: 'Users & Roles', icon: Users },
-            { id: 'Billing & Print', icon: Printer },
-            { id: 'Preferences', icon: Sliders },
-            { id: 'Database', icon: Database },
-          ].map(({ id, icon: Icon }) => {
+            { id: 'Shop Profile', label: t('set_tab_profile'), icon: Store },
+            { id: 'Racks & Bins', label: t('set_tab_racks'), icon: Grid3X3 },
+            { id: 'Users & Roles', label: t('set_tab_users'), icon: Users },
+            { id: 'Billing & Print', label: t('set_tab_print'), icon: Printer },
+            { id: 'Preferences', label: t('set_tab_prefs'), icon: Sliders },
+            { id: 'Database', label: t('set_tab_db'), icon: Database },
+          ].map(({ id, label, icon: Icon }) => {
             const isActive = activeTab === id;
             return (
               <button
@@ -151,7 +153,7 @@ export default function Settings() {
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>{id}</span>
+                <span>{label}</span>
               </button>
             );
           })}
@@ -370,21 +372,51 @@ export default function Settings() {
 
           {activeTab === 'Preferences' && (
             <div className="space-y-4">
-              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">Application Preferences</h2>
+              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">{t('set_prefs_title')}</h2>
               <div className="space-y-3 text-xs text-slate-600">
+                <div className="p-3.5 bg-blue-50/60 rounded-lg border border-blue-100 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-slate-900">{t('set_lang_title')}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{t('set_lang_desc')}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLang('en')}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        lang === 'en'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      English
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLang('ta')}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        lang === 'ta'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      தமிழ் (Tamil)
+                    </button>
+                  </div>
+                </div>
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-slate-800">Billing Tax Mode</p>
-                    <p className="text-[11px] text-slate-400">Clean non-GST retail billing (Price × Qty – Discount)</p>
+                    <p className="font-bold text-slate-800">{t('set_tax_title')}</p>
+                    <p className="text-[11px] text-slate-400">{t('set_tax_desc')}</p>
                   </div>
                   <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-full border border-emerald-200 text-[10px]">
-                    Non-GST Active
+                    {t('set_tax_badge')}
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-slate-800">Currency & Locale</p>
-                    <p className="text-[11px] text-slate-400">Indian Rupee (₹ · en-IN number grouping)</p>
+                    <p className="font-bold text-slate-800">{t('set_currency_title')}</p>
+                    <p className="text-[11px] text-slate-400">{t('set_currency_desc')}</p>
                   </div>
                   <span className="font-bold text-slate-800">INR (₹)</span>
                 </div>

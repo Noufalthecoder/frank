@@ -30,12 +30,13 @@ import {
   isMeasurableUnit,
   formatQty,
 } from '../lib/units.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 const VIEW_MODES = [
-  { id: 'large', label: 'Large Icons', icon: Square, pageSize: 12 },
-  { id: 'medium', label: 'Medium Icons', icon: LayoutGrid, pageSize: 15 },
-  { id: 'small', label: 'Small Icons', icon: Grid3X3, pageSize: 24 },
-  { id: 'detail', label: 'Row / Detail View', icon: List, pageSize: 15 },
+  { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12 },
+  { id: 'medium', labelKey: 'cat_view_medium', icon: LayoutGrid, pageSize: 15 },
+  { id: 'small', labelKey: 'cat_view_small', icon: Grid3X3, pageSize: 24 },
+  { id: 'detail', labelKey: 'cat_view_detail', icon: List, pageSize: 15 },
 ];
 const VIEW_STORAGE_KEY = 'tsp_catalog_view_mode';
 
@@ -55,6 +56,7 @@ const EMPTY_FORM = {
 };
 
 export default function Catalog() {
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [availableBins, setAvailableBins] = useState([]);
@@ -490,8 +492,8 @@ export default function Catalog() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Product Catalog</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manage items, permanent rates, shelf bins and stock</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('cat_title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5">{t('cat_subtitle')}</p>
         </div>
 
         {/* Action Buttons */}
@@ -508,21 +510,21 @@ export default function Catalog() {
             title="Import products from CSV (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id)"
           >
             <Upload className="w-3.5 h-3.5 text-slate-500" />
-            <span>Import CSV</span>
+            <span>{t('cat_import_csv')}</span>
           </button>
           <button
             onClick={handleExportCsv}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export CSV</span>
+            <span>{t('cat_export_csv')}</span>
           </button>
           <button
             onClick={openAdd}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 rounded-lg text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add Item</span>
+            <span>{t('cat_add_item')}</span>
           </button>
         </div>
       </div>
@@ -534,7 +536,7 @@ export default function Catalog() {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by SKU, name or size..."
+            placeholder={t('cat_search')}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -555,7 +557,7 @@ export default function Catalog() {
             }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="All">Category: All</option>
+            <option value="All">{t('cat_category')}: {t('cat_all')}</option>
             {uniqueCategories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
@@ -570,7 +572,7 @@ export default function Catalog() {
             }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="All">Brand: All</option>
+            <option value="All">{t('cat_brand')}: {t('cat_all')}</option>
             {uniqueBrands.map((b) => (
               <option key={b} value={b}>{b}</option>
             ))}
@@ -585,9 +587,9 @@ export default function Catalog() {
             }}
             className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="Active">Status: Active</option>
-            <option value="All">Status: All</option>
-            <option value="Inactive">Status: Inactive</option>
+            <option value="Active">{t('cat_status')}: {t('cat_active')}</option>
+            <option value="All">{t('cat_status')}: {t('cat_all')}</option>
+            <option value="Inactive">{t('cat_status')}: {t('cat_inactive')}</option>
           </select>
 
           {/* View Switcher: Large, Medium, Small Icons & Row/Detail View */}
@@ -596,8 +598,9 @@ export default function Catalog() {
             role="group"
             aria-label="Catalog view mode"
           >
-            {VIEW_MODES.map(({ id, label, icon: Icon }) => {
+            {VIEW_MODES.map(({ id, labelKey, icon: Icon }) => {
               const active = viewMode === id;
+              const label = t(labelKey);
               return (
                 <button
                   key={id}
@@ -624,7 +627,7 @@ export default function Catalog() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {paginatedItems.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-400">
-            No products found matching your search.
+            {t('cat_no_products')}
           </div>
         ) : viewMode === 'detail' ? (
         <table className="w-full text-left border-collapse">
@@ -638,13 +641,13 @@ export default function Catalog() {
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
               </th>
-              <th className="py-3 px-4">SKU</th>
-              <th className="py-3 px-4">Item Name</th>
-              <th className="py-3 px-4">Size</th>
-              <th className="py-3 px-4">Unit</th>
-              <th className="py-3 px-4">Selling Price</th>
-              <th className="py-3 px-4">Stock</th>
-              <th className="py-3 px-4 text-right">Actions</th>
+              <th className="py-3 px-4">{t('cat_col_sku')}</th>
+              <th className="py-3 px-4">{t('cat_col_name')}</th>
+              <th className="py-3 px-4">{t('cat_col_size')}</th>
+              <th className="py-3 px-4">{t('cat_col_unit')}</th>
+              <th className="py-3 px-4">{t('cat_col_price')}</th>
+              <th className="py-3 px-4">{t('cat_col_stock')}</th>
+              <th className="py-3 px-4 text-right">{t('cat_col_actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs">
@@ -980,10 +983,10 @@ export default function Catalog() {
                 )}
                 <h3 className="text-sm font-bold text-slate-900">
                   {editingItem
-                    ? 'Edit Product'
+                    ? t('cat_modal_edit')
                     : modalMode === 'library'
-                    ? 'Add Product to Catalog'
-                    : 'Create New Product'}
+                    ? t('cat_modal_add')
+                    : t('cat_modal_create')}
                 </h3>
               </div>
 
@@ -1002,7 +1005,7 @@ export default function Catalog() {
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm shadow-blue-200 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Create Product</span>
+                    <span>{t('cat_create_btn')}</span>
                   </button>
                 )}
                 <button
