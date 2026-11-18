@@ -332,6 +332,15 @@ export default function Catalog() {
       setShowAddModal(false);
       setEditingItem(null);
       setForm(EMPTY_FORM);
+      // A product saved with no stock (or unavailable) would vanish under the default
+      // "Available" filter and look like it was never created: show everything instead.
+      if (!editingItem && (payload.quantity <= 0 || payload.status === 'Unavailable')) {
+        setStatusFilter('All');
+        setCategoryFilter('All');
+        setBrandFilter('All');
+        setSearch('');
+        setPage(1);
+      }
       await loadItems();
       window.dispatchEvent(new CustomEvent('stock-updated'));
       showToast(editingItem ? t('ct_toast_updated') : t('ct_toast_added', { name: payload.name, sku: resolvedSku }));

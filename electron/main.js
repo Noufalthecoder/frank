@@ -596,45 +596,50 @@ ipcMain.handle('getInvoicesPage', (event, opts = {}) => {
 });
 
 ipcMain.handle('createInvoice', (event, inv) => {
-  const genNum = `INV-${String(Math.floor(100000 + Math.random() * 900000))}`;
-  const invNumber = inv.invoice_number || genNum;
-  const nowStr = formatLocalDateTime();
+  try {
+    const nowStr = formatLocalDateTime();
+    const genNum = () => `INV-${String(Math.floor(100000 + Math.random() * 900000))}`;
+    const insert = db.prepare(`
+      INSERT INTO invoices (invoice_number, date_time, customer_name, customer_phone, subtotal, discount, total, payment_mode, items_count, items_json, cashier, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed')
+    `);
+    // Deduct stock for each item (using stock_deduction_qty in base unit for length/weight items)
+    const updateStock = db.prepare('UPDATE items SET quantity = ROUND(MAX(0, quantity - ?), 6) WHERE sku = ? OR id = ?');
+    const checkStock = db.prepare('SELECT id, sku, name, quantity FROM items WHERE (sku = ? OR id = ?)');
 
-  const insert = db.prepare(`
-    INSERT INTO invoices (invoice_number, date_time, customer_name, customer_phone, subtotal, discount, total, payment_mode, items_count, items_json, cashier, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed')
-  `);
-
-  const res = insert.run(
-    invNumber,
-    nowStr,
-    inv.customer_name || 'Walk-in Customer',
-    inv.customer_phone || '',
-    inv.subtotal,
-    inv.discount || 0,
-    inv.total,
-    inv.payment_mode || 'Cash',
-    inv.items.length,
-    JSON.stringify(inv.items),
-    String(inv.cashier || '').slice(0, 60)
-  );
-
-  // Deduct stock for each item (using stock_deduction_qty in base unit for length/weight items)
-  const updateStock = db.prepare('UPDATE items SET quantity = ROUND(MAX(0, quantity - ?), 6) WHERE sku = ? OR id = ?');
-  const checkStock = db.prepare('SELECT id, sku, name, quantity FROM items WHERE (sku = ? OR id = ?)');
-
-  const zeroStockAlerts = [];
-  inv.items.forEach(item => {
-    const deductQty = Number(item.stock_deduction_qty ?? item.quantity ?? 0);
-    updateStock.run(deductQty, item.sku || '', item.id || 0);
-    const updated = checkStock.get(item.sku || '', item.id || 0);
-    if (updated && updated.quantity <= 0) {
-      zeroStockAlerts.push(updated);
-    }
-  });
-
-  return { success: true, id: Number(res.lastInsertRowid), invoice_number: invNumber, zeroStockAlerts };
+    // Invoice + stock deduction commit together or not at all. Random 6-digit numbers can
+    // collide (UNIQUE), so retry with a fresh number instead of failing the sale.
+    const save = db.transaction(() => {
+      let lastErr = null;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const num = attempt === 0 && inv.invoice_number ? inv.invoice_number : genNum();
+        try {
+          const res = insert.run(
+            num, nowStr, inv.customer_name || 'Walk-in Customer', inv.customer_phone || '',
+            inv.subtotal, inv.discount || 0, inv.total, inv.payment_mode || 'Cash',
+            inv.items.length, JSON.stringify(inv.items), String(inv.cashier || '').slice(0, 60)
+          );
+          const zeroStockAlerts = [];
+          inv.items.forEach((item) => {
+            const deductQty = Number(item.stock_deduction_qty ?? item.quantity ?? 0);
+            updateStock.run(deductQty, item.sku || '', item.id || 0);
+            const updated = checkStock.get(item.sku || '', item.id || 0);
+            if (updated && updated.quantity <= 0) zeroStockAlerts.push(updated);
+          });
+          return { success: true, id: Number(res.lastInsertRowid), invoice_number: num, zeroStockAlerts };
+        } catch (err) {
+          if (!/UNIQUE constraint failed: invoices\.invoice_number/.test(err.message)) throw err;
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error('Could not allocate an invoice number.');
+    });
+    return save();
+  } catch (err) {
+    return { success: false, error: err.message || 'Could not save the bill.' };
+  }
 });
+
 
 const rowToReturn = (r) => ({ ...r, lines: parseReturnLines(r), restocked: Boolean(r.restocked) });
 

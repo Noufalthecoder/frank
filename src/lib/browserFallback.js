@@ -301,7 +301,10 @@ export function initBrowserApiFallback() {
     },
     createInvoice: async (inv) => {
       const db = readDb();
-      const invNumber = inv.invoice_number || `INV-${String(Math.floor(100000 + Math.random() * 900000))}`;
+      let invNumber = inv.invoice_number || `INV-${String(Math.floor(100000 + Math.random() * 900000))}`;
+      while (db.invoices.some((x) => x.invoice_number === invNumber)) {
+        invNumber = `INV-${String(Math.floor(100000 + Math.random() * 900000))}`;
+      }
       const id = db.invoices.reduce((max, i) => Math.max(max, i.id || 0), 0) + 1;
       db.invoices.push({
         id,

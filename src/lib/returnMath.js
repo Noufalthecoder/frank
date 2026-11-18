@@ -42,7 +42,7 @@ export function lineSummaries(inv, returns) {
   const done = returnedQtyByLine(returns);
   const ratio = discountRatio(inv, lines);
   return lines.map((l, index) => {
-    const sold = Number(l.quantity) || 0;
+    const sold = Number(l.quantity ?? l.qty) || 0;
     const lineNet = (Number(l.total) || sold * (Number(l.rate) || 0)) * ratio; // after line + bill discount
     const returned = Math.min(sold, done[index] || 0);
     return {
