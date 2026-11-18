@@ -160,14 +160,19 @@ export default function Dashboard() {
         ticks: { font: { size: 11 }, color: '#64748b' },
       },
       y: {
+        beginAtZero: true,
         grid: { color: '#f1f5f9' },
         ticks: {
+          maxTicksLimit: 5,
           font: { size: 11 },
           color: '#64748b',
           callback: (value) => {
-            if (value >= 100000) return `${(value / 100000).toFixed(1)}L`;
-            if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-            return value;
+            if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+            if (value >= 1000) {
+              const k = value / 1000;
+              return `₹${Number.isInteger(k) ? k : k.toFixed(1)}K`;
+            }
+            return `₹${Math.round(value)}`;
           },
         },
       },
