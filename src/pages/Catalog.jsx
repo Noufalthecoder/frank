@@ -1,4 +1,5 @@
 import BinPicker from '../components/BinPicker.jsx';
+import { suggestBin } from '../lib/rackCategory.js';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -339,7 +340,7 @@ export default function Catalog() {
     setModalMode('library');
     setForm({
       ...EMPTY_FORM,
-      bin_id: availableBins[0]?.code || '',
+      bin_id: suggestBin(racks, EMPTY_FORM.category),
     });
     loadRackBins();
     setShowAddModal(true);
@@ -404,7 +405,7 @@ export default function Catalog() {
       cost_price: String(itemPayload.cost_price ?? ''),
       quantity: String(itemPayload.quantity ?? '10'),
       reorder_level: String(itemPayload.reorder_level ?? '10'),
-      bin_id: itemPayload.bin_id || availableBins[0]?.code || '',
+      bin_id: itemPayload.bin_id || suggestBin(racks, itemPayload.category || 'Tools'),
       image_url: itemPayload.image_url || '',
     });
     setModalMode('manual');
@@ -1085,6 +1086,9 @@ export default function Catalog() {
                 <ToolLibraryPicker
                   existingItemsMap={existingItemsMap}
                   availableBins={availableBins}
+                  racks={racks}
+                  customItems={items}
+                  onOpenItem={openEdit}
                   onFillManualForm={handleFillFromLibrary}
                   onBulkAddSizes={handleBulkAddFromLibrary}
                 />
@@ -1213,7 +1217,7 @@ export default function Catalog() {
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('ct_category')}</label>
                   <select
                     value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    onChange={(e) => setForm({ ...form, category: e.target.value, bin_id: suggestBin(racks, e.target.value) })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500"
                   >
                     {['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'].map((c) => (
@@ -1307,7 +1311,7 @@ export default function Catalog() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('ct_rack_bin')}</label>
-                  <BinPicker value={form.bin_id} onChange={(code) => setForm({ ...form, bin_id: code })} />
+                  <BinPicker racks={racks} category={form.category} value={form.bin_id} onChange={(code) => setForm({ ...form, bin_id: code })} />
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">

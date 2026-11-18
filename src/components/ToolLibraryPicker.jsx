@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import BinPicker from './BinPicker.jsx';
+import { suggestBin } from '../lib/rackCategory.js';
 import {
   Search,
   ArrowLeft,
@@ -17,6 +18,9 @@ import { getBilingualSearchFields } from '../i18n/productTamil.js';
 export default function ToolLibraryPicker({
   existingItemsMap = {},
   availableBins = [],
+  racks,
+  customItems = [],
+  onOpenItem,
   onFillManualForm,
   onBulkAddSizes,
 }) {
@@ -31,7 +35,22 @@ export default function ToolLibraryPicker({
   const [defaultBin, setDefaultBin] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const categories = ['All', 'Tools', 'Fasteners', 'Electrical', 'Plumbing', 'Paints & Adhesives'];
+  // Catalog products that are not part of the built-in library (user-created) show up under their category too.
+  const librarySkus = new Set(
+    TOOL_LIBRARY.flatMap((tool) => tool.sizes.map((sz) => `${tool.skuPrefix}-${sz.code}`.toUpperCase()))
+  );
+  const customProducts = customItems.filter((i) => !librarySkus.has(String(i.sku || '').toUpperCase()));
+  const categories = [
+    'All',
+    ...Array.from(
+      new Set(['Tools', 'Fasteners', 'Electrical', 'Plumbing', 'Paints & Adhesives', ...customProducts.map((i) => i.category).filter(Boolean)])
+    ),
+  ];
+  const filteredCustom = fuzzyFilter(
+    customProducts.filter((i) => catFilter === 'All' || i.category === catFilter),
+    query,
+    (i) => [i.name, i.sku, i.brand, i.size, i.category]
+  );
 
   const catFilteredTools = TOOL_LIBRARY.filter(
     (tool) => catFilter === 'All' || tool.category === catFilter
@@ -45,9 +64,7 @@ export default function ToolLibraryPicker({
 
   const openTool = (tool) => {
     setSelectedTool(tool);
-    setDefaultBin(
-      availableBins.some((b) => b.code === tool.defaultBin) ? tool.defaultBin : availableBins[0]?.code || ''
-    );
+    setDefaultBin(suggestBin(racks || [], tool.category));
     setSelectedQtyMap({});
   };
 
@@ -200,6 +217,8 @@ export default function ToolLibraryPicker({
               <div>
                 <label className="block text-[12px] font-semibold text-slate-600 mb-0.5">{t('ct_rack_bin_short')}</label>
                 <BinPicker
+                  racks={racks}
+                  category={selectedTool.category}
                   value={defaultBin}
                   onChange={setDefaultBin}
                   selectClassName="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
@@ -449,7 +468,40 @@ export default function ToolLibraryPicker({
           );
         })}
 
-        {filteredTools.length === 0 && (
+        {filteredCustom.map((item) => (
+          <button
+            key={`custom-${item.id}`}
+            type="button"
+            onClick={() => onOpenItem && onOpenItem(item)}
+            className="group bg-white border border-slate-200 hover:border-blue-500 hover:shadow-md rounded-xl p-2.5 text-left transition-all flex flex-col justify-between"
+          >
+            <div>
+              <div className="h-24 w-full bg-slate-50 rounded-lg border border-slate-100 p-1.5 flex items-center justify-center overflow-hidden">
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.name} className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <Package className="w-8 h-8 text-slate-300" />
+                )}
+              </div>
+              <p className="text-xs font-bold text-slate-900 mt-2 leading-snug group-hover:text-blue-600 line-clamp-2">
+                {tName(item.name)}
+              </p>
+              <p className="text-[12px] text-slate-400 mt-0.5 truncate">
+                {item.brand || tCategory(item.category)}{item.size ? ` · ${item.size}` : ''}
+              </p>
+            </div>
+            <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100">
+              <span className="text-[12px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                {t('ct_custom_badge')}
+              </span>
+              <span className="text-[12px] font-semibold text-slate-400 group-hover:text-blue-600">
+                {t('ct_edit_arrow')}
+              </span>
+            </div>
+          </button>
+        ))}
+
+        {filteredTools.length === 0 && filteredCustom.length === 0 && (
           <div className="col-span-4 py-10 text-center text-xs text-slate-400">
             <Package className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
             {t('ct_no_tools_a', { query })}<strong>{t('ct_create_product')}</strong>{t('ct_no_tools_b')}
