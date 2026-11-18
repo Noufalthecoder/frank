@@ -255,11 +255,15 @@ table th {
 }
 
 /* Hide native number input spinner arrows */
+/* Applies to every number field in the app, not just ones tagged .no-spinner */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button,
 .no-spinner::-webkit-outer-spin-button,
 .no-spinner::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+input[type="number"],
 .no-spinner {
   -moz-appearance: textfield;
   appearance: textfield;
