@@ -160,20 +160,6 @@ export default function Layout({ children }) {
             })}
           </nav>
         </div>
-
-        {/* Footer info */}
-        <div className="p-3.5 border-t border-slate-100">
-          <div className="bg-slate-50/90 p-3 rounded-xl border border-slate-200/70">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-slate-800 tracking-tight">StockMate v2.0</p>
-              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 mt-1">{t('offline_ready')}</p>
-          </div>
-        </div>
       </aside>
 
       {/* Main Area */}
