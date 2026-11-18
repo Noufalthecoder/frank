@@ -13,7 +13,8 @@ import {
   Layers,
   AlertCircle,
   CheckCircle2,
-  Wrench
+  Wrench,
+  Camera
 } from 'lucide-react';
 import ToolLibraryPicker from '../components/ToolLibraryPicker.jsx';
 import { TOOL_LIBRARY } from '../data/toolLibrary.js';
@@ -51,6 +52,37 @@ export default function Catalog() {
   const [page, setPage] = useState(1);
   const [toast, setToast] = useState('');
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 320;
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.85);
+        setForm((prev) => ({ ...prev, image_url: compressed }));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const showToast = (msg) => {
     setToast(msg);
@@ -668,29 +700,50 @@ export default function Catalog() {
                 </div>
               )}
 
-              {/* Product Image Preview & Quick Picker */}
-              <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
-                <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 overflow-hidden p-1">
+              {/* Hidden Image Upload Input */}
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+
+              {/* Clickable Product Icon with Camera Badge */}
+              <div className="flex items-center gap-3.5">
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  title="Upload product image from folder"
+                  className="relative w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-500 flex items-center justify-center flex-shrink-0 transition-all group cursor-pointer"
+                >
                   {form.image_url ? (
-                    <img src={form.image_url} alt={form.name || 'Preview'} className="w-full h-full object-contain" />
+                    <img
+                      src={form.image_url}
+                      alt={form.name || 'Product'}
+                      className="w-full h-full object-contain rounded-xl p-1 bg-white"
+                    />
                   ) : (
-                    <Package className="w-5 h-5 text-slate-300" />
+                    <Package className="w-6 h-6 text-slate-300 group-hover:text-blue-400 transition-colors" />
                   )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <label className="block text-[10px] font-semibold text-slate-600 mb-1">Product Image (Preset or Custom URL)</label>
-                  <select
-                    value={form.image_url || ''}
-                    onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">No Image (Default Icon)</option>
-                    {TOOL_LIBRARY.map((t) => (
-                      <option key={t.id} value={t.image}>
-                        {t.name} Photo
-                      </option>
-                    ))}
-                  </select>
+                  <span className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-blue-600 group-hover:bg-blue-700 text-white flex items-center justify-center shadow-sm ring-2 ring-white transition-colors">
+                    <Camera className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+                <div className="text-xs">
+                  <p className="font-semibold text-slate-800">Product Photo</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Click the camera icon to upload from your computer
+                  </p>
+                  {form.image_url && (
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, image_url: '' })}
+                      className="text-[11px] font-semibold text-rose-600 hover:underline mt-1"
+                    >
+                      Remove photo
+                    </button>
+                  )}
                 </div>
               </div>
 
