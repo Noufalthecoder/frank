@@ -165,6 +165,13 @@ function initSchema() {
   // Secondary indexes for the real access paths (all idempotent; see docs/PERFORMANCE.md).
   // scripts/bench-sql.sh extracts the block between the INDEXES markers, keep them intact.
   db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      role TEXT NOT NULL DEFAULT 'Staff',
+      active INTEGER NOT NULL DEFAULT 1
+    );
+
     CREATE TABLE IF NOT EXISTS invoice_returns (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       return_number TEXT NOT NULL UNIQUE,
@@ -201,6 +208,14 @@ function initSchema() {
     db.exec(`ALTER TABLE invoices ADD COLUMN returned_total REAL NOT NULL DEFAULT 0`);
   } catch (_) {
     // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE invoices ADD COLUMN cashier TEXT DEFAULT ''`);
+  } catch (_) {
+    // Column already exists
+  }
+  if (db.prepare('SELECT COUNT(*) c FROM users').get().c === 0) {
+    db.prepare("INSERT INTO users (name, role, active) VALUES ('Franklin', 'Admin', 1)").run();
   }
   try {
     db.exec(`ALTER TABLE items ADD COLUMN image_url TEXT DEFAULT ''`);
@@ -586,8 +601,8 @@ ipcMain.handle('createInvoice', (event, inv) => {
   const nowStr = formatLocalDateTime();
 
   const insert = db.prepare(`
-    INSERT INTO invoices (invoice_number, date_time, customer_name, customer_phone, subtotal, discount, total, payment_mode, items_count, items_json, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed')
+    INSERT INTO invoices (invoice_number, date_time, customer_name, customer_phone, subtotal, discount, total, payment_mode, items_count, items_json, cashier, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed')
   `);
 
   const res = insert.run(
@@ -600,7 +615,8 @@ ipcMain.handle('createInvoice', (event, inv) => {
     inv.total,
     inv.payment_mode || 'Cash',
     inv.items.length,
-    JSON.stringify(inv.items)
+    JSON.stringify(inv.items),
+    String(inv.cashier || '').slice(0, 60)
   );
 
   // Deduct stock for each item (using stock_deduction_qty in base unit for length/weight items)
@@ -666,6 +682,50 @@ ipcMain.handle('processReturn', (event, payload = {}) => {
 
 ipcMain.handle('getOutOfStockItems', () => {
   return db.prepare('SELECT * FROM items WHERE quantity <= 0 ORDER BY name ASC').all();
+});
+
+// IPC Handlers: Users (cashiers / staff)
+ipcMain.handle('getUsers', () =>
+  db.prepare('SELECT id, name, role, active FROM users ORDER BY active DESC, role ASC, name COLLATE NOCASE ASC').all()
+    .map((u) => ({ ...u, active: Boolean(u.active) })));
+
+ipcMain.handle('addUser', (event, u = {}) => {
+  const name = String(u.name || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+  const role = u.role === 'Admin' ? 'Admin' : 'Staff';
+  if (!name) return { success: false, error: 'Name is required.' };
+  try {
+    const res = db.prepare('INSERT INTO users (name, role, active) VALUES (?, ?, 1)').run(name, role);
+    return { success: true, id: Number(res.lastInsertRowid) };
+  } catch (err) {
+    return { success: false, error: /UNIQUE/.test(err.message) ? 'A user with this name already exists.' : err.message };
+  }
+});
+
+ipcMain.handle('updateUser', (event, u = {}) => {
+  const cur = db.prepare('SELECT * FROM users WHERE id = ?').get(u.id);
+  if (!cur) return { success: false, error: 'User not found.' };
+  const role = u.role === undefined ? cur.role : (u.role === 'Admin' ? 'Admin' : 'Staff');
+  const active = u.active === undefined ? cur.active : (u.active ? 1 : 0);
+  // Never lock the shop out: at least one active Admin must remain.
+  const adminsLeft = db.prepare("SELECT COUNT(*) c FROM users WHERE role = 'Admin' AND active = 1 AND id <> ?").get(u.id).c;
+  if (adminsLeft === 0 && !(role === 'Admin' && active === 1)) {
+    return { success: false, error: 'At least one active Admin is required.' };
+  }
+  try {
+    db.prepare('UPDATE users SET role = ?, active = ? WHERE id = ?').run(role, active, u.id);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('deleteUser', (event, id) => {
+  const cur = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  if (!cur) return { success: false, error: 'User not found.' };
+  const adminsLeft = db.prepare("SELECT COUNT(*) c FROM users WHERE role = 'Admin' AND active = 1 AND id <> ?").get(id).c;
+  if (adminsLeft === 0) return { success: false, error: 'At least one active Admin is required.' };
+  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  return { success: true };
 });
 
 // IPC Handlers: Procurement & Vendors

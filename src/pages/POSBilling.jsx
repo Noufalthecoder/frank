@@ -88,6 +88,21 @@ export default function POSBilling() {
   const [bills, setBills] = useState(initialDrafts.bills);
   const [activeBillId, setActiveBillId] = useState(initialDrafts.activeBillId);
   const [shopProfile, setShopProfile] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [cashierId, setCashierId] = useState(() => {
+    try { return localStorage.getItem('tsp_cashier') || ''; } catch { return ''; }
+  });
+  useEffect(() => {
+    const load = () => window.api?.getUsers?.().then((u) => setUsers((u || []).filter((x) => x.active)));
+    load();
+    window.addEventListener('users-updated', load);
+    return () => window.removeEventListener('users-updated', load);
+  }, []);
+  const cashier = users.find((u) => String(u.id) === String(cashierId)) || users[0] || null;
+  const pickCashier = (id) => {
+    setCashierId(id);
+    try { localStorage.setItem('tsp_cashier', id); } catch { /* ignore */ }
+  };
 
   // Search & Catalog
   const [searchQuery, setSearchQuery] = useState('');
@@ -513,6 +528,7 @@ export default function POSBilling() {
     const invoicePayload = {
       customer_name: activeBill.customerName || 'Walk-in Customer',
       customer_phone: activeBill.customerPhone || '',
+      cashier: cashier ? cashier.name : '',
       subtotal: itemSubtotal,
       discount: totalDiscount,
       total: roundedTotal,
@@ -1253,10 +1269,22 @@ export default function POSBilling() {
               </div>
             </div>
 
-            {/* Cashier / Attendant tag */}
-            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between text-[13px]">
-              <span className="text-slate-400">{t('po_cashier')}</span>
-              <span className="font-semibold text-slate-700">Franklin ({t('admin')})</span>
+            {/* Cashier: pick from the users set up in Settings */}
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between gap-3 text-[13px]">
+              <label htmlFor="pos-cashier" className="text-slate-400">{t('po_cashier')}</label>
+              <select
+                id="pos-cashier"
+                value={cashier ? String(cashier.id) : ''}
+                onChange={(e) => pickCashier(e.target.value)}
+                className="min-w-0 flex-1 text-right bg-transparent font-semibold text-slate-700 focus:outline-none cursor-pointer"
+              >
+                {users.length === 0 && <option value="">—</option>}
+                {users.map((u) => (
+                  <option key={u.id} value={String(u.id)}>
+                    {u.name} ({u.role === 'Admin' ? t('admin') : t('st_role_staff')})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

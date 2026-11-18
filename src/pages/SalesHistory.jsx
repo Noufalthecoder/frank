@@ -453,6 +453,12 @@ export default function SalesHistory() {
                   <p className="text-sm text-slate-500">{selectedInvoice.customer_phone}</p>
                 )}
               </div>
+              {selectedInvoice.cashier && (
+                <div>
+                  <p className="text-slate-400 text-sm">{t('po_cashier').replace(/:$/, '')}</p>
+                  <p className="font-semibold text-slate-800">{selectedInvoice.cashier}</p>
+                </div>
+              )}
               <div className="text-right">
                 <p className="text-slate-400 text-sm">{t('fi_payment_mode')}</p>
                 <p className="font-bold text-slate-800">{payLabel(selectedInvoice.payment_mode || 'Cash')}</p>

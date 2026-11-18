@@ -23,6 +23,7 @@ import {
   savePrintPreferences,
 } from '../lib/printConfig.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import UsersPanel from '../components/UsersPanel.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
 
 export default function Settings() {
@@ -406,29 +407,7 @@ export default function Settings() {
           )}
 
           {activeTab === 'Users & Roles' && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">{t('st_users_title')}</h2>
-              <div className="divide-y divide-slate-100 text-xs">
-                <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-slate-800">Franklin {t('st_you')}</p>
-                    <p className="text-slate-400">{profile.email || 'tspenterprises@gmail.com'}</p>
-                  </div>
-                  <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold rounded-full border border-blue-200">
-                    {t('st_role_admin')}
-                  </span>
-                </div>
-                <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-slate-800">{t('st_counter_staff')}</p>
-                    <p className="text-slate-400">{t('st_staff_access')}</p>
-                  </div>
-                  <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 font-semibold rounded-full border border-slate-200">
-                    {t('st_role_staff')}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <UsersPanel showAlert={showAlert} showConfirm={showConfirm} showToast={showToast} />
           )}
 
           {activeTab === 'Billing & Print' && (
