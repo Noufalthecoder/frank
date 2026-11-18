@@ -35,6 +35,7 @@ import {
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
+import { getBilingualSearchFields } from '../i18n/productTamil.js';
 import ExportMenu from '../components/ExportMenu.jsx';
 import OrdersButton from '../components/OrdersButton.jsx';
 import BinLocation, { LocateButton, LocationModal } from '../components/BinLocation.jsx';
@@ -213,14 +214,9 @@ export default function Catalog() {
     return matchCat && matchBrand && matchStatus;
   });
 
-  const filteredItems = fuzzyFilter(preFilteredItems, search, (i) => [
-    i.name,
-    tName(i.name),
-    i.size,
-    i.brand,
-    i.category,
-    i.sku,
-  ]);
+  const filteredItems = fuzzyFilter(preFilteredItems, search, (i) =>
+    getBilingualSearchFields(i)
+  );
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {

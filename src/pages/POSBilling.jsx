@@ -40,6 +40,7 @@ import {
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
+import { getBilingualSearchFields } from '../i18n/productTamil.js';
 
 const isItemAvailable = (item) =>
   Number(item.quantity) > 0 && item.status !== 'Unavailable' && item.status !== 'Inactive';
@@ -242,15 +243,7 @@ export default function POSBilling() {
     const matches = fuzzyFilter(
       allItems,
       val,
-      (item) => [
-        item.name,
-        tName(item.name),
-        item.size,
-        item.brand,
-        item.category,
-        item.bin_id,
-        item.sku,
-      ],
+      (item) => getBilingualSearchFields(item),
       10
     );
     setSearchResults(matches);
