@@ -25,6 +25,7 @@ import {
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
 import ExportMenu from '../components/ExportMenu.jsx';
+import { loadNetInvoices } from '../lib/returnMath.js';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -55,6 +56,7 @@ export default function Finance() {
 
   // Day closing state
   const todayStr = new Date().toISOString().split('T')[0];
+  const [returns, setReturns] = useState([]);
   const [openingCash, setOpeningCash] = useState('');
   const [countedCash, setCountedCash] = useState('');
   const [closingRemarks, setClosingRemarks] = useState('');
@@ -77,13 +79,14 @@ export default function Finance() {
 
   const loadAllFinanceData = async () => {
     if (!window.api) return;
-    const [invRes, expRes, itemRes, dcRes] = await Promise.all([
-      window.api.getInvoices ? window.api.getInvoices() : [],
+    const [netRes, expRes, itemRes, dcRes] = await Promise.all([
+      loadNetInvoices(),
       window.api.getExpenses ? window.api.getExpenses() : [],
       window.api.getItems ? window.api.getItems() : [],
       window.api.getDayClosings ? window.api.getDayClosings() : [],
     ]);
-    setInvoices(invRes || []);
+    setInvoices(netRes.invoices || []);
+    setReturns(netRes.returns || []);
     setExpenses(expRes || []);
     setItems(itemRes || []);
     setDayClosings(dcRes || []);
@@ -164,6 +167,10 @@ export default function Finance() {
   }, [dateRange, resetExpensePage]);
 
   const totalSales = activeInvoices.reduce((acc, inv) => acc + (Number(inv.total) || 0), 0);
+  // Refunds are already netted out of totalSales (by invoice); this is informational (by refund date)
+  const refundsInRange = returns
+    .filter((r) => inRange(r.date_time))
+    .reduce((a, r) => a + (Number(r.refund_amount) || 0), 0);
   const totalExpenses = filteredExpenses.reduce((acc, exp) => acc + (Number(exp.amount) || 0), 0);
   const netCashFlow = totalSales - totalExpenses;
 
@@ -286,7 +293,17 @@ export default function Finance() {
     )
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
-  const expectedCash = (parseFloat(openingCash) || 0) + cashSalesToday - cashExpensesToday;
+  // Cash handed back today for bills from an earlier day (same-day bills are already netted above)
+  const cashRefundsOlderToday = returns
+    .filter(
+      (r) =>
+        (r.payment_mode || 'Cash') === 'Cash' &&
+        String(r.date_time || '').startsWith(todayStr) &&
+        !String(r.invoice_date || '').startsWith(todayStr)
+    )
+    .reduce((sum, r) => sum + (Number(r.refund_amount) || 0), 0);
+
+  const expectedCash = (parseFloat(openingCash) || 0) + cashSalesToday - cashExpensesToday - cashRefundsOlderToday;
   const difference = (parseFloat(countedCash) || 0) - expectedCash;
 
   const handleRecordClosing = async () => {
@@ -379,6 +396,11 @@ export default function Finance() {
                 <p className="text-xl font-bold text-slate-900">
                   ₹ {Math.round(totalSales).toLocaleString('en-IN')}
                 </p>
+                {refundsInRange > 0 && (
+                  <p className="text-xs font-medium text-amber-600">
+                    {t('rt_net_of_refunds', { amount: Math.round(refundsInRange).toLocaleString('en-IN') })}
+                  </p>
+                )}
               </div>
             </div>
 

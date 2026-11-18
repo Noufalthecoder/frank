@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import fs from 'node:fs'
+import { planReturn, parseReturnLines, r2 } from '../src/lib/returnMath.js'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -164,11 +165,28 @@ function initSchema() {
   // Secondary indexes for the real access paths (all idempotent; see docs/PERFORMANCE.md).
   // scripts/bench-sql.sh extracts the block between the INDEXES markers, keep them intact.
   db.exec(`
+    CREATE TABLE IF NOT EXISTS invoice_returns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      return_number TEXT NOT NULL UNIQUE,
+      invoice_id INTEGER NOT NULL,
+      invoice_number TEXT NOT NULL,
+      invoice_date TEXT,
+      payment_mode TEXT,
+      date_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+      reason TEXT,
+      note TEXT,
+      restocked INTEGER NOT NULL DEFAULT 1,
+      refund_amount REAL NOT NULL,
+      items_json TEXT NOT NULL
+    );
+
     -- INDEXES-BEGIN
     CREATE INDEX IF NOT EXISTS idx_items_upper_sku ON items(UPPER(sku));
     CREATE INDEX IF NOT EXISTS idx_items_upper_bin ON items(UPPER(bin_id));
     CREATE INDEX IF NOT EXISTS idx_rack_bins_rack ON rack_bins(rack_code, level_no, slot_no);
     CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date_time);
+    CREATE INDEX IF NOT EXISTS idx_returns_invoice ON invoice_returns(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_returns_date ON invoice_returns(date_time);
     CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date, id);
     -- INDEXES-END
   `);
@@ -176,6 +194,11 @@ function initSchema() {
   // Safe schema migrations for existing DBs
   try {
     db.exec(`ALTER TABLE invoices ADD COLUMN status TEXT NOT NULL DEFAULT 'Completed'`);
+  } catch (_) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE invoices ADD COLUMN returned_total REAL NOT NULL DEFAULT 0`);
   } catch (_) {
     // Column already exists
   }
@@ -552,7 +575,7 @@ ipcMain.handle('getInvoicesPage', (event, opts = {}) => {
   const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
   const r = runPage({
     table: 'invoices', where, params, order: 'id DESC', size, page,
-    aggSql: "COALESCE(SUM(CASE WHEN status <> 'Returned' THEN total END), 0) AS sumTotal",
+    aggSql: "COALESCE(SUM(CASE WHEN status <> 'Returned' THEN total - returned_total END), 0) AS sumTotal",
   });
   return { rows: r.rows, total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages, sumTotal: r.agg.sumTotal };
 });
@@ -597,23 +620,45 @@ ipcMain.handle('createInvoice', (event, inv) => {
   return { success: true, id: Number(res.lastInsertRowid), invoice_number: invNumber, zeroStockAlerts };
 });
 
-ipcMain.handle('returnInvoice', (event, id) => {
+const rowToReturn = (r) => ({ ...r, lines: parseReturnLines(r), restocked: Boolean(r.restocked) });
+
+ipcMain.handle('getInvoiceReturns', (event, invoiceId) =>
+  db.prepare('SELECT * FROM invoice_returns WHERE invoice_id = ? ORDER BY id DESC').all(invoiceId).map(rowToReturn));
+
+ipcMain.handle('getReturns', () =>
+  db.prepare('SELECT * FROM invoice_returns ORDER BY id DESC').all().map(rowToReturn));
+
+// Full or partial sales return: refunds money, optionally puts stock back, keeps an audit trail.
+ipcMain.handle('processReturn', (event, payload = {}) => {
   try {
-    const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(id);
+    const { invoiceId, lines: req, reason = 'other', note = '', restock = true } = payload || {};
+    const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId);
     if (!inv) return { success: false, error: 'Invoice not found.' };
     if (inv.status === 'Returned') return { success: false, error: 'Invoice was already returned.' };
 
-    const items = JSON.parse(inv.items_json || '[]');
-    const restock = db.prepare('UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ? OR id = ?');
+    const prior = db.prepare('SELECT * FROM invoice_returns WHERE invoice_id = ?').all(invoiceId).map(rowToReturn);
+    const plan = planReturn(inv, prior, req);
+    if (plan.error) return { success: false, error: plan.error };
+
+    const addStock = db.prepare('UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ? OR id = ?');
+    let returnNumber = '';
     const tx = db.transaction(() => {
-      items.forEach(item => {
-        const addBack = Number(item.stock_deduction_qty ?? item.quantity ?? 0);
-        restock.run(addBack, item.sku || '', item.id || 0);
-      });
-      db.prepare(`UPDATE invoices SET status = 'Returned' WHERE id = ?`).run(id);
+      const ins = db.prepare(`INSERT INTO invoice_returns
+        (return_number, invoice_id, invoice_number, invoice_date, payment_mode, date_time, reason, note, restocked, refund_amount, items_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        `TMP-${Date.now()}`, inv.id, inv.invoice_number, inv.date_time, inv.payment_mode, formatLocalDateTime(),
+        String(reason), String(note || '').slice(0, 300), restock ? 1 : 0, plan.refund, JSON.stringify(plan.lines));
+      returnNumber = `RET-${String(Number(ins.lastInsertRowid)).padStart(5, '0')}`;
+      db.prepare('UPDATE invoice_returns SET return_number = ? WHERE id = ?').run(returnNumber, ins.lastInsertRowid);
+      if (restock) plan.lines.forEach((l) => addStock.run(l.stockQty, l.sku || '', l.id || 0));
+      db.prepare('UPDATE invoices SET returned_total = ROUND(returned_total + ?, 2), status = ? WHERE id = ?')
+        .run(plan.refund, plan.fullyReturned ? 'Returned' : 'Partially Returned', inv.id);
     });
     tx();
-    return { success: true, restockedCount: items.length };
+    return {
+      success: true, return_number: returnNumber, refund: plan.refund, fullyReturned: plan.fullyReturned,
+      restockedUnits: restock ? plan.lines.length : 0, status: plan.fullyReturned ? 'Returned' : 'Partially Returned',
+    };
   } catch (err) {
     return { success: false, error: err.message || 'Return failed.' };
   }

@@ -16,6 +16,8 @@ import { formatQty, isMeasurableUnit } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import ExportMenu from '../components/ExportMenu.jsx';
 import Pagination, { usePagination } from '../components/Pagination.jsx';
+import ReturnPanel from '../components/ReturnPanel.jsx';
+import { returnedQtyByLine, parseReturnLines } from '../lib/returnMath.js';
 
 const PAGE_SIZES = [10, 12, 25, 50, 100];
 
@@ -36,7 +38,13 @@ export default function SalesHistory() {
     const k = { Cash: 'pos_cash', UPI: 'pos_upi', Card: 'pos_card', Bank: 'fi_pay_bank' }[m];
     return k ? t(k) : m;
   };
-  const statusLabel = (s) => (s === 'Returned' ? t('hist_returned') : s === 'Completed' ? t('hist_completed') : s);
+  const statusLabel = (s) => (s === 'Returned' ? t('hist_returned') : s === 'Partially Returned' ? t('hist_partial') : s === 'Completed' ? t('hist_completed') : s);
+  const statusClass = (s) =>
+    s === 'Returned'
+      ? 'bg-rose-50 text-rose-700 border-rose-200'
+      : s === 'Partially Returned'
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-emerald-50 text-emerald-700 border-emerald-200';
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [sumTotal, setSumTotal] = useState(0);
@@ -48,6 +56,16 @@ export default function SalesHistory() {
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState('All Time');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [returnMode, setReturnMode] = useState(false);
+  const [invReturns, setInvReturns] = useState([]);
+  const loadInvReturns = async (id) => {
+    if (!(window.api && window.api.getInvoiceReturns) || !id) { setInvReturns([]); return; }
+    setInvReturns((await window.api.getInvoiceReturns(id)) || []);
+  };
+  useEffect(() => {
+    setReturnMode(false);
+    loadInvReturns(selectedInvoice?.id);
+  }, [selectedInvoice?.id]);
   useEffect(() => {
     if (!selectedInvoice) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') setSelectedInvoice(null); };
@@ -106,21 +124,21 @@ export default function SalesHistory() {
 
   const loadInvoices = async () => setRefreshTick((n) => n + 1);
 
-  const handleReturn = async (inv) => {
-    const ok = await showConfirm({
-      title: t('hist_return'),
-      message: t('hist_return_confirm', { n: inv.invoice_number }),
-      confirmLabel: t('hist_return'),
-      tone: 'danger',
+  const handleReturnDone = async (res) => {
+    const inv = selectedInvoice;
+    const amount = Number(res.refund).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    showToast(
+      res.fullyReturned
+        ? t('rt_done_full', { inv: inv.invoice_number, ret: res.return_number, amount })
+        : t('rt_done', { ret: res.return_number, amount })
+    );
+    setReturnMode(false);
+    setSelectedInvoice({
+      ...inv,
+      status: res.status,
+      returned_total: Number(inv.returned_total || 0) + Number(res.refund),
     });
-    if (!ok) return;
-    const res = window.api && window.api.returnInvoice ? await window.api.returnInvoice(inv.id) : null;
-    if (!res || res.success === false) {
-      showToast((res && res.error) || 'Return failed.');
-      return;
-    }
-    showToast(t('hist_return_done', { n: inv.invoice_number }));
-    setSelectedInvoice({ ...inv, status: 'Returned' });
+    await loadInvReturns(inv.id);
     await loadInvoices();
     window.dispatchEvent(new CustomEvent('stock-updated'));
   };
@@ -129,6 +147,8 @@ export default function SalesHistory() {
     setToast(msg);
     setTimeout(() => setToast(''), 2000);
   };
+
+  const returnedByLine = returnedQtyByLine(invReturns);
 
   const parseItems = (inv) => {
     if (!inv) return [];
@@ -337,18 +357,15 @@ export default function SalesHistory() {
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[12px] font-bold border ${
-                        isReturned
-                          ? 'bg-rose-50 text-rose-700 border-rose-200'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      }`}
-                    >
-                      {isReturned ? t('hist_returned') : t('hist_completed')}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${statusClass(inv.status)}`}>
+                      {statusLabel(inv.status || 'Completed')}
                     </span>
                   </td>
                   <td className={`py-3 px-4 text-right font-bold ${isReturned ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                     ₹ {Number(inv.total).toFixed(2)}
+                    {Number(inv.returned_total) > 0 && !isReturned && (
+                      <span className="block text-[11px] font-medium text-amber-600">– ₹ {Number(inv.returned_total).toFixed(2)}</span>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-1.5 text-slate-400">
@@ -396,7 +413,7 @@ export default function SalesHistory() {
             role="dialog"
             aria-label={selectedInvoice.invoice_number}
             onClick={(e) => e.stopPropagation()}
-            className="animate-drawer bg-white h-full w-full max-w-[560px] shadow-2xl border-l border-slate-200 flex flex-col p-7 gap-5 overflow-y-auto"
+            className={`animate-drawer bg-white h-full w-full ${returnMode ? 'max-w-[760px]' : 'max-w-[560px]'} shadow-2xl border-l border-slate-200 flex flex-col p-7 gap-5 overflow-y-auto transition-[max-width] duration-200`}
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
@@ -404,13 +421,7 @@ export default function SalesHistory() {
                   <h3 className="text-xl font-bold text-slate-900 font-mono">
                     {selectedInvoice.invoice_number}
                   </h3>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
-                      selectedInvoice.status === 'Returned'
-                        ? 'bg-rose-50 text-rose-700 border-rose-200'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    }`}
-                  >
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${statusClass(selectedInvoice.status)}`}>
                     {statusLabel(selectedInvoice.status || 'Completed')}
                   </span>
                 </div>
@@ -424,6 +435,16 @@ export default function SalesHistory() {
               </button>
             </div>
 
+            {returnMode ? (
+              <ReturnPanel
+                invoice={selectedInvoice}
+                returns={invReturns}
+                payLabel={payLabel}
+                onBack={() => setReturnMode(false)}
+                onDone={handleReturnDone}
+              />
+            ) : (
+              <>
             <div className="grid grid-cols-2 gap-3 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
               <div>
                 <p className="text-slate-400 text-sm">{t('fi_customer')}</p>
@@ -469,6 +490,11 @@ export default function SalesHistory() {
                           </td>
                           <td className="py-2 px-2 text-center font-medium text-slate-700 whitespace-nowrap">
                             {formatQty(qtyVal)}{unitSuffix}
+                            {returnedByLine[idx] > 0 && (
+                              <span className="block text-xs font-semibold text-amber-600">
+                                {t('rt_col_returned')} {formatQty(returnedByLine[idx])}
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 px-2 text-right text-slate-600 whitespace-nowrap">
                             ₹ {Number(item.rate || 0).toFixed(2)}{rateSuffix}
@@ -493,11 +519,46 @@ export default function SalesHistory() {
                 <span>{t('fi_discount')}</span>
                 <span className="font-medium text-emerald-600">– ₹ {Number(selectedInvoice.discount || 0).toFixed(2)}</span>
               </div>
+              {Number(selectedInvoice.returned_total) > 0 && (
+                <div className="flex justify-between text-slate-500">
+                  <span>{t('rt_refunded_label')}</span>
+                  <span className="font-medium text-rose-600">– ₹ {Number(selectedInvoice.returned_total).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between py-2 border-t border-slate-100 font-bold text-sm text-slate-900">
                 <span>{t('fi_grand_total')}</span>
                 <span className="text-blue-600 font-black">₹ {Number(selectedInvoice.total).toFixed(2)}</span>
               </div>
             </div>
+
+            {invReturns.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t('rt_history')}</p>
+                {invReturns.map((r) => (
+                  <div key={r.id} className="rounded-lg border border-slate-200 p-3 text-sm space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-semibold text-slate-800">{r.return_number}</span>
+                      <span className="font-bold text-rose-700 tabular-nums">– ₹ {Number(r.refund_amount).toFixed(2)}</span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {r.date_time} · {t(`rt_reason_${r.reason}`) || r.reason} ·{' '}
+                      <span className={r.restocked ? 'text-emerald-600' : 'text-slate-500'}>
+                        {r.restocked ? t('rt_restocked') : t('rt_not_restocked')}
+                      </span>
+                    </p>
+                    <ul className="text-xs text-slate-600 space-y-0.5">
+                      {parseReturnLines(r).map((l, i) => (
+                        <li key={i} className="flex justify-between">
+                          <span>{tName(l.name)}</span>
+                          <span className="tabular-nums">{formatQty(l.qty)} {l.unit}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {r.note && <p className="text-xs italic text-slate-400">“{r.note}”</p>}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-2 pt-4 mt-auto sticky bottom-0 bg-white border-t border-slate-100">
               {printPrefs.allowHistoryReprint !== false && (
@@ -511,7 +572,7 @@ export default function SalesHistory() {
               )}
               {selectedInvoice.status !== 'Returned' && (
                 <button
-                  onClick={() => handleReturn(selectedInvoice)}
+                  onClick={() => setReturnMode(true)}
                   className="flex items-center gap-1.5 px-3 py-2.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-sm font-semibold hover:bg-rose-100"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -525,6 +586,8 @@ export default function SalesHistory() {
                 {t('hist_close')}
               </button>
             </div>
+              </>
+            )}
           </aside>
         </div>
       )}

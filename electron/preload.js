@@ -46,7 +46,9 @@ contextBridge.exposeInMainWorld('api', {
   getInvoices: () => ipcRenderer.invoke('getInvoices'),
   getInvoicesPage: (opts) => ipcRenderer.invoke('getInvoicesPage', opts),
   createInvoice: (inv) => ipcRenderer.invoke('createInvoice', inv),
-  returnInvoice: (id) => ipcRenderer.invoke('returnInvoice', id),
+  processReturn: (payload) => ipcRenderer.invoke('processReturn', payload),
+  getInvoiceReturns: (invoiceId) => ipcRenderer.invoke('getInvoiceReturns', invoiceId),
+  getReturns: () => ipcRenderer.invoke('getReturns'),
 
   // Vendors & Purchase Orders
   getPurchaseOrders: () => ipcRenderer.invoke('getPurchaseOrders'),
