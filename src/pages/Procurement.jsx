@@ -258,8 +258,8 @@ export default function Procurement() {
     <div className="space-y-5">
       {/* Floating Top-Right Toast Notification (2s) */}
       {toast && (
-        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-white text-slate-800 border border-slate-200/90 shadow-xl shadow-slate-900/10 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           <span>{toast}</span>
         </div>
       )}

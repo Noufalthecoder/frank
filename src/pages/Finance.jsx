@@ -214,6 +214,18 @@ export default function Finance() {
         align: 'end',
         labels: { boxWidth: 10, font: { size: 11 }, color: '#64748b' },
       },
+      tooltip: {
+        backgroundColor: '#ffffff',
+        titleColor: '#0f172a',
+        bodyColor: '#334155',
+        borderColor: '#cbd5e1',
+        borderWidth: 1,
+        padding: 10,
+        cornerRadius: 10,
+        boxPadding: 6,
+        titleFont: { size: 12, weight: '700' },
+        bodyFont: { size: 12, weight: '600' },
+      },
     },
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b' } },
@@ -289,8 +301,8 @@ export default function Finance() {
     <div className="space-y-5">
       {/* Floating Top-Right Toast (2s) */}
       {toast && (
-        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-white text-slate-800 border border-slate-200/90 shadow-xl shadow-slate-900/10 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           <span>{toast}</span>
         </div>
       )}

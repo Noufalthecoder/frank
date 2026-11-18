@@ -164,9 +164,11 @@ export default function Dashboard() {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#0f172a',
-        titleColor: '#94a3b8',
-        bodyColor: '#ffffff',
+        backgroundColor: '#ffffff',
+        titleColor: '#64748b',
+        bodyColor: '#0f172a',
+        borderColor: '#e2e8f0',
+        borderWidth: 1,
         titleFont: { size: 11, weight: '600' },
         bodyFont: { size: 13, weight: '700' },
         padding: 10,
@@ -235,9 +237,11 @@ export default function Dashboard() {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#0f172a',
-        titleColor: '#f8fafc',
-        bodyColor: '#e2e8f0',
+        backgroundColor: '#ffffff',
+        titleColor: '#0f172a',
+        bodyColor: '#334155',
+        borderColor: '#cbd5e1',
+        borderWidth: 1,
         padding: 10,
         cornerRadius: 10,
         boxPadding: 6,
