@@ -13,6 +13,7 @@ import {
 
 import { useAppDialog } from '../components/AppDialogContext.jsx';
 import BinPicker from '../components/BinPicker.jsx';
+import Rack3D from '../components/Rack3D.jsx';
 
 export default function Racks({ embedded = false }) {
   const { showConfirm, showAlert } = useAppDialog();
@@ -24,6 +25,7 @@ export default function Racks({ embedded = false }) {
   const [editRack, setEditRack] = useState(null);
   const [editError, setEditError] = useState('');
   const [pickItemId, setPickItemId] = useState('');
+  const [viewMode, setViewMode] = useState('3d');
   const [formError, setFormError] = useState('');
 
   const [newRack, setNewRack] = useState({
@@ -297,7 +299,37 @@ export default function Racks({ embedded = false }) {
                 </div>
               </div>
 
+              {/* View toggle */}
+              <div className="flex items-center justify-end -mt-2">
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+                  {[['3d', '3D View'], ['grid', 'Grid']].map(([k, label]) => (
+                    <button
+                      key={k}
+                      onClick={() => setViewMode(k)}
+                      className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${
+                        viewMode === k ? 'bg-white text-blue-600 shadow-xs ring-1 ring-slate-200/60' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {viewMode === '3d' && (
+                <Rack3D
+                  key={currentRack.code + currentRack.levels + 'x' + currentRack.slots_per_level}
+                  rack={currentRack}
+                  itemsById={Object.fromEntries(allItems.map((i) => [i.id, i]))}
+                  onBinClick={(bin) => {
+                    setPickItemId('');
+                    setSelectedBinCode(bin.bin_code);
+                  }}
+                />
+              )}
+
               {/* Levels Grid */}
+              {viewMode === 'grid' && (
               <div className="space-y-4">
                 {Object.keys(levelsMap).sort().map((levelKey) => {
                   const bins = levelsMap[levelKey] || [];
@@ -339,6 +371,7 @@ export default function Racks({ embedded = false }) {
                   );
                 })}
               </div>
+              )}
             </>
           ) : (
             <div className="py-12 text-center text-xs text-slate-400">
