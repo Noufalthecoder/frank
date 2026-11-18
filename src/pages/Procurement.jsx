@@ -893,9 +893,9 @@ export default function Procurement() {
 
       {showNewPoModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="animate-modal bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-xl max-h-[92vh] overflow-visible p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
+          <div className="animate-modal bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-visible p-6 gap-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
+              <h3 className="text-lg font-bold text-slate-900">
                 {editingPo ? t('pr_edit_po') : t('pr_create_po')}
               </h3>
               <button
@@ -911,7 +911,9 @@ export default function Procurement() {
               </button>
             </div>
 
-            <form onSubmit={handleCreatePo} className="space-y-3.5">
+            <form onSubmit={handleCreatePo} className="flex-1 min-h-0 flex flex-col gap-4">
+              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-5">
+              <section className="lg:col-span-2 min-h-0 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_vendor_req_lbl')}</label>
@@ -940,6 +942,19 @@ export default function Procurement() {
                   />
                 </div>
               </div>
+
+
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_status_req')}</label>
+                  <select
+                    value={poForm.status}
+                    onChange={(e) => setPoForm({ ...poForm, status: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Request">{t('pr_st_request')}</option>
+                    <option value="Received">{t('pr_st_received')}</option>
+                  </select>
+                </div>
 
               {/* Itemized Restock Builder */}
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2.5">
@@ -1042,7 +1057,7 @@ export default function Procurement() {
                 )}
 
                 <div className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-6 relative" ref={productPickerRef}>
+                  <div className="col-span-12 relative" ref={productPickerRef}>
                     <label className="block text-[12px] font-semibold text-slate-500 mb-0.5">
                       {t('pr_product')}
                     </label>
@@ -1147,7 +1162,7 @@ export default function Procurement() {
                       </div>
                     )}
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-4">
                     <label className="block text-[12px] font-semibold text-slate-500 mb-0.5">{t('pr_qty')}</label>
                     <input
                       type="number"
@@ -1159,7 +1174,7 @@ export default function Procurement() {
                       className="no-spinner w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-4">
                     <label className="block text-[12px] font-semibold text-slate-500 mb-0.5">{t('pr_cost_rate')}</label>
                     <input
                       type="number"
@@ -1173,34 +1188,52 @@ export default function Procurement() {
                   <button
                     type="button"
                     onClick={addLineToPo}
-                    className="col-span-2 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
+                    className="col-span-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
                   >
                     {t('pr_add')}
                   </button>
                 </div>
-
-                {poForm.items.length > 0 && (
-                  <div className="divide-y divide-slate-200 max-h-36 overflow-y-auto pt-1">
-                    {poForm.items.map((l, idx) => (
-                      <div key={idx} className="py-1.5 flex items-center justify-between text-[13px]">
-                        <span className="font-medium text-slate-700">
-                          {l.name} ({formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')} × ₹{l.rate})
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">
-                            ₹ {(Number(l.quantity) * Number(l.rate)).toFixed(2)}
-                          </span>
-                          <button type="button" onClick={() => removeLineFromPo(idx)} className="text-rose-500 hover:text-rose-700">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              </section>
+              <section className="lg:col-span-3 min-h-0 flex flex-col rounded-xl border border-slate-200 overflow-hidden bg-white">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+                  <p className="text-sm font-bold text-slate-800">{t('pr_order_items')}</p>
+                  <span className="text-xs font-semibold text-slate-500 tabular-nums">{poForm.items.length}</span>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="sticky top-0 bg-white z-10">
+                      <tr className="text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                        <th className="py-2.5 px-3 text-left w-10">#</th>
+                        <th className="py-2.5 px-3 text-left">{t('pr_product')}</th>
+                        <th className="py-2.5 px-3 text-right">{t('pr_qty')}</th>
+                        <th className="py-2.5 px-3 text-right">{t('pr_cost_rate')}</th>
+                        <th className="py-2.5 px-3 text-right">{t('pr_total_amount_req').replace(/\s*\*$/, '')}</th>
+                        <th className="w-10" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                    {poForm.items.map((l, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/70">
+                        <td className="py-2.5 px-3 text-slate-400 tabular-nums">{idx + 1}</td>
+                        <td className="py-2.5 px-3 font-medium text-slate-800">{l.name}</td>
+                        <td className="py-2.5 px-3 text-right tabular-nums">{formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')}</td>
+                        <td className="py-2.5 px-3 text-right tabular-nums">₹ {l.rate}</td>
+                        <td className="py-2.5 px-3 text-right font-semibold text-slate-900 tabular-nums">₹ {(Number(l.quantity) * Number(l.rate)).toFixed(2)}</td>
+                        <td className="py-2.5 px-2 text-right">
+                          <button type="button" onClick={() => removeLineFromPo(idx)} className="p-1 text-rose-500 hover:text-rose-700 rounded" aria-label="Remove">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    </tbody>
+                  </table>
+                  {poForm.items.length === 0 && (
+                    <p className="py-16 text-center text-sm text-slate-400">{t('pr_order_items')} — 0</p>
+                  )}
+                </div>
+                <div className="p-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_total_amount_req')}</label>
                   <input
@@ -1214,20 +1247,11 @@ export default function Procurement() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_status_req')}</label>
-                  <select
-                    value={poForm.status}
-                    onChange={(e) => setPoForm({ ...poForm, status: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Request">{t('pr_st_request')}</option>
-                    <option value="Received">{t('pr_st_received')}</option>
-                  </select>
                 </div>
+              </section>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => {
