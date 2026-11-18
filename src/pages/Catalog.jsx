@@ -15,7 +15,11 @@ import {
   CheckCircle2,
   Wrench,
   Camera,
-  ArrowLeft
+  ArrowLeft,
+  Square,
+  LayoutGrid,
+  Grid3X3,
+  List
 } from 'lucide-react';
 import ToolLibraryPicker from '../components/ToolLibraryPicker.jsx';
 import { TOOL_LIBRARY } from '../data/toolLibrary.js';
@@ -27,7 +31,13 @@ import {
   formatQty,
 } from '../lib/units.js';
 
-const PAGE_SIZE = 15;
+const VIEW_MODES = [
+  { id: 'large', label: 'Large Icons', icon: Square, pageSize: 12 },
+  { id: 'medium', label: 'Medium Icons', icon: LayoutGrid, pageSize: 15 },
+  { id: 'small', label: 'Small Icons', icon: Grid3X3, pageSize: 24 },
+  { id: 'detail', label: 'Row / Detail View', icon: List, pageSize: 15 },
+];
+const VIEW_STORAGE_KEY = 'tsp_catalog_view_mode';
 
 const EMPTY_FORM = {
   sku: '',
@@ -58,7 +68,22 @@ export default function Catalog() {
   const [editingItem, setEditingItem] = useState(null);
   const [formError, setFormError] = useState('');
   const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_STORAGE_KEY);
+      if (saved && VIEW_MODES.some((v) => v.id === saved)) return saved;
+    } catch (_) {}
+    return 'detail';
+  });
   const [toast, setToast] = useState('');
+
+  const handleChangeViewMode = (mode) => {
+    setViewMode(mode);
+    setPage(1);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, mode);
+    } catch (_) {}
+  };
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
@@ -432,9 +457,24 @@ export default function Catalog() {
   const uniqueCategories = Array.from(new Set(['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others', ...items.map((i) => i.category).filter(Boolean)]));
   const uniqueBrands = Array.from(new Set(items.map((i) => i.brand).filter(Boolean))).sort();
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const pageSize = (VIEW_MODES.find((v) => v.id === viewMode) || VIEW_MODES[3]).pageSize;
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const paginatedItems = filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const paginatedItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const getStockBadgeClass = (item) =>
+    Number(item.quantity) <= 0
+      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+      : Number(item.quantity) <= (item.reorder_level || 20)
+      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+      : 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+
+  const getUnitBadgeClass = (unit) => {
+    const grp = getUnitGroup(unit);
+    if (grp === 'length') return 'bg-sky-50 text-sky-700 border border-sky-200';
+    if (grp === 'weight') return 'bg-violet-50 text-violet-700 border border-violet-200';
+    return 'bg-slate-100 text-slate-600 border border-slate-200';
+  };
 
   return (
     <div className="space-y-5">
@@ -549,11 +589,44 @@ export default function Catalog() {
             <option value="All">Status: All</option>
             <option value="Inactive">Status: Inactive</option>
           </select>
+
+          {/* View Switcher: Large, Medium, Small Icons & Row/Detail View */}
+          <div
+            className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200"
+            role="group"
+            aria-label="Catalog view mode"
+          >
+            {VIEW_MODES.map(({ id, label, icon: Icon }) => {
+              const active = viewMode === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => handleChangeViewMode(id)}
+                  title={label}
+                  aria-label={label}
+                  aria-pressed={active}
+                  className={`p-1.5 rounded-md transition-all ${
+                    active
+                      ? 'bg-white text-blue-600 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Product Table */}
+      {/* Product Listing Container */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        {paginatedItems.length === 0 ? (
+          <div className="py-12 text-center text-xs text-slate-400">
+            No products found matching your search.
+          </div>
+        ) : viewMode === 'detail' ? (
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -640,15 +713,7 @@ export default function Catalog() {
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    <span
-                      className={`inline-flex px-2 py-0.5 rounded-full font-semibold text-[11px] ${
-                        Number(item.quantity) <= 0
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                          : Number(item.quantity) <= (item.reorder_level || 20)
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}
-                    >
+                    <span className={`inline-flex px-2 py-0.5 rounded-full font-semibold text-[11px] ${getStockBadgeClass(item)}`}>
                       {formatQty(item.quantity)}{isMeasurableUnit(item.unit) ? ` ${normalizeUnit(item.unit)}` : ''}
                     </span>
                   </td>
@@ -673,21 +738,205 @@ export default function Catalog() {
                 </tr>
               );
             })}
-            {paginatedItems.length === 0 && (
-              <tr>
-                <td colSpan={8} className="py-8 text-center text-xs text-slate-400">
-                  No products found matching your search.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
+        ) : viewMode === 'large' ? (
+          /* Large Icons Grid */
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {paginatedItems.map((item) => {
+              const u = normalizeUnit(item.unit);
+              const measurable = isMeasurableUnit(u);
+              return (
+                <div
+                  key={item.id}
+                  className="group bg-white border border-slate-200 hover:border-blue-400 rounded-xl overflow-hidden flex flex-col justify-between transition-all hover:shadow-md"
+                >
+                  {/* Large Image Stage */}
+                  <div className="relative h-40 bg-slate-50/70 border-b border-slate-100 flex items-center justify-center p-4">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
+                      />
+                    ) : (
+                      <Package className="w-12 h-12 text-slate-300" />
+                    )}
+                    <span className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded text-[10px] font-bold ${getUnitBadgeClass(u)}`}>
+                      {u}
+                    </span>
+                    <span className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStockBadgeClass(item)}`}>
+                      {formatQty(item.quantity)} {u}
+                    </span>
+                  </div>
 
-        {/* Table Footer with Real Pagination */}
+                  {/* Card Details */}
+                  <div className="p-3.5 flex-1 flex flex-col justify-between gap-2.5">
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">
+                        {item.name}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-1 truncate">
+                        <span className="font-mono text-slate-500">{item.sku}</span>
+                        {item.size ? ` · ${item.size}` : ''}
+                      </p>
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                        {item.category}{item.brand ? ` · ${item.brand}` : ''} ·{' '}
+                        <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
+                      </p>
+                    </div>
+
+                    <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-sm font-black text-slate-900">
+                        ₹ {Number(item.selling_price).toFixed(2)}
+                        {measurable && (
+                          <span className="text-[10px] font-medium text-slate-400"> / {u}</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-1 text-slate-400">
+                        <button
+                          onClick={() => openEdit(item)}
+                          className="p-1.5 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit Item"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="p-1.5 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Delete Item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : viewMode === 'medium' ? (
+          /* Medium Icons Grid */
+          <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {paginatedItems.map((item) => {
+              const u = normalizeUnit(item.unit);
+              const measurable = isMeasurableUnit(u);
+              return (
+                <div
+                  key={item.id}
+                  className="group bg-white border border-slate-200 hover:border-blue-400 rounded-xl overflow-hidden flex flex-col justify-between transition-all hover:shadow-sm"
+                >
+                  <div className="relative h-28 bg-slate-50/70 border-b border-slate-100 flex items-center justify-center p-3">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
+                      />
+                    ) : (
+                      <Package className="w-9 h-9 text-slate-300" />
+                    )}
+                    <span className={`absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${getStockBadgeClass(item)}`}>
+                      {formatQty(item.quantity)}{measurable ? ` ${u}` : ''}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 flex-1 flex flex-col justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 leading-tight line-clamp-2">
+                        {item.name}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">
+                        {item.sku}{item.size ? ` · ${item.size}` : ''}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
+                      <span className="text-xs font-black text-slate-900 truncate">
+                        ₹ {Number(item.selling_price).toFixed(2)}
+                        {measurable && (
+                          <span className="text-[10px] font-medium text-slate-400">/{u}</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-0.5 text-slate-400 flex-shrink-0">
+                        <button
+                          onClick={() => openEdit(item)}
+                          className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Edit Item"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="p-1 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                          title="Delete Item"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* Small Icons Grid */
+          <div className="p-3.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
+            {paginatedItems.map((item) => {
+              const u = normalizeUnit(item.unit);
+              const measurable = isMeasurableUnit(u);
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => openEdit(item)}
+                  className="group bg-white border border-slate-200 hover:border-blue-400 rounded-lg p-2.5 flex flex-col items-center text-center gap-1.5 cursor-pointer transition-all hover:shadow-xs relative"
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(item.id);
+                    }}
+                    title="Delete Item"
+                    className="opacity-0 group-hover:opacity-100 absolute top-1.5 right-1.5 p-1 rounded bg-white/90 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                  <div className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center p-1.5 flex-shrink-0">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <Package className="w-5 h-5 text-slate-300" />
+                    )}
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-900 leading-tight line-clamp-2 w-full">
+                    {item.name}
+                  </p>
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap mt-auto pt-0.5">
+                    <span className="text-[11px] font-bold text-slate-800">
+                      ₹{Number(item.selling_price).toFixed(0)}
+                      {measurable ? `/${u}` : ''}
+                    </span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${getStockBadgeClass(item)}`}>
+                      {formatQty(item.quantity)}{measurable ? u : ''}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Footer with Real Pagination */}
         <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-medium">
           <span>
-            Showing {filteredItems.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1} –{' '}
-            {Math.min(currentPage * PAGE_SIZE, filteredItems.length)} of {filteredItems.length} items
+            Showing {filteredItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} –{' '}
+            {Math.min(currentPage * pageSize, filteredItems.length)} of {filteredItems.length} items
           </span>
 
           <div className="flex items-center gap-1">
