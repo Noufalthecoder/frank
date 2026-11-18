@@ -736,9 +736,9 @@ export default function POSBilling() {
       </div>
 
       {/* Main Split Layout: Left Cart & Search (2 cols) | Right Summary (1 col) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-5 items-start">
         {/* Left Column: Search & Cart Table */}
-        <div className="lg:col-span-2 space-y-3">
+        <div className="space-y-3 min-w-0">
           {/* Product Search Bar */}
           <div className="relative">
             <div className="relative flex items-center">
