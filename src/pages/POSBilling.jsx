@@ -392,10 +392,6 @@ export default function POSBilling() {
     return liveItem ? Number(liveItem.quantity) || 0 : Number(cartItem.maxStock) || 0;
   };
 
-  const overStockItems = activeBill.cart.filter(
-    (item) => getBaseQty(item) > getLiveAvailableStock(item) + 1e-9
-  );
-
   const clearCart = async () => {
     if (activeBill.cart.length === 0) return;
     const ok = await showConfirm({
@@ -1064,16 +1060,6 @@ export default function POSBilling() {
                 </tbody>
               </table>
             </div>
-
-            {/* Inline Over-Stock Warning Banner */}
-            {overStockItems.length > 0 && (
-              <div className="px-4 py-2.5 bg-rose-50 border-t border-rose-200 flex items-center gap-2 text-xs font-semibold text-rose-700">
-                <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                <span>
-                  Quantity exceeds available stock for {overStockItems.length} item{overStockItems.length === 1 ? '' : 's'} — please reduce quantity or verify physical stock.
-                </span>
-              </div>
-            )}
 
             {/* Bottom table helper toolbar */}
             {activeBill.cart.length > 0 && (
