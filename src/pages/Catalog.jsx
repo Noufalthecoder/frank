@@ -75,6 +75,8 @@ export default function Catalog() {
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [availableBins, setAvailableBins] = useState([]);
+  const [catOther, setCatOther] = useState(false); // typing a brand-new category
+
   const [racks, setRacks] = useState([]);
   const [locateItem, setLocateItem] = useState(null);
   const [search, setSearch] = useState('');
@@ -293,6 +295,8 @@ export default function Catalog() {
       return;
     }
 
+    const finalCategory = (form.category || '').trim().replace(/\s+/g, ' ') || 'Others';
+
     try {
       const resolvedSku = editingItem
         ? (form.sku.trim().toUpperCase() || editingItem.sku)
@@ -302,6 +306,7 @@ export default function Catalog() {
 
       const payload = {
         ...form,
+        category: finalCategory,
         sku: resolvedSku,
         name: form.name.trim(),
         unit: normalizeUnit(form.unit),
@@ -343,6 +348,7 @@ export default function Catalog() {
       bin_id: suggestBin(racks, EMPTY_FORM.category),
     });
     loadRackBins();
+    setCatOther(false);
     setShowAddModal(true);
   };
 
@@ -366,6 +372,7 @@ export default function Catalog() {
       status: item.status === 'Unavailable' || item.status === 'Inactive' ? 'Unavailable' : 'Available',
     });
     loadRackBins();
+    setCatOther(false);
     setShowAddModal(true);
   };
 
@@ -1030,7 +1037,7 @@ export default function Catalog() {
 
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-5xl' : 'max-w-2xl'}`}>
+          <div className={`animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-5xl' : 'max-w-4xl'}`}>
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -1216,14 +1223,34 @@ export default function Catalog() {
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('ct_category')}</label>
                   <select
-                    value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value, bin_id: suggestBin(racks, e.target.value) })}
+                    value={catOther ? 'Others' : form.category}
+                    onChange={(e) => {
+                      if (e.target.value === 'Others') {
+                        setCatOther(true);
+                        setForm({ ...form, category: '', bin_id: suggestBin(racks, 'Others') });
+                      } else {
+                        setCatOther(false);
+                        setForm({ ...form, category: e.target.value, bin_id: suggestBin(racks, e.target.value) });
+                      }
+                    }}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500"
                   >
-                    {['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'].map((c) => (
+                    {uniqueCategories.filter((c) => c !== 'Others').map((c) => (
                       <option key={c} value={c}>{tCategory(c)}</option>
                     ))}
+                    <option value="Others">{tCategory('Others')} — {t('ct_type_new_category')}</option>
                   </select>
+                  {catOther && (
+                    <input
+                      type="text"
+                      autoFocus
+                      maxLength={40}
+                      value={form.category}
+                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                      placeholder={t('ct_ph_new_category')}
+                      className="mt-2 w-full bg-white border border-blue-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">
