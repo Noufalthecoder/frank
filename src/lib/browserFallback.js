@@ -1,13 +1,13 @@
 // LocalStorage-backed fallback for window.api when previewing in a regular browser.
 // Inside Electron (.exe), preload.js defines window.api (backed by SQLite), so this does nothing.
 
-const STORAGE_KEY = 'tsp_enterprises_browser_db_v1';
+const STORAGE_KEY = 'tsp_enterprises_browser_db_v2';
 
 function buildDefaultRacks() {
   const specs = [
     { code: 'R01', name: 'Fasteners', zone: 'Fasteners', levels: 4, slots_per_level: 4 },
-    { code: 'R02', name: 'Bolts & Plumbing', zone: 'Plumbing & Paints', levels: 4, slots_per_level: 4 },
-    { code: 'R03', name: 'Washers', zone: 'Fasteners', levels: 4, slots_per_level: 4 },
+    { code: 'R02', name: 'Plumbing & Paints', zone: 'Plumbing & Paints', levels: 4, slots_per_level: 4 },
+    { code: 'R03', name: 'Washers & Nuts', zone: 'Fasteners', levels: 4, slots_per_level: 4 },
     { code: 'R04', name: 'Tools', zone: 'Hardware', levels: 4, slots_per_level: 4 },
     { code: 'R05', name: 'Electrical', zone: 'Electrical', levels: 4, slots_per_level: 4 },
   ];
@@ -26,6 +26,30 @@ function buildDefaultRacks() {
     }
     return { id: idx + 1, ...r, bins };
   });
+}
+
+function getCleanInitialData() {
+  return {
+    shop_profile: {
+      id: 1,
+      shop_name: 'T. S. P Enterprises',
+      tagline: 'Hardware, Tools & Fasteners',
+      phone: '+91 98765 43210',
+      email: 'tspenterprises@gmail.com',
+      address_line1: 'Beach Road',
+      address_line2: 'Tharuvaikulam',
+      city: 'Thoothukudi',
+      pincode: '628105',
+      invoice_footer: 'Thank you for your business! Goods once sold cannot be returned without bill.',
+    },
+    items: [],
+    racks: buildDefaultRacks(),
+    invoices: [],
+    purchase_orders: [],
+    vendors: [],
+    expenses: [],
+    day_closings: [],
+  };
 }
 
 function getDefaultData() {
@@ -86,7 +110,7 @@ function readDb() {
   } catch (err) {
     console.warn('Resetting browser preview DB:', err);
   }
-  const initial = getDefaultData();
+  const initial = getCleanInitialData();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
   return initial;
 }

@@ -169,12 +169,7 @@ function initSchema() {
     `).run();
   }
 
-  // Auto-seed sample hardware data ONLY in dev mode when database is empty
-  // Packaged production .exe starts clean (owner can load demo data on demand in Settings -> Database)
-  const itemCount = db.prepare('SELECT count(*) as count FROM items').get().count;
-  if (VITE_DEV_SERVER_URL && itemCount === 0) {
-    seedInitialData();
-  }
+  // Start clean with zero dummy numbers (owner can optionally load sample data in Settings -> Database)
 }
 
 function seedInitialData() {

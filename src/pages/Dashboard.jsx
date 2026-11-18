@@ -305,9 +305,17 @@ export default function Dashboard() {
             <h2 className="text-sm font-bold text-slate-900">Sales Trend</h2>
             <p className="text-xs text-slate-400 mb-3">Revenue grouped by invoice date</p>
           </div>
-          <div className="h-56 w-full">
-            <Line data={salesData} options={salesOptions} />
-          </div>
+          {validInvoices.length === 0 ? (
+            <div className="h-56 w-full flex flex-col items-center justify-center text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+              <TrendingUp className="w-7 h-7 text-slate-300 mb-2" />
+              <p className="text-xs font-semibold text-slate-600">No sales recorded yet</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Complete a bill in POS Billing to see live revenue trends</p>
+            </div>
+          ) : (
+            <div className="h-56 w-full">
+              <Line data={salesData} options={salesOptions} />
+            </div>
+          )}
         </div>
 
         {/* Stock by Category Donut Chart (1 col) */}
@@ -317,27 +325,42 @@ export default function Dashboard() {
             <p className="text-xs text-slate-400 mb-3">Live SKU distribution</p>
           </div>
 
-          <div className="relative h-40 w-full flex items-center justify-center my-2">
-            <Doughnut data={categoryData} options={categoryOptions} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-bold text-slate-900">{items.length}</span>
-              <span className="text-[11px] text-slate-400 font-medium">SKUs</span>
+          {items.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-10 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+              <Package className="w-7 h-7 text-slate-300 mb-2" />
+              <p className="text-xs font-semibold text-slate-600">No products in catalog</p>
+              <button
+                onClick={() => navigate('/catalog')}
+                className="text-[11px] font-semibold text-blue-600 hover:underline mt-1"
+              >
+                Add items in Catalog →
+              </button>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[11px] text-slate-600 mt-3 pt-3 border-t border-slate-100">
-            {categoryEntries.map(([cat, count], idx) => (
-              <div key={cat} className="flex items-center gap-1.5 truncate">
-                <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }}
-                />
-                <span className="truncate">
-                  {cat} ({Math.round((count / totalSkus) * 100)}%)
-                </span>
+          ) : (
+            <>
+              <div className="relative h-40 w-full flex items-center justify-center my-2">
+                <Doughnut data={categoryData} options={categoryOptions} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-bold text-slate-900">{items.length}</span>
+                  <span className="text-[11px] text-slate-400 font-medium">SKUs</span>
+                </div>
               </div>
-            ))}
-          </div>
+
+              <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[11px] text-slate-600 mt-3 pt-3 border-t border-slate-100">
+                {categoryEntries.map(([cat, count], idx) => (
+                  <div key={cat} className="flex items-center gap-1.5 truncate">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }}
+                    />
+                    <span className="truncate">
+                      {cat} ({Math.round((count / totalSkus) * 100)}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

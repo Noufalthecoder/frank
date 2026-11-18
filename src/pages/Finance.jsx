@@ -34,7 +34,7 @@ export default function Finance() {
 
   // Day closing state
   const todayStr = new Date().toISOString().split('T')[0];
-  const [openingCash, setOpeningCash] = useState(5000);
+  const [openingCash, setOpeningCash] = useState(0);
   const [countedCash, setCountedCash] = useState('');
   const [closingRemarks, setClosingRemarks] = useState('');
   const [closingSavedMsg, setClosingSavedMsg] = useState('');
@@ -351,9 +351,17 @@ export default function Finance() {
                 <h2 className="text-sm font-bold text-slate-900">Daily Cash Flow</h2>
                 <p className="text-xs text-slate-400 mb-3">Live Sales vs Expenses breakdown</p>
               </div>
-              <div className="h-64 w-full">
-                <Bar data={cashFlowData} options={cashFlowOptions} />
-              </div>
+              {sortedDates.length === 0 ? (
+                <div className="h-64 w-full flex flex-col items-center justify-center text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                  <Wallet className="w-7 h-7 text-slate-300 mb-2" />
+                  <p className="text-xs font-semibold text-slate-600">No cash flow data yet</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Record sales or expenses to populate daily cash flow</p>
+                </div>
+              ) : (
+                <div className="h-64 w-full">
+                  <Bar data={cashFlowData} options={cashFlowOptions} />
+                </div>
+              )}
             </div>
 
             <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">

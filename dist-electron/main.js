@@ -1,14 +1,14 @@
-import { app as _, ipcMain as n, dialog as b, BrowserWindow as O, screen as v } from "electron";
-import { createRequire as q } from "node:module";
-import { fileURLToPath as x } from "node:url";
+import { app as _, ipcMain as n, dialog as b, BrowserWindow as O, screen as f } from "electron";
+import { createRequire as v } from "node:module";
+import { fileURLToPath as q } from "node:url";
 import S from "node:path";
 import y from "node:fs";
-const B = q(import.meta.url), I = S.dirname(x(import.meta.url));
+const x = v(import.meta.url), I = S.dirname(q(import.meta.url));
 process.env.APP_ROOT = S.join(I, "..");
 const h = process.env.VITE_DEV_SERVER_URL, Y = S.join(process.env.APP_ROOT, "dist-electron"), U = S.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = h ? S.join(process.env.APP_ROOT, "public") : U;
 let N;
-const g = B("better-sqlite3"), L = S.join(_.getPath("userData"), "billing.db");
+const g = x("better-sqlite3"), L = S.join(_.getPath("userData"), "billing.db");
 let t = new g(L);
 function A() {
   t.exec(`
@@ -146,10 +146,8 @@ function A() {
       INSERT INTO shop_profile (id, shop_name, tagline, phone, email, address_line1, address_line2, city, pincode)
       VALUES (1, 'T. S. P Enterprises', 'Hardware, Tools & Fasteners', '+91 98765 43210', 'tspenterprises@gmail.com', 'Beach Road', 'Tharuvaikulam', 'Thoothukudi', '628105')
     `).run();
-  const e = t.prepare("SELECT count(*) as count FROM items").get().count;
-  h && e === 0 && C();
 }
-function C() {
+function B() {
   const a = ["Fasteners", "Tools", "Electrical", "Plumbing", "Paints & Adhesives", "Others"], e = t.prepare("INSERT OR IGNORE INTO categories (name) VALUES (?)");
   a.forEach((s) => e.run(s));
   const r = ["Tata Agrico", "Bosch", "Unbrako", "Taparia", "Finolex", "Asian Paints", "Pidilite", "Corroshield", "Generic"], i = t.prepare("INSERT OR IGNORE INTO brands (name) VALUES (?)");
@@ -220,11 +218,11 @@ function C() {
     o.run(s.code, s.name, s.zone);
     for (let R = 1; R <= 4; R++)
       for (let E = 1; E <= 4; E++) {
-        const f = `${s.code}-L${R}-S${E}`;
-        c.run(f, s.code, R, E, 0);
+        const F = `${s.code}-L${R}-S${E}`;
+        c.run(F, s.code, R, E, 0);
       }
   });
-  const u = (/* @__PURE__ */ new Date()).toISOString().split("T")[0], T = new Date(Date.now() - 864e5).toISOString().split("T")[0], p = new Date(Date.now() - 1728e5).toISOString().split("T")[0], k = [
+  const u = (/* @__PURE__ */ new Date()).toISOString().split("T")[0], T = new Date(Date.now() - 864e5).toISOString().split("T")[0], p = new Date(Date.now() - 1728e5).toISOString().split("T")[0], P = [
     {
       num: "INV-001248",
       date: `${u} 11:24:00`,
@@ -294,21 +292,21 @@ function C() {
         { sku: "SP-10", name: 'Adjustable Spanner 10"', quantity: 2, rate: 380, discount: 0, total: 760 }
       ]
     }
-  ], D = t.prepare(`
+  ], k = t.prepare(`
     INSERT OR IGNORE INTO invoices (invoice_number, date_time, customer_name, subtotal, discount, total, payment_mode, items_count, items_json, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed')
   `);
-  k.forEach((s) => {
-    D.run(s.num, s.date, s.cust, s.sub, s.disc, s.total, s.mode, s.count, JSON.stringify(s.items));
+  P.forEach((s) => {
+    k.run(s.num, s.date, s.cust, s.sub, s.disc, s.total, s.mode, s.count, JSON.stringify(s.items));
   });
-  const M = [
+  const D = [
     { num: "PO-00284", vendor: "KPR Fasteners", date: u, amount: 48500, status: "Open", items: [{ sku: "DB-12", name: "SDS Plus Drill Bit 12mm", quantity: 50, rate: 200 }] },
     { num: "PO-00283", vendor: "Metro Tools Co.", date: T, amount: 72e3, status: "Received", items: [] },
     { num: "PO-00282", vendor: "Shree Metals", date: p, amount: 124e3, status: "Received", items: [] },
     { num: "PO-00281", vendor: "Nice Hardware", date: p, amount: 36750, status: "Closed", items: [] },
     { num: "PO-00280", vendor: "A1 Tools Distributors", date: p, amount: 58200, status: "Closed", items: [] }
-  ], F = t.prepare("INSERT OR IGNORE INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json) VALUES (?, ?, ?, ?, ?, ?)");
-  if (M.forEach((s) => F.run(s.num, s.vendor, s.date, s.amount, s.status, JSON.stringify(s.items))), t.prepare("SELECT count(*) as count FROM vendors").get().count === 0) {
+  ], M = t.prepare("INSERT OR IGNORE INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json) VALUES (?, ?, ?, ?, ?, ?)");
+  if (D.forEach((s) => M.run(s.num, s.vendor, s.date, s.amount, s.status, JSON.stringify(s.items))), t.prepare("SELECT count(*) as count FROM vendors").get().count === 0) {
     const s = [
       { name: "KPR Fasteners", person: "K. Ramesh", phone: "+91 94441 23456", city: "Coimbatore" },
       { name: "Metro Tools Co.", person: "S. Kumar", phone: "+91 98840 54321", city: "Chennai" },
@@ -576,7 +574,7 @@ n.handle("restoreDatabase", async () => {
     return { success: !1, error: r.message || "Restore failed." };
   }
 });
-n.handle("seedDemoData", () => (C(), { success: !0 }));
+n.handle("seedDemoData", () => (B(), { success: !0 }));
 n.handle("resetDatabase", () => (t.transaction(() => {
   t.exec(`
       DELETE FROM items;
@@ -589,8 +587,8 @@ n.handle("resetDatabase", () => (t.transaction(() => {
       DELETE FROM day_closings;
     `);
 })(), { success: !0 }));
-function P() {
-  const { width: a, height: e } = v.getPrimaryDisplay().workAreaSize;
+function C() {
+  const { width: a, height: e } = f.getPrimaryDisplay().workAreaSize;
   N = new O({
     width: Math.min(1440, a),
     height: Math.min(900, e),
@@ -609,9 +607,9 @@ _.on("window-all-closed", () => {
   process.platform !== "darwin" && (_.quit(), N = null);
 });
 _.on("activate", () => {
-  O.getAllWindows().length === 0 && P();
+  O.getAllWindows().length === 0 && C();
 });
-_.whenReady().then(P);
+_.whenReady().then(C);
 export {
   Y as MAIN_DIST,
   U as RENDERER_DIST,
