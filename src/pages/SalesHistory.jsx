@@ -4,7 +4,6 @@ import {
   Download,
   Eye,
   Printer,
-  RotateCcw,
   X,
   CheckCircle2
 } from 'lucide-react';
@@ -91,30 +90,6 @@ export default function SalesHistory() {
     }, 100);
   };
 
-  const handleReturn = async (inv) => {
-    if (inv.status === 'Returned') {
-      showToast(`${inv.invoice_number} is already marked Returned.`);
-      return;
-    }
-    if (
-      !confirm(
-        `Return invoice ${inv.invoice_number} (₹ ${Number(inv.total).toFixed(2)})?\n\nAll billed items will be restocked back into inventory.`
-      )
-    ) {
-      return;
-    }
-    if (window.api && window.api.returnInvoice) {
-      const res = await window.api.returnInvoice(inv.id);
-      if (res && res.success) {
-        showToast(`Invoice ${inv.invoice_number} returned & ${res.restockedCount || 0} item(s) restocked.`);
-        await loadInvoices();
-        window.dispatchEvent(new CustomEvent('stock-updated'));
-      } else {
-        alert(res?.error || 'Could not return invoice.');
-      }
-    }
-  };
-
   const handleExportCsv = () => {
     const headers = ['Invoice No', 'Date & Time', 'Customer', 'Phone', 'Items Count', 'Subtotal', 'Discount', 'Total', 'Payment Mode', 'Status'];
     const rows = filteredInvoices.map((inv) => [
@@ -146,7 +121,7 @@ export default function SalesHistory() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Sales History</h1>
-          <p className="text-xs text-slate-500 mt-0.5">View, reprint, export, and process returns for all invoices</p>
+          <p className="text-xs text-slate-500 mt-0.5">View, reprint, and export all invoices</p>
         </div>
 
         {/* Action Controls */}
@@ -273,18 +248,6 @@ export default function SalesHistory() {
                         title="Reprint Receipt"
                       >
                         <Printer className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleReturn(inv)}
-                        disabled={isReturned}
-                        className={`p-1.5 rounded transition-colors ${
-                          isReturned
-                            ? 'opacity-30 cursor-not-allowed'
-                            : 'hover:text-amber-600 hover:bg-slate-100'
-                        }`}
-                        title={isReturned ? 'Already Returned' : 'Return & Restock Items'}
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
@@ -426,38 +389,20 @@ export default function SalesHistory() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-              {selectedInvoice.status !== 'Returned' ? (
-                <button
-                  onClick={() => {
-                    const inv = selectedInvoice;
-                    setSelectedInvoice(null);
-                    handleReturn(inv);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-xs font-semibold hover:bg-amber-100"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Return & Restock</span>
-                </button>
-              ) : (
-                <span className="text-xs font-semibold text-rose-600">Returned & Restocked</span>
-              )}
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePrint(selectedInvoice)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print Invoice</span>
-                </button>
-                <button
-                  onClick={() => setSelectedInvoice(null)}
-                  className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200"
-                >
-                  Close
-                </button>
-              </div>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => handlePrint(selectedInvoice)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Invoice</span>
+              </button>
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
