@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld('api', {
   // Vendors & Purchase Orders
   getPurchaseOrders: () => ipcRenderer.invoke('getPurchaseOrders'),
   createPurchaseOrder: (po) => ipcRenderer.invoke('createPurchaseOrder', po),
-  updatePurchaseOrderStatus: (id, status) => ipcRenderer.invoke('updatePurchaseOrderStatus', { id, status }),
+  updatePurchaseOrderStatus: (id, status, received) => ipcRenderer.invoke('updatePurchaseOrderStatus', { id, status, received }),
   deletePurchaseOrder: (id) => ipcRenderer.invoke('deletePurchaseOrder', id),
   getVendors: () => ipcRenderer.invoke('getVendors'),
   addVendor: (v) => ipcRenderer.invoke('addVendor', v),

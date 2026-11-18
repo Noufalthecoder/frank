@@ -388,23 +388,31 @@ export function initBrowserApiFallback() {
       writeDb(db);
       return { success: true };
     },
-    updatePurchaseOrderStatus: async (id, status) => {
+    updatePurchaseOrderStatus: async (id, status, received) => {
       const db = readDb();
       const po = db.purchase_orders.find((p) => p.id === id);
       if (!po) return { success: false, error: 'PO not found.' };
       const nextStatus = status === 'Received' ? 'Received' : 'Request';
+      const updates = [];
+      const missing = [];
       if (po.status !== 'Received' && nextStatus === 'Received') {
         const items = JSON.parse(po.items_json || '[]');
         items.forEach((i) => {
+          const override = received && received[i.sku] !== undefined ? Number(received[i.sku]) : NaN;
+          const qty = Number.isFinite(override) && override >= 0 ? override : Number(i.quantity) || 0;
+          i.received_quantity = qty;
+          if (!i.sku || qty <= 0) return;
           const target = db.items.find((x) => x.sku === i.sku);
-          if (target) {
-            target.quantity = Number((Number(target.quantity) + Number(i.quantity || 0)).toFixed(6));
-          }
+          if (!target) { missing.push(i.sku); return; }
+          const before = Number(target.quantity);
+          target.quantity = Number((before + qty).toFixed(6));
+          updates.push({ sku: i.sku, name: i.name, added: qty, before, after: target.quantity });
         });
+        po.items_json = JSON.stringify(items);
       }
       po.status = nextStatus;
       writeDb(db);
-      return { success: true };
+      return { success: true, updates, missing };
     },
     deletePurchaseOrder: async (id) => {
       const db = readDb();

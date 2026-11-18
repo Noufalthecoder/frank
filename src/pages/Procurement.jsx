@@ -27,6 +27,8 @@ export default function Procurement() {
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
   const [selectedPo, setSelectedPo] = useState(null);
   const [toast, setToast] = useState('');
+  const [receivingPo, setReceivingPo] = useState(null);
+  const [receiveQtys, setReceiveQtys] = useState({});
 
   const [poForm, setPoForm] = useState({
     po_number: '',
@@ -152,24 +154,47 @@ export default function Procurement() {
   const handleStatusChange = async (po, newStatus) => {
     if (newStatus === 'Received') {
       const lines = parsePoItems(po);
-      const confirmMsg =
-        lines.length > 0
-          ? `Mark ${po.po_number} as Received?\n\nThis will automatically add ${lines.length} product line(s) into your catalog stock.`
-          : `Mark ${po.po_number} as Received?`;
+      if (lines.length > 0) {
+        // Open receive dialog so the actually-received quantity can be confirmed/edited per line
+        const init = {};
+        lines.forEach((l) => { init[l.sku] = l.quantity; });
+        setReceiveQtys(init);
+        setReceivingPo(po);
+        return;
+      }
       const ok = await showConfirm({
         title: 'Confirm Goods Receipt',
-        message: confirmMsg,
-        confirmLabel: 'Receive & Restock',
+        message: `Mark ${po.po_number} as Received?`,
+        confirmLabel: 'Mark Received',
         tone: 'success',
       });
       if (!ok) return;
     }
-    if (window.api && window.api.updatePurchaseOrderStatus) {
-      await window.api.updatePurchaseOrderStatus(po.id, newStatus);
-      showToast(`${po.po_number} updated to ${newStatus}${newStatus === 'Received' ? ' & stock synced' : ''}.`);
-      await loadData();
-      window.dispatchEvent(new CustomEvent('stock-updated'));
+    await applyStatus(po, newStatus);
+  };
+
+  const applyStatus = async (po, newStatus, received) => {
+    if (!(window.api && window.api.updatePurchaseOrderStatus)) return;
+    const res = await window.api.updatePurchaseOrderStatus(po.id, newStatus, received);
+    if (res && res.success === false) {
+      showToast(`Failed: ${res.error || 'could not update PO'}`);
+      return;
     }
+    if (newStatus === 'Received') {
+      const n = (res && res.updates ? res.updates.length : 0);
+      const warn = res && res.missing && res.missing.length ? ` (SKU not in catalog: ${res.missing.join(', ')})` : '';
+      showToast(`${po.po_number} received - stock updated for ${n} item(s)${warn}.`);
+    } else {
+      showToast(`${po.po_number} updated to ${newStatus}.`);
+    }
+    await loadData();
+    window.dispatchEvent(new CustomEvent('stock-updated'));
+  };
+
+  const confirmReceive = async () => {
+    const po = receivingPo;
+    setReceivingPo(null);
+    await applyStatus(po, 'Received', receiveQtys);
   };
 
   const handleDeletePo = async (po) => {
@@ -585,6 +610,56 @@ export default function Procurement() {
       )}
 
       {/* New PO Modal (with Dynamic Vendors + Itemized Restock Lines) */}
+      {receivingPo && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-slate-900">Receive {receivingPo.po_number}</h3>
+              <button onClick={() => setReceivingPo(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 mb-3">
+              Confirm the quantity actually received. It will be added to the current stock of each product.
+            </p>
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {parsePoItems(receivingPo).map((l) => {
+                const cur = catalogItems.find((i) => i.sku === l.sku);
+                const qty = Number(receiveQtys[l.sku]) || 0;
+                return (
+                  <div key={l.sku} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-xs">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-800 truncate">{l.name} ({l.sku})</p>
+                      <p className="text-[11px] text-slate-500">
+                        Ordered {l.quantity}
+                        {cur ? ` | Stock ${Number(cur.quantity)} -> ` : ' | not in catalog'}
+                        {cur && <span className="font-bold text-emerald-700">{Number((Number(cur.quantity) + qty).toFixed(6))}</span>}
+                      </p>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={receiveQtys[l.sku] ?? ''}
+                      onChange={(e) => setReceiveQtys({ ...receiveQtys, [l.sku]: e.target.value })}
+                      className="w-24 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-right"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setReceivingPo(null)} className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
+                Cancel
+              </button>
+              <button onClick={confirmReceive} className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg">
+                Confirm Received & Update Stock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showNewPoModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden p-5 space-y-4">

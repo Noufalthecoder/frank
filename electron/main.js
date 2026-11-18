@@ -674,28 +674,39 @@ ipcMain.handle('createPurchaseOrder', (event, po) => {
   return { success: true };
 });
 
-ipcMain.handle('updatePurchaseOrderStatus', (event, { id, status }) => {
+ipcMain.handle('updatePurchaseOrderStatus', (event, { id, status, received }) => {
   try {
     const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id);
     if (!po) return { success: false, error: 'PO not found.' };
     const prevStatus = po.status;
     const nextStatus = status === 'Received' ? 'Received' : 'Request';
+    const updates = [];
+    const missing = [];
 
     const tx = db.transaction(() => {
-      db.prepare('UPDATE purchase_orders SET status = ? WHERE id = ?').run(nextStatus, id);
-      // If marking Request -> Received, automatically restock PO items into inventory
+      // Request -> Received: add the RECEIVED quantity (defaults to ordered qty) to existing stock
       if (prevStatus !== 'Received' && nextStatus === 'Received') {
         const items = JSON.parse(po.items_json || '[]');
+        const getItem = db.prepare('SELECT quantity FROM items WHERE sku = ?');
         const addStock = db.prepare('UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ?');
         items.forEach(i => {
-          if (i.sku && Number(i.quantity) > 0) {
-            addStock.run(Number(i.quantity), i.sku);
-          }
+          const override = received && received[i.sku] !== undefined ? Number(received[i.sku]) : NaN;
+          const qty = Number.isFinite(override) && override >= 0 ? override : Number(i.quantity) || 0;
+          i.received_quantity = qty;
+          if (!i.sku || qty <= 0) return;
+          const before = getItem.get(i.sku);
+          if (!before) { missing.push(i.sku); return; }
+          addStock.run(qty, i.sku);
+          updates.push({ sku: i.sku, name: i.name, added: qty, before: before.quantity, after: getItem.get(i.sku).quantity });
         });
+        db.prepare('UPDATE purchase_orders SET status = ?, items_json = ? WHERE id = ?')
+          .run(nextStatus, JSON.stringify(items), id);
+      } else {
+        db.prepare('UPDATE purchase_orders SET status = ? WHERE id = ?').run(nextStatus, id);
       }
     });
     tx();
-    return { success: true };
+    return { success: true, updates, missing };
   } catch (err) {
     return { success: false, error: err.message };
   }
