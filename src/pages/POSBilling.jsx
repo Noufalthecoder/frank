@@ -16,9 +16,18 @@ import {
   History,
   User,
   Phone,
-  LayoutGrid
+  LayoutGrid,
+  RefreshCw,
+  ChevronDown,
+  Settings as SettingsIcon
 } from 'lucide-react';
-import PrintableReceipt, { getPrintPreferences } from '../components/PrintableReceipt.jsx';
+import PrintableReceipt from '../components/PrintableReceipt.jsx';
+import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
+import {
+  getPrintPreferences,
+  savePrintPreferences,
+  executePrint,
+} from '../lib/printConfig.js';
 import {
   normalizeUnit,
   isMeasurableUnit,
@@ -80,9 +89,33 @@ export default function POSBilling() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [recentInvoices, setRecentInvoices] = useState([]);
 
-  // Printable Receipt Modal
+  // Printable Receipt Modal & Live Printer Status
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [lastInvoice, setLastInvoice] = useState(null);
+  const [printPrefs, setPrintPrefs] = useState(getPrintPreferences());
+  const [printers, setPrinters] = useState([]);
+  const [showPrinterMenu, setShowPrinterMenu] = useState(false);
+  const [loadingPrinters, setLoadingPrinters] = useState(false);
+  const [posToast, setPosToast] = useState('');
+  const printerMenuRef = useRef(null);
+  const posToastTimerRef = useRef(null);
+
+  const showPosToast = (msg) => {
+    setPosToast(msg);
+    if (posToastTimerRef.current) clearTimeout(posToastTimerRef.current);
+    posToastTimerRef.current = setTimeout(() => setPosToast(''), 2000);
+  };
+
+  const loadPrinters = async () => {
+    setLoadingPrinters(true);
+    try {
+      if (window.api && window.api.getPrinters) {
+        const list = await window.api.getPrinters();
+        setPrinters(list || []);
+      }
+    } catch (_) {}
+    setLoadingPrinters(false);
+  };
 
   // Input Refs for Keyboard Shortcuts
   const searchInputRef = useRef(null);
@@ -109,9 +142,25 @@ export default function POSBilling() {
   useEffect(() => {
     loadCatalog();
     loadRecentInvoices();
+    loadPrinters();
     if (window.api && window.api.getShopProfile) {
       window.api.getShopProfile().then((p) => { if (p) setShopProfile(p); });
     }
+    const handlePrefsUpdate = (e) => {
+      setPrintPrefs(e.detail || getPrintPreferences());
+    };
+    const handleClickOutside = (e) => {
+      if (printerMenuRef.current && !printerMenuRef.current.contains(e.target)) {
+        setShowPrinterMenu(false);
+      }
+    };
+    window.addEventListener('print-prefs-updated', handlePrefsUpdate);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('print-prefs-updated', handlePrefsUpdate);
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (posToastTimerRef.current) clearTimeout(posToastTimerRef.current);
+    };
   }, []);
 
   const loadCatalog = async () => {
@@ -457,20 +506,18 @@ export default function POSBilling() {
     if (window.api && window.api.createInvoice) {
       const res = await window.api.createInvoice(invoicePayload);
       if (res && res.success) {
-        setLastInvoice({
+        const completedInvoice = {
           ...invoicePayload,
           invoice_number: res.invoice_number,
           date: new Date().toLocaleString(),
           zeroStockAlerts: res.zeroStockAlerts || [],
-        });
-        setShowReceiptModal(true);
+        };
+        setLastInvoice(completedInvoice);
 
         const prefs = getPrintPreferences();
-        if (prefs.autoPrint) {
-          setTimeout(() => window.print(), 250);
-        }
+        setPrintPrefs(prefs);
 
-        // Reset current active bill
+        // Reset current active bill immediately so POS is ready for the next customer
         updateActiveBill({
           cart: [],
           customerName: 'Walk-in Customer',
@@ -488,12 +535,42 @@ export default function POSBilling() {
             detail: { zeroStockAlerts: res.zeroStockAlerts || [] },
           })
         );
+
+        if (prefs.afterPayment === 'auto' || prefs.autoPrint) {
+          // Flow B: Automatic silent print to configured printer -> ready for next customer
+          showPosToast(`Invoice #${res.invoice_number} sent to ${prefs.printerName || 'default printer'} (${prefs.format})`);
+          executePrint({
+            silent: true,
+            deviceName: prefs.printerName || '',
+            format: prefs.format || '80mm',
+            orientation: prefs.orientation || 'portrait',
+          });
+        } else if (prefs.afterPayment === 'none') {
+          showPosToast(`Invoice #${res.invoice_number} saved.`);
+        } else {
+          // Flow C: Auto-print disabled -> open Print Preview modal (A1-A6 + Thermal + Printer picker)
+          setShowReceiptModal(true);
+        }
       }
     }
   };
 
+  const activePrinterObj =
+    printers.find((p) => p.name === printPrefs.printerName) ||
+    printers.find((p) => p.isDefault) ||
+    printers[0] ||
+    null;
+
   return (
     <div className="space-y-4">
+      {/* Floating Top-Right Toast (2s) */}
+      {posToast && (
+        <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{posToast}</span>
+        </div>
+      )}
+
       {/* Top Bar: Multi-Bill Concurrent Tabs */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
         {/* Bill Tabs */}
@@ -552,11 +629,128 @@ export default function POSBilling() {
           )}
         </div>
 
-        {/* Sub-Header Actions */}
+        {/* Sub-Header Actions: Available Printers Selector & Bill History */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Live Available Printers Popover */}
+          <div className="relative" ref={printerMenuRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPrinterMenu((prev) => !prev);
+                if (!showPrinterMenu) loadPrinters();
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
+              title="Available Printers & Print Format"
+            >
+              <span
+                className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  !activePrinterObj
+                    ? 'bg-slate-400'
+                    : activePrinterObj.connectionState === 'connected'
+                    ? 'bg-emerald-500'
+                    : activePrinterObj.connectionState === 'error'
+                    ? 'bg-rose-500'
+                    : 'bg-amber-500'
+                }`}
+              />
+              <Printer className="w-3.5 h-3.5 text-slate-500" />
+              <span className="max-w-[140px] truncate">
+                {activePrinterObj ? activePrinterObj.displayName || activePrinterObj.name : 'No Printer'}
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">
+                {printPrefs.format || '80mm'}
+              </span>
+              {printPrefs.autoPrint && (
+                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                  Auto
+                </span>
+              )}
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {showPrinterMenu && (
+              <div className="animate-popover absolute right-0 mt-1.5 w-80 bg-white rounded-2xl shadow-2xl shadow-slate-900/12 border border-slate-200/90 overflow-hidden z-40">
+                <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900">Available Printers</span>
+                  <button
+                    type="button"
+                    onClick={loadPrinters}
+                    disabled={loadingPrinters}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loadingPrinters ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                <div className="p-2 space-y-1 max-h-56 overflow-y-auto">
+                  {printers.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-4">No installed printers detected.</p>
+                  ) : (
+                    printers.map((p) => {
+                      const isSelected = activePrinterObj?.name === p.name;
+                      const badgeCls =
+                        p.connectionState === 'connected'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : p.connectionState === 'error'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200';
+                      return (
+                        <button
+                          key={p.name}
+                          type="button"
+                          onClick={() => {
+                            const updated = savePrintPreferences({ ...printPrefs, printerName: p.name });
+                            setPrintPrefs(updated);
+                            setShowPrinterMenu(false);
+                            showPosToast(`Active printer: ${p.displayName || p.name}`);
+                          }}
+                          className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2 ${
+                            isSelected
+                              ? 'border-blue-600 bg-blue-50/70'
+                              : 'border-transparent hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 truncate">
+                              {p.displayName || p.name}
+                            </p>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              {p.connectionType || 'Local'} · {p.isDefault ? 'Default' : 'Installed'}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex-shrink-0 ${badgeCls}`}>
+                            {p.statusLabel || 'Connected'}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] font-medium text-slate-500">
+                    Format: <strong>{printPrefs.format}</strong> · {printPrefs.autoPrint ? 'Auto-Print ON' : 'Preview Mode'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPrinterMenu(false);
+                      navigate('/settings?tab=print');
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
+                  >
+                    <SettingsIcon className="w-3 h-3" />
+                    <span>Configure</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => setShowHistoryModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
           >
             <History className="w-3.5 h-3.5 text-slate-400" />
             <span>{t('pos_bill_history')}</span>
@@ -1184,84 +1378,21 @@ export default function POSBilling() {
         </div>
       )}
 
-      {/* Printable Receipt Modal */}
+      {/* Print Preview Modal (opens when Auto-Print is disabled) */}
       {showReceiptModal && lastInvoice && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden p-6 space-y-4">
-            <div className="text-center border-b border-slate-100 pb-4">
-              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">{shopProfile?.shop_name || 'T. S. P Enterprises'}</h3>
-              <p className="text-[11px] text-slate-500">
-                {shopProfile?.address_line1 || 'Beach Road'} · {shopProfile?.address_line2 || 'Tharuvaikulam'}
-              </p>
-              <p className="text-xs text-blue-600 font-mono mt-1 font-semibold">
-                {lastInvoice.invoice_number}
-              </p>
-            </div>
-
-            {/* Receipt Summary Body */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs space-y-2">
-              <div className="flex justify-between text-slate-500">
-                <span>Customer:</span>
-                <span className="font-semibold text-slate-800">{lastInvoice.customer_name}</span>
-              </div>
-              <div className="flex justify-between text-slate-500">
-                <span>Payment Mode:</span>
-                <span className="font-bold text-slate-800">{lastInvoice.payment_mode}</span>
-              </div>
-              <div className="flex justify-between text-slate-500">
-                <span>Date & Time:</span>
-                <span>{lastInvoice.date}</span>
-              </div>
-              <div className="border-t border-slate-200 pt-2 flex justify-between font-bold text-sm text-slate-900">
-                <span>Total Paid:</span>
-                <span className="text-blue-600 font-black">₹ {Number(lastInvoice.total).toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Zero Stock Alert Banner */}
-            {lastInvoice.zeroStockAlerts && lastInvoice.zeroStockAlerts.length > 0 && (
-              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-rose-900">
-                  <AlertTriangle className="w-4 h-4 text-rose-600" />
-                  <span>Stock Exhausted (0 Remaining):</span>
-                </div>
-                <ul className="list-disc list-inside text-[11px] text-rose-700 font-medium">
-                  {lastInvoice.zeroStockAlerts.map((i) => (
-                    <li key={i.id || i.sku}>
-                      {tName(i.name)} ({i.sku})
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-[10px] text-rose-500 font-normal mt-0.5">Please generate PO from Vendors.</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <button
-                onClick={() => {
-                  window.print();
-                }}
-                className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Bill</span>
-              </button>
-              <button
-                onClick={() => setShowReceiptModal(false)}
-                className="py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors"
-              >
-                Next Customer
-              </button>
-            </div>
-          </div>
-        </div>
+        <PrintPreviewModal
+          invoice={lastInvoice}
+          profile={shopProfile}
+          zeroStockAlerts={lastInvoice.zeroStockAlerts || []}
+          primaryCloseLabel={t('pos_next_customer')}
+          onClose={() => setShowReceiptModal(false)}
+        />
       )}
 
-      {/* Hidden Clean Thermal / A4 Print Layout */}
-      <PrintableReceipt invoice={lastInvoice} profile={shopProfile} />
+      {/* Hidden Print DOM (used when Auto-Print is enabled) */}
+      {!showReceiptModal && lastInvoice && (
+        <PrintableReceipt invoice={lastInvoice} profile={shopProfile} format={printPrefs.format} />
+      )}
     </div>
   );
 }

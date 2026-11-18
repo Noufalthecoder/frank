@@ -171,15 +171,21 @@ button:disabled {
     z-index: 99999 !important;
   }
 
-  .print-receipt.receipt-thermal {
-    max-width: 76mm !important;
-    font-family: "Courier New", Courier, monospace !important;
-    font-size: 11px !important;
+  .print-receipt.print-format-58mm {
+    max-width: 54mm !important;
   }
 
-  .print-receipt.receipt-a4 {
-    max-width: 190mm !important;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-    font-size: 12px !important;
+  .print-receipt.print-format-80mm {
+    max-width: 76mm !important;
+  }
+
+  .print-receipt.print-format-a6,
+  .print-receipt.print-format-a5,
+  .print-receipt.print-format-a4,
+  .print-receipt.print-format-a3,
+  .print-receipt.print-format-a2,
+  .print-receipt.print-format-a1 {
+    max-width: 100% !important;
+    width: 100% !important;
   }
 }

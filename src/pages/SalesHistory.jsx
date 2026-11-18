@@ -8,6 +8,8 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import PrintableReceipt from '../components/PrintableReceipt.jsx';
+import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
+import { getPrintPreferences, executePrint } from '../lib/printConfig.js';
 import { formatQty, isMeasurableUnit } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 
@@ -22,6 +24,8 @@ export default function SalesHistory() {
   const [page, setPage] = useState(1);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [printTarget, setPrintTarget] = useState(null);
+  const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [printPrefs, setPrintPrefs] = useState(getPrintPreferences());
   const [toast, setToast] = useState('');
 
   useEffect(() => {
@@ -30,8 +34,13 @@ export default function SalesHistory() {
       window.api.getShopProfile().then((p) => { if (p) setShopProfile(p); });
     }
     const handleStockUpdate = () => loadInvoices();
+    const handlePrefsUpdate = (e) => setPrintPrefs(e.detail || getPrintPreferences());
     window.addEventListener('stock-updated', handleStockUpdate);
-    return () => window.removeEventListener('stock-updated', handleStockUpdate);
+    window.addEventListener('print-prefs-updated', handlePrefsUpdate);
+    return () => {
+      window.removeEventListener('stock-updated', handleStockUpdate);
+      window.removeEventListener('print-prefs-updated', handlePrefsUpdate);
+    };
   }, []);
 
   const loadInvoices = async () => {
@@ -86,11 +95,25 @@ export default function SalesHistory() {
     }
   };
 
-  const handlePrint = (inv) => {
-    setPrintTarget(inv);
-    setTimeout(() => {
-      window.print();
-    }, 100);
+  const handlePrint = async (inv) => {
+    const prefs = getPrintPreferences();
+    setPrintPrefs(prefs);
+    if (prefs.allowHistoryReprint === false) {
+      showToast('Reprinting from Sales History is disabled in Settings.');
+      return;
+    }
+    if (prefs.openPreviewOnManual !== false) {
+      setSelectedInvoice(null);
+      setPreviewInvoice(inv);
+    } else {
+      setPrintTarget(inv);
+      await executePrint({
+        silent: false,
+        deviceName: prefs.printerName || '',
+        format: prefs.format || '80mm',
+        orientation: prefs.orientation || 'portrait',
+      });
+    }
   };
 
   const handleExportCsv = () => {
@@ -247,13 +270,15 @@ export default function SalesHistory() {
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
-                      <button
-                        onClick={() => handlePrint(inv)}
-                        className="p-1.5 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors"
-                        title="Reprint Receipt"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                      </button>
+                      {printPrefs.allowHistoryReprint !== false && (
+                        <button
+                          onClick={() => handlePrint(inv)}
+                          className="p-1.5 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors"
+                          title="Reprint Receipt"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -404,26 +429,40 @@ export default function SalesHistory() {
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => handlePrint(selectedInvoice)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Invoice</span>
-              </button>
+              {printPrefs.allowHistoryReprint !== false && (
+                <button
+                  onClick={() => handlePrint(selectedInvoice)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>{t('hist_print_invoice')}</span>
+                </button>
+              )}
               <button
                 onClick={() => setSelectedInvoice(null)}
                 className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200"
               >
-                Close
+                {t('hist_close')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Clean Thermal / A4 Receipt for Reprinting */}
-      <PrintableReceipt invoice={printTarget} profile={shopProfile} />
+      {/* Full Print Preview Modal (A1-A6 + Thermal + Available Printers + PDF Export) */}
+      {previewInvoice && (
+        <PrintPreviewModal
+          invoice={previewInvoice}
+          profile={shopProfile}
+          primaryCloseLabel={t('hist_close')}
+          onClose={() => setPreviewInvoice(null)}
+        />
+      )}
+
+      {/* Hidden Receipt DOM for Direct Reprinting */}
+      {!previewInvoice && printTarget && (
+        <PrintableReceipt invoice={printTarget} profile={shopProfile} format={printPrefs.format} />
+      )}
     </div>
   );
 }

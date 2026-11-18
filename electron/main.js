@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, screen, dialog } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { execFile } from 'node:child_process'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -790,6 +791,181 @@ ipcMain.handle('resetDatabase', () => {
   });
   tx();
   return { success: true };
+});
+
+// Paper size definitions in microns (width x height) for Electron print & printToPDF (A1-A6 + Thermal)
+const ELECTRON_PAGE_SIZES_MICRONS = {
+  A1: { width: 594000, height: 841000 },
+  A2: { width: 420000, height: 594000 },
+  A3: { width: 297000, height: 420000 },
+  A4: { width: 210000, height: 297000 },
+  A5: { width: 148000, height: 210000 },
+  A6: { width: 105000, height: 148000 },
+  '80mm': { width: 80000, height: 297000 },
+  '58mm': { width: 58000, height: 297000 },
+};
+
+function queryWindowsPrinterDetails() {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve({});
+    execFile(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        'Get-Printer | Select-Object Name,PortName,PrinterStatus,WorkOffline,DriverName | ConvertTo-Json -Compress',
+      ],
+      { timeout: 3000, windowsHide: true },
+      (err, stdout) => {
+        if (err || !stdout || !stdout.trim()) return resolve({});
+        try {
+          const parsed = JSON.parse(stdout.trim());
+          const list = Array.isArray(parsed) ? parsed : [parsed];
+          const map = {};
+          list.forEach((p) => {
+            if (p && p.Name) map[String(p.Name).toLowerCase()] = p;
+          });
+          resolve(map);
+        } catch (_) {
+          resolve({});
+        }
+      }
+    );
+  });
+}
+
+function classifyConnection(portName = '', driverName = '') {
+  const port = String(portName || '').toUpperCase();
+  const drv = String(driverName || '').toUpperCase();
+  if (port.includes('USB') || port.startsWith('COM') || port.startsWith('LPT')) return 'USB';
+  if (port.startsWith('WSD') || port.startsWith('IP_') || /^\d+\.\d+\.\d+\.\d+/.test(port) || port.includes('HTTP')) return 'Network';
+  if (port.includes('PORTPROMPT') || port.includes('NUL') || port.includes('FILE') || drv.includes('PDF') || drv.includes('XPS') || drv.includes('ONENOTE')) return 'Virtual';
+  return 'Local';
+}
+
+function resolvePrinterStatus(winDetail, electronStatus) {
+  if (winDetail) {
+    const ps = String(winDetail.PrinterStatus ?? '').toLowerCase();
+    const workOffline = Boolean(winDetail.WorkOffline);
+    if (workOffline || ps === 'offline' || ps === '5') {
+      return { connectionState: 'offline', statusLabel: 'Offline' };
+    }
+    if (ps === 'paused' || ps === '1') {
+      return { connectionState: 'offline', statusLabel: 'Paused' };
+    }
+    if (ps.includes('paperout') || ps === '16') {
+      return { connectionState: 'error', statusLabel: 'Paper Out' };
+    }
+    if (ps.includes('error') || ps.includes('jam') || ps.includes('door') || ps === '2') {
+      return { connectionState: 'error', statusLabel: 'Error' };
+    }
+    return { connectionState: 'connected', statusLabel: 'Connected' };
+  }
+  // Fallback to Electron status bitmask
+  const st = Number(electronStatus) || 0;
+  if (st === 0) return { connectionState: 'connected', statusLabel: 'Connected' };
+  if (st & 128) return { connectionState: 'offline', statusLabel: 'Offline' };
+  if (st & 1) return { connectionState: 'offline', statusLabel: 'Paused' };
+  if (st & 16) return { connectionState: 'error', statusLabel: 'Paper Out' };
+  return { connectionState: 'error', statusLabel: 'Attention' };
+}
+
+// IPC Handlers: Native Printer Discovery (Electron + Windows Get-Printer status), Silent/System Printing & A1-A6 PDF Export
+ipcMain.handle('getPrinters', async () => {
+  try {
+    if (!win || win.isDestroyed()) return [];
+    const [printers, winMap] = await Promise.all([
+      win.webContents.getPrintersAsync(),
+      queryWindowsPrinterDetails(),
+    ]);
+    return (printers || []).map((p) => {
+      const winDetail = winMap[String(p.name || '').toLowerCase()] || null;
+      const portName = winDetail?.PortName || '';
+      const driverName = winDetail?.DriverName || p.description || '';
+      const connectionType = classifyConnection(portName, driverName);
+      const { connectionState, statusLabel } = resolvePrinterStatus(winDetail, p.status);
+      return {
+        name: p.name,
+        displayName: p.displayName || p.name,
+        description: driverName,
+        portName,
+        connectionType,
+        connectionState,
+        statusLabel,
+        isDefault: Boolean(p.isDefault),
+        status: p.status,
+      };
+    });
+  } catch (err) {
+    return [];
+  }
+});
+
+ipcMain.handle('printInvoice', async (event, opts = {}) => {
+  try {
+    if (!win || win.isDestroyed()) return { success: false, error: 'Window unavailable.' };
+    const format = opts.format || '80mm';
+    const landscape = opts.orientation === 'landscape';
+    const pageSize = ELECTRON_PAGE_SIZES_MICRONS[format] || ELECTRON_PAGE_SIZES_MICRONS.A4;
+    const silent = Boolean(opts.silent);
+
+    return await new Promise((resolve) => {
+      win.webContents.print(
+        {
+          silent,
+          printBackground: true,
+          deviceName: opts.deviceName || undefined,
+          landscape,
+          pageSize,
+          margins: { marginType: 'none' },
+        },
+        (success, failureReason) => {
+          if (success) {
+            resolve({ success: true });
+          } else {
+            resolve({ success: false, error: failureReason || 'Print cancelled.' });
+          }
+        }
+      );
+    });
+  } catch (err) {
+    return { success: false, error: err.message || 'Print failed.' };
+  }
+});
+
+ipcMain.handle('exportInvoicePdf', async (event, opts = {}) => {
+  try {
+    if (!win || win.isDestroyed()) return { success: false, error: 'Window unavailable.' };
+    const format = opts.format || 'A4';
+    const landscape = opts.orientation === 'landscape';
+    const sizeMicrons = ELECTRON_PAGE_SIZES_MICRONS[format] || ELECTRON_PAGE_SIZES_MICRONS.A4;
+    // Electron printToPDF pageSize takes inches when passing custom { width, height }
+    const pageSizeInches = {
+      width: Number((sizeMicrons.width / 25400).toFixed(3)),
+      height: Number((sizeMicrons.height / 25400).toFixed(3)),
+    };
+
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: `Save Invoice PDF (${format})`,
+      defaultPath: `${opts.invoiceNumber || 'Invoice'}_${format}.pdf`,
+      filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+    });
+
+    if (canceled || !filePath) return { success: false };
+
+    const pdfData = await win.webContents.printToPDF({
+      printBackground: true,
+      landscape,
+      pageSize: pageSizeInches,
+      margins: { top: 0.2, bottom: 0.2, left: 0.2, right: 0.2 },
+    });
+
+    fs.writeFileSync(filePath, pdfData);
+    return { success: true, path: filePath };
+  } catch (err) {
+    return { success: false, error: err.message || 'PDF export failed.' };
+  }
 });
 
 function createWindow() {

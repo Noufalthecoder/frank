@@ -463,5 +463,39 @@ export function initBrowserApiFallback() {
       });
       return { success: true };
     },
+    getPrinters: async () => [
+      {
+        name: 'POS-80 Thermal Printer',
+        displayName: 'POS-80 Thermal Printer',
+        description: 'USB · Installed (Preview — live Windows printers detected in Desktop .exe)',
+        portName: 'USB001',
+        connectionType: 'USB',
+        connectionState: 'connected',
+        statusLabel: 'Connected',
+        isDefault: true,
+        status: 0,
+        isSimulated: true,
+      },
+      {
+        name: 'Microsoft Print to PDF',
+        displayName: 'Microsoft Print to PDF',
+        description: 'Virtual · A1–A6 PDF Export',
+        portName: 'PORTPROMPT:',
+        connectionType: 'Virtual',
+        connectionState: 'connected',
+        statusLabel: 'Connected',
+        isDefault: false,
+        status: 0,
+        isSimulated: true,
+      },
+    ],
+    printInvoice: async () => {
+      window.print();
+      return { success: true };
+    },
+    exportInvoicePdf: async () => {
+      window.print();
+      return { success: true, browserFallback: true };
+    },
   };
 }
