@@ -339,10 +339,10 @@ export default function Dashboard() {
           <p className="text-[28px] font-extrabold tracking-[-0.03em] mt-2.5 text-slate-900 tabular-nums leading-none">
             {Number(totalUnits.toFixed(2)).toLocaleString('en-IN')}
           </p>
-          <div className="flex items-center gap-1 text-[11px] mt-2.5 font-medium tabular-nums">
-            <span className="text-slate-500">{items.length} {t('dash_skus')}</span>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] mt-2.5 font-medium tabular-nums">
+            <span className="text-slate-500 whitespace-nowrap">{items.length} {t('dash_skus')}</span>
             {outOfStockCount > 0 && (
-              <span className="text-rose-600 font-bold">· {outOfStockCount} {t('dash_out_of_stock')}</span>
+              <span className="text-rose-600 font-bold whitespace-nowrap">· {outOfStockCount} {t('dash_out_of_stock')}</span>
             )}
           </div>
         </div>
