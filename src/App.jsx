@@ -20,7 +20,8 @@ export default function App() {
         <HashRouter>
           <Layout>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<Navigate to="/pos" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/catalog" element={<Catalog />} />
               <Route path="/racks" element={<Navigate to="/settings?tab=racks" replace />} />
               <Route path="/pos" element={<POSBilling />} />
@@ -29,7 +30,7 @@ export default function App() {
               <Route path="/procurement" element={<Navigate to="/vendors" replace />} />
               <Route path="/finance" element={<Finance />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<Navigate to="/pos" replace />} />
             </Routes>
           </Layout>
         </HashRouter>
