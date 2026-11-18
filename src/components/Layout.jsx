@@ -95,13 +95,13 @@ export default function Layout({ children }) {
   }, []);
 
   const navItems = [
-    { name: t('nav_pos'), path: '/pos', icon: ShoppingCart },
-    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard },
-    { name: t('nav_catalog'), path: '/catalog', icon: Boxes },
-    { name: t('nav_history'), path: '/history', icon: Receipt },
-    { name: t('nav_vendors'), path: '/vendors', icon: Truck },
-    { name: t('nav_finance'), path: '/finance', icon: Wallet },
-    { name: t('nav_settings'), path: '/settings', icon: Settings },
+    { name: t('nav_pos'), path: '/pos', icon: ShoppingCart, emoji: '🛒' },
+    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard, emoji: '📊' },
+    { name: t('nav_catalog'), path: '/catalog', icon: Boxes, emoji: '📦' },
+    { name: t('nav_history'), path: '/history', icon: Receipt, emoji: '🧾' },
+    { name: t('nav_vendors'), path: '/vendors', icon: Truck, emoji: '🚚' },
+    { name: t('nav_finance'), path: '/finance', icon: Wallet, emoji: '💰' },
+    { name: t('nav_settings'), path: '/settings', icon: Settings, emoji: '⚙️' },
   ];
 
   const handleSearchSubmit = (e) => {
@@ -138,7 +138,6 @@ export default function Layout({ children }) {
           {/* Navigation: POS Billing first, then a gap, then the rest */}
           <nav className="py-4 flex flex-col gap-1 overflow-y-auto">
             {navItems.map((item, idx) => {
-              const Icon = item.icon;
               const isActive = location.pathname === item.path;
               return (
                 <React.Fragment key={item.path}>
@@ -148,7 +147,13 @@ export default function Layout({ children }) {
                       isActive ? 'bg-[#e6eaf1]' : 'hover:bg-slate-100 hover:text-blue-600'
                     }`}
                   >
-                    <Icon className="w-[18px] h-[18px] flex-shrink-0 text-slate-950" />
+                    <span
+                      aria-hidden="true"
+                      className="w-[18px] text-center text-[16px] leading-none flex-shrink-0"
+                      style={{ fontFamily: '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif' }}
+                    >
+                      {item.emoji}
+                    </span>
                     <span className="truncate">{item.name}</span>
                   </NavLink>
                   {idx === 0 && <div className="h-3" aria-hidden="true" />}

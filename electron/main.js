@@ -557,7 +557,7 @@ function applyPoStockDelta(line, deltaQty) {
   db.prepare('UPDATE items SET quantity = ?, status = ? WHERE id = ?').run(nextQty, nextStatus, target.id);
 }
 
-function aggregatePoLines(lines) {
+function aggregatePoLines(lines, useReceived = false) {
   const map = new Map();
   (Array.isArray(lines) ? lines : []).forEach((l) => {
     const pid = Number(l.product_id) || 0;
@@ -565,7 +565,8 @@ function aggregatePoLines(lines) {
     const key = pid > 0 ? `id:${pid}` : sku ? `sku:${sku}` : '';
     if (!key) return;
     const prev = map.get(key) || { product_id: pid, sku, qty: 0 };
-    prev.qty = Number((prev.qty + (Number(l.quantity) || 0)).toFixed(6));
+    const lineQty = useReceived && l.received_quantity !== undefined && l.received_quantity !== null ? Number(l.received_quantity) || 0 : Number(l.quantity) || 0;
+    prev.qty = Number((prev.qty + lineQty).toFixed(6));
     map.set(key, prev);
   });
   return map;
@@ -574,7 +575,9 @@ function aggregatePoLines(lines) {
 ipcMain.handle('createPurchaseOrder', (event, po) => {
   const genNum = `PO-${String(Math.floor(10000 + Math.random() * 90000))}`;
   const poStatus = po.status === 'Received' ? 'Received' : 'Request';
-  const items = Array.isArray(po.items) ? po.items : [];
+  const items = (Array.isArray(po.items) ? po.items : []).map((l) =>
+    poStatus === 'Received' ? { ...l, received_quantity: Number(l.quantity) || 0 } : l
+  );
   const stmt = db.prepare(`
     INSERT INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json)
     VALUES (?, ?, ?, ?, ?, ?)
@@ -596,7 +599,9 @@ ipcMain.handle('updatePurchaseOrder', (event, po) => {
     const prevStatus = existing.status === 'Received' || existing.status === 'Closed' ? 'Received' : 'Request';
     const nextStatus = po.status === 'Received' ? 'Received' : 'Request';
     const prevItems = JSON.parse(existing.items_json || '[]');
-    const nextItems = Array.isArray(po.items) ? po.items : prevItems;
+    const nextItems = (Array.isArray(po.items) ? po.items : prevItems).map((l) =>
+      nextStatus === 'Received' ? { ...l, received_quantity: Number(l.quantity) || 0 } : l
+    );
 
     const tx = db.transaction(() => {
       db.prepare(`
@@ -613,7 +618,7 @@ ipcMain.handle('updatePurchaseOrder', (event, po) => {
       );
 
       // Compute exact per-product delta so inventory updates cleanly without double-counting
-      const prevMap = prevStatus === 'Received' ? aggregatePoLines(prevItems) : new Map();
+      const prevMap = prevStatus === 'Received' ? aggregatePoLines(prevItems, true) : new Map();
       const nextMap = nextStatus === 'Received' ? aggregatePoLines(nextItems) : new Map();
       const allKeys = new Set([...prevMap.keys(), ...nextMap.keys()]);
       allKeys.forEach((key) => {
@@ -632,24 +637,48 @@ ipcMain.handle('updatePurchaseOrder', (event, po) => {
   }
 });
 
-ipcMain.handle('updatePurchaseOrderStatus', (event, { id, status }) => {
+ipcMain.handle('updatePurchaseOrderStatus', (event, { id, status, received }) => {
   try {
     const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id);
     if (!po) return { success: false, error: 'PO not found.' };
     const prevStatus = po.status === 'Received' || po.status === 'Closed' ? 'Received' : 'Request';
     const nextStatus = status === 'Received' ? 'Received' : 'Request';
+    const updates = [];
+    const missing = [];
 
     const tx = db.transaction(() => {
-      db.prepare('UPDATE purchase_orders SET status = ? WHERE id = ?').run(nextStatus, id);
       const items = JSON.parse(po.items_json || '[]');
       if (prevStatus !== 'Received' && nextStatus === 'Received') {
-        items.forEach((line) => applyPoStockDelta(line, Number(line.quantity) || 0));
+        // Add the RECEIVED quantity (defaults to ordered qty) to existing stock
+        items.forEach((line) => {
+          const override = received && received[line.sku] !== undefined ? Number(received[line.sku]) : NaN;
+          const qty = Number.isFinite(override) && override >= 0 ? override : Number(line.quantity) || 0;
+          line.received_quantity = qty;
+          if (qty <= 0) return;
+          const pid = Number(line.product_id) || 0;
+          const sku = String(line.sku || '').trim().toUpperCase();
+          const target = (pid > 0 ? db.prepare('SELECT id, quantity FROM items WHERE id = ?').get(pid) : null)
+            || (sku ? db.prepare('SELECT id, quantity FROM items WHERE UPPER(sku) = ?').get(sku) : null);
+          if (!target) { missing.push(line.sku || line.name || '?'); return; }
+          applyPoStockDelta(line, qty);
+          const after = db.prepare('SELECT quantity FROM items WHERE id = ?').get(target.id).quantity;
+          updates.push({ sku: line.sku, name: line.name, added: qty, before: target.quantity, after });
+        });
       } else if (prevStatus === 'Received' && nextStatus !== 'Received') {
-        items.forEach((line) => applyPoStockDelta(line, -(Number(line.quantity) || 0)));
+        // Reverse exactly what was added when it was received
+        items.forEach((line) => {
+          const stocked = line.received_quantity !== undefined && line.received_quantity !== null
+            ? Number(line.received_quantity) || 0
+            : Number(line.quantity) || 0;
+          applyPoStockDelta(line, -stocked);
+          delete line.received_quantity;
+        });
       }
+      db.prepare('UPDATE purchase_orders SET status = ?, items_json = ? WHERE id = ?')
+        .run(nextStatus, JSON.stringify(items), id);
     });
     tx();
-    return { success: true };
+    return { success: true, updates, missing };
   } catch (err) {
     return { success: false, error: err.message };
   }

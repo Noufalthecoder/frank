@@ -406,37 +406,55 @@ export function initBrowserApiFallback() {
       writeDb(db);
       return { success: true };
     },
-    updatePurchaseOrderStatus: async (id, status) => {
+    updatePurchaseOrderStatus: async (id, status, received) => {
       const db = readDb();
       const po = db.purchase_orders.find((p) => p.id === id);
       if (!po) return { success: false, error: 'PO not found.' };
       const prevStatus = po.status === 'Received' || po.status === 'Closed' ? 'Received' : 'Request';
       const nextStatus = status === 'Received' ? 'Received' : 'Request';
       const items = JSON.parse(po.items_json || '[]');
-      const factor =
-        prevStatus !== 'Received' && nextStatus === 'Received'
-          ? 1
-          : prevStatus === 'Received' && nextStatus !== 'Received'
-          ? -1
-          : 0;
-      if (factor !== 0) {
+      const updates = [];
+      const missing = [];
+      const findTarget = (line) => {
+        const pid = Number(line.product_id) || 0;
+        const sku = String(line.sku || '').trim().toUpperCase();
+        return (
+          (pid > 0 ? db.items.find((x) => x.id === pid) : null) ||
+          db.items.find((x) => String(x.sku || '').trim().toUpperCase() === sku)
+        );
+      };
+      const bump = (target, delta) => {
+        target.quantity = Number(Math.max(0, Number(target.quantity || 0) + delta).toFixed(6));
+        if (target.quantity > 0 && (target.status === 'Unavailable' || target.status === 'Inactive')) {
+          target.status = 'Available';
+        }
+      };
+      if (prevStatus !== 'Received' && nextStatus === 'Received') {
         items.forEach((line) => {
-          const pid = Number(line.product_id) || 0;
-          const sku = String(line.sku || '').trim().toUpperCase();
-          const target =
-            (pid > 0 ? db.items.find((x) => x.id === pid) : null) ||
-            db.items.find((x) => String(x.sku || '').trim().toUpperCase() === sku);
-          if (target) {
-            target.quantity = Number(Math.max(0, Number(target.quantity || 0) + factor * Number(line.quantity || 0)).toFixed(6));
-            if (target.quantity > 0 && (target.status === 'Unavailable' || target.status === 'Inactive')) {
-              target.status = 'Available';
-            }
-          }
+          const override = received && received[line.sku] !== undefined ? Number(received[line.sku]) : NaN;
+          const qty = Number.isFinite(override) && override >= 0 ? override : Number(line.quantity) || 0;
+          line.received_quantity = qty;
+          if (qty <= 0) return;
+          const target = findTarget(line);
+          if (!target) { missing.push(line.sku || line.name || '?'); return; }
+          const before = Number(target.quantity || 0);
+          bump(target, qty);
+          updates.push({ sku: line.sku, name: line.name, added: qty, before, after: target.quantity });
+        });
+      } else if (prevStatus === 'Received' && nextStatus !== 'Received') {
+        items.forEach((line) => {
+          const stocked = line.received_quantity !== undefined && line.received_quantity !== null
+            ? Number(line.received_quantity) || 0
+            : Number(line.quantity) || 0;
+          const target = findTarget(line);
+          if (target) bump(target, -stocked);
+          delete line.received_quantity;
         });
       }
+      po.items_json = JSON.stringify(items);
       po.status = nextStatus;
       writeDb(db);
-      return { success: true };
+      return { success: true, updates, missing };
     },
     deletePurchaseOrder: async (id) => {
       const db = readDb();
