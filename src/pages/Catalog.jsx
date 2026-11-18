@@ -165,11 +165,42 @@ export default function Catalog() {
     }
   };
 
+  const generateAutoSku = (name, size) => {
+    const words = String(name || '')
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter(Boolean);
+
+    const prefix =
+      words.length >= 2
+        ? words.slice(0, 3).map((w) => w[0]).join('')
+        : (words[0] || 'ITM').slice(0, 3);
+
+    const sizeToken = String(size || '')
+      .trim()
+      .toUpperCase()
+      .replace(/"/g, 'IN')
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 8);
+
+    const base = sizeToken ? `${prefix}-${sizeToken}` : `${prefix}-01`;
+    if (!existingSkus.has(base)) return base;
+
+    let counter = 2;
+    const stem = sizeToken ? `${prefix}-${sizeToken}` : prefix;
+    while (existingSkus.has(`${stem}-${String(counter).padStart(2, '0')}`)) {
+      counter++;
+    }
+    return `${stem}-${String(counter).padStart(2, '0')}`;
+  };
+
   const handleSaveItem = async (e) => {
     e.preventDefault();
     setFormError('');
-    if (!form.sku.trim() || !form.name.trim() || form.selling_price === '') {
-      setFormError('Please fill SKU, Item Name, and Selling Price.');
+    if (!form.name.trim() || form.selling_price === '') {
+      setFormError('Please fill Item Name and Selling Price.');
       return;
     }
 
@@ -179,9 +210,15 @@ export default function Catalog() {
     }
 
     try {
+      const resolvedSku = editingItem
+        ? (form.sku.trim().toUpperCase() || editingItem.sku)
+        : (form.sku.trim() && !existingSkus.has(form.sku.trim().toUpperCase())
+            ? form.sku.trim().toUpperCase()
+            : generateAutoSku(form.name, form.size));
+
       const payload = {
         ...form,
-        sku: form.sku.trim().toUpperCase(),
+        sku: resolvedSku,
         name: form.name.trim(),
         brand: (form.brand || 'Generic').trim(),
         bin_id: (form.bin_id || '').trim().toUpperCase(),
@@ -205,6 +242,7 @@ export default function Catalog() {
       setForm(EMPTY_FORM);
       await loadItems();
       window.dispatchEvent(new CustomEvent('stock-updated'));
+      showToast(editingItem ? 'Product updated.' : `Added "${payload.name}" (${resolvedSku}).`);
     } catch (err) {
       setFormError(err.message || 'Failed to save product.');
     }
@@ -747,35 +785,33 @@ export default function Catalog() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">SKU / Code *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. HB-M8-40"
-                    value={form.sku}
-                    onChange={(e) => {
-                      setFormError('');
-                      setForm({ ...form, sku: e.target.value });
-                    }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  />
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700">Item Name *</label>
+                  {form.name.trim() && (
+                    <span className="text-[10px] font-mono text-slate-400">
+                      Code:{' '}
+                      <strong className="text-slate-600">
+                        {editingItem
+                          ? form.sku
+                          : form.sku.trim() && !existingSkus.has(form.sku.trim().toUpperCase())
+                          ? form.sku.trim().toUpperCase()
+                          : generateAutoSku(form.name, form.size)}
+                      </strong>
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Item Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Hex Bolt M8 x 40mm"
-                    value={form.name}
-                    onChange={(e) => {
-                      setFormError('');
-                      setForm({ ...form, name: e.target.value });
-                    }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  />
-                </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Hex Bolt, Ball Peen Hammer, PVC Pipe..."
+                  value={form.name}
+                  onChange={(e) => {
+                    setFormError('');
+                    setForm({ ...form, name: e.target.value, sku: editingItem ? form.sku : '' });
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -785,7 +821,7 @@ export default function Catalog() {
                     type="text"
                     placeholder="e.g. M8 x 40"
                     value={form.size}
-                    onChange={(e) => setForm({ ...form, size: e.target.value })}
+                    onChange={(e) => setForm({ ...form, size: e.target.value, sku: editingItem ? form.sku : '' })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
                 </div>
