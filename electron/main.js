@@ -910,6 +910,38 @@ ipcMain.handle('printInvoice', async (event, opts = {}) => {
     const pageSize = ELECTRON_PAGE_SIZES_MICRONS[format] || ELECTRON_PAGE_SIZES_MICRONS.A4;
     const silent = Boolean(opts.silent);
 
+    // Pre-check printer availability before silent/direct print
+    if (silent || opts.deviceName) {
+      const [printers, winMap] = await Promise.all([
+        win.webContents.getPrintersAsync(),
+        queryWindowsPrinterDetails(),
+      ]);
+      const target = opts.deviceName
+        ? printers.find((p) => p.name === opts.deviceName)
+        : printers.find((p) => p.isDefault) || printers[0];
+
+      if (!target) {
+        return {
+          success: false,
+          code: 'PRINTER_UNAVAILABLE',
+          error: 'The printer is unavailable or disconnected.',
+        };
+      }
+
+      const winDetail = winMap[String(target.name || '').toLowerCase()] || null;
+      const { connectionState, statusLabel } = resolvePrinterStatus(winDetail, target.status);
+      if (connectionState !== 'connected') {
+        return {
+          success: false,
+          code: 'PRINTER_UNAVAILABLE',
+          error:
+            statusLabel === 'Paper Out'
+              ? 'The printer is out of paper. Load paper and retry.'
+              : 'The printer is unavailable or disconnected.',
+        };
+      }
+    }
+
     return await new Promise((resolve) => {
       win.webContents.print(
         {
@@ -924,13 +956,24 @@ ipcMain.handle('printInvoice', async (event, opts = {}) => {
           if (success) {
             resolve({ success: true });
           } else {
-            resolve({ success: false, error: failureReason || 'Print cancelled.' });
+            resolve({
+              success: false,
+              code: 'PRINT_FAILED',
+              error:
+                failureReason && failureReason !== 'cancelled'
+                  ? `The printer is unavailable or disconnected (${failureReason}).`
+                  : 'The printer is unavailable or disconnected.',
+            });
           }
         }
       );
     });
   } catch (err) {
-    return { success: false, error: err.message || 'Print failed.' };
+    return {
+      success: false,
+      code: 'PRINT_FAILED',
+      error: err.message || 'The printer is unavailable or disconnected.',
+    };
   }
 });
 

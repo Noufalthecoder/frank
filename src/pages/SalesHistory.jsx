@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import PrintableReceipt from '../components/PrintableReceipt.jsx';
 import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
-import { getPrintPreferences, executePrint } from '../lib/printConfig.js';
+import PrintErrorBanner from '../components/PrintErrorBanner.jsx';
+import { getPrintPreferences, executePrint, exportReceiptPdf } from '../lib/printConfig.js';
 import { formatQty, isMeasurableUnit } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 
@@ -26,6 +27,8 @@ export default function SalesHistory() {
   const [printTarget, setPrintTarget] = useState(null);
   const [previewInvoice, setPreviewInvoice] = useState(null);
   const [printPrefs, setPrintPrefs] = useState(getPrintPreferences());
+  const [printFailure, setPrintFailure] = useState(null);
+  const [retryingPrint, setRetryingPrint] = useState(false);
   const [toast, setToast] = useState('');
 
   useEffect(() => {
@@ -107,12 +110,18 @@ export default function SalesHistory() {
       setPreviewInvoice(inv);
     } else {
       setPrintTarget(inv);
-      await executePrint({
+      const res = await executePrint({
         silent: false,
         deviceName: prefs.printerName || '',
         format: prefs.format || '80mm',
         orientation: prefs.orientation || 'portrait',
       });
+      if (!res || !res.success) {
+        setPrintFailure({
+          invoice: inv,
+          reason: res?.error || 'The printer is unavailable or disconnected.',
+        });
+      }
     }
   };
 
@@ -148,6 +157,51 @@ export default function SalesHistory() {
         <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>{toast}</span>
+        </div>
+      )}
+
+      {/* Printer Error Recovery Card */}
+      {printFailure && (
+        <div className="fixed top-4 right-5 z-[95] w-full max-w-md">
+          <PrintErrorBanner
+            invoiceNumber={printFailure.invoice?.invoice_number}
+            reason={printFailure.reason}
+            retrying={retryingPrint}
+            onRetry={async () => {
+              setRetryingPrint(true);
+              const prefs = getPrintPreferences();
+              const res = await executePrint({
+                silent: false,
+                deviceName: prefs.printerName || '',
+                format: prefs.format || '80mm',
+                orientation: prefs.orientation || 'portrait',
+              });
+              setRetryingPrint(false);
+              if (res && res.success) {
+                setPrintFailure(null);
+                showToast(`Invoice #${printFailure.invoice?.invoice_number} printed.`);
+              } else {
+                setPrintFailure((prev) =>
+                  prev ? { ...prev, reason: res?.error || 'The printer is unavailable or disconnected.' } : null
+                );
+              }
+            }}
+            onSavePdf={async () => {
+              setRetryingPrint(true);
+              const prefs = getPrintPreferences();
+              const res = await exportReceiptPdf({
+                invoiceNumber: printFailure.invoice?.invoice_number || 'INVOICE',
+                format: prefs.format === '80mm' || prefs.format === '58mm' ? 'A4' : prefs.format,
+                orientation: prefs.orientation || 'portrait',
+              });
+              setRetryingPrint(false);
+              if (res && res.success) {
+                setPrintFailure(null);
+                showToast(res.path ? 'Invoice PDF saved.' : 'Opened PDF export.');
+              }
+            }}
+            onDismiss={() => setPrintFailure(null)}
+          />
         </div>
       )}
 

@@ -23,10 +23,12 @@ import {
 } from 'lucide-react';
 import PrintableReceipt from '../components/PrintableReceipt.jsx';
 import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
+import PrintErrorBanner from '../components/PrintErrorBanner.jsx';
 import {
   getPrintPreferences,
   savePrintPreferences,
   executePrint,
+  exportReceiptPdf,
 } from '../lib/printConfig.js';
 import {
   normalizeUnit,
@@ -97,6 +99,8 @@ export default function POSBilling() {
   const [showPrinterMenu, setShowPrinterMenu] = useState(false);
   const [loadingPrinters, setLoadingPrinters] = useState(false);
   const [posToast, setPosToast] = useState('');
+  const [printFailure, setPrintFailure] = useState(null); // { invoice, reason }
+  const [retryingPrint, setRetryingPrint] = useState(false);
   const printerMenuRef = useRef(null);
   const posToastTimerRef = useRef(null);
 
@@ -538,13 +542,21 @@ export default function POSBilling() {
 
         if (prefs.afterPayment === 'auto' || prefs.autoPrint) {
           // Flow B: Automatic silent print to configured printer -> ready for next customer
-          showPosToast(`Invoice #${res.invoice_number} sent to ${prefs.printerName || 'default printer'} (${prefs.format})`);
-          executePrint({
+          const printRes = await executePrint({
             silent: true,
             deviceName: prefs.printerName || '',
             format: prefs.format || '80mm',
             orientation: prefs.orientation || 'portrait',
           });
+          if (printRes && printRes.success) {
+            setPrintFailure(null);
+            showPosToast(`Invoice #${res.invoice_number} sent to ${prefs.printerName || 'default printer'} (${prefs.format})`);
+          } else {
+            setPrintFailure({
+              invoice: completedInvoice,
+              reason: printRes?.error || 'The printer is unavailable or disconnected.',
+            });
+          }
         } else if (prefs.afterPayment === 'none') {
           showPosToast(`Invoice #${res.invoice_number} saved.`);
         } else {
@@ -568,6 +580,55 @@ export default function POSBilling() {
         <div className="animate-toast fixed top-4 right-5 z-[100] flex items-center gap-2 bg-slate-900 text-white border border-slate-700/80 shadow-2xl shadow-slate-900/25 px-4 py-2.5 rounded-xl text-xs font-semibold">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>{posToast}</span>
+        </div>
+      )}
+
+      {/* Printer Disconnected / Failure Recovery Banner (Zero Duplicate Stock Deduction) */}
+      {printFailure && (
+        <div className="fixed top-4 right-5 z-[95] w-full max-w-md">
+          <PrintErrorBanner
+            invoiceNumber={printFailure.invoice?.invoice_number}
+            reason={printFailure.reason}
+            retrying={retryingPrint}
+            onRetry={async () => {
+              setRetryingPrint(true);
+              await loadPrinters();
+              const prefs = getPrintPreferences();
+              const retryRes = await executePrint({
+                silent: true,
+                deviceName: prefs.printerName || '',
+                format: prefs.format || '80mm',
+                orientation: prefs.orientation || 'portrait',
+              });
+              setRetryingPrint(false);
+              if (retryRes && retryRes.success) {
+                const invNo = printFailure.invoice?.invoice_number;
+                setPrintFailure(null);
+                showPosToast(`Invoice #${invNo} printed.`);
+              } else {
+                setPrintFailure((prev) =>
+                  prev
+                    ? { ...prev, reason: retryRes?.error || 'The printer is unavailable or disconnected.' }
+                    : null
+                );
+              }
+            }}
+            onSavePdf={async () => {
+              setRetryingPrint(true);
+              const prefs = getPrintPreferences();
+              const pdfRes = await exportReceiptPdf({
+                invoiceNumber: printFailure.invoice?.invoice_number || 'INVOICE',
+                format: prefs.format === '80mm' || prefs.format === '58mm' ? 'A4' : prefs.format,
+                orientation: prefs.orientation || 'portrait',
+              });
+              setRetryingPrint(false);
+              if (pdfRes && pdfRes.success) {
+                setPrintFailure(null);
+                showPosToast(pdfRes.path ? 'Invoice PDF saved.' : 'Opened PDF export.');
+              }
+            }}
+            onDismiss={() => setPrintFailure(null)}
+          />
         </div>
       )}
 

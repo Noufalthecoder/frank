@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import PrintableReceipt, { InvoiceDocument } from './PrintableReceipt.jsx';
+import PrintErrorBanner from './PrintErrorBanner.jsx';
 import {
   PAPER_SIZES,
   getPrintPreferences,
@@ -32,6 +33,7 @@ export default function PrintPreviewModal({
   const [loadingPrinters, setLoadingPrinters] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
+  const [printError, setPrintError] = useState('');
 
   const loadPrinters = async () => {
     setLoadingPrinters(true);
@@ -59,7 +61,21 @@ export default function PrintPreviewModal({
   const handlePrint = async (useSystemDialog = false) => {
     setPrinting(true);
     setStatusMsg('');
+    setPrintError('');
     try {
+      // Check selected printer status if not using system dialog
+      if (!useSystemDialog) {
+        const chosen = printers.find((p) => p.name === selectedPrinter);
+        if (chosen && chosen.connectionState && chosen.connectionState !== 'connected') {
+          setPrintError(
+            chosen.statusLabel === 'Paper Out'
+              ? 'The printer is out of paper. Load paper and retry.'
+              : 'The printer is unavailable or disconnected.'
+          );
+          return;
+        }
+      }
+
       const res = await executePrint({
         format,
         orientation,
@@ -67,10 +83,13 @@ export default function PrintPreviewModal({
         silent: !useSystemDialog && Boolean(selectedPrinter),
       });
       if (res && res.success) {
+        setPrintError('');
         setStatusMsg(useSystemDialog ? 'Print dialog opened.' : `Sent to ${selectedPrinter || 'default printer'} (${spec.id}).`);
-      } else if (res && res.error) {
-        setStatusMsg(res.error);
+      } else {
+        setPrintError(res?.error || 'The printer is unavailable or disconnected.');
       }
+    } catch (err) {
+      setPrintError(err.message || 'The printer is unavailable or disconnected.');
     } finally {
       setPrinting(false);
     }
@@ -86,6 +105,7 @@ export default function PrintPreviewModal({
         orientation,
       });
       if (res && res.success) {
+        setPrintError('');
         setStatusMsg(res.path ? `Saved PDF: ${res.path}` : `Opened PDF export (${spec.id}).`);
       }
     } finally {
@@ -282,7 +302,21 @@ export default function PrintPreviewModal({
                 </div>
               </div>
 
-              {statusMsg && (
+              {printError && (
+                <PrintErrorBanner
+                  invoiceNumber={invoice.invoice_number}
+                  reason={printError}
+                  retrying={printing}
+                  onRetry={async () => {
+                    await loadPrinters();
+                    await handlePrint(false);
+                  }}
+                  onSavePdf={handleExportPdf}
+                  onDismiss={() => setPrintError('')}
+                />
+              )}
+
+              {statusMsg && !printError && (
                 <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                   <span className="break-all">{statusMsg}</span>
