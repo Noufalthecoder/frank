@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import BinPicker from './BinPicker.jsx';
 import {
   Search,
   ArrowLeft,
@@ -199,18 +200,11 @@ export default function ToolLibraryPicker({
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Rack / Bin</label>
-                <select
+                <BinPicker
                   value={defaultBin}
-                  onChange={(e) => setDefaultBin(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Unassigned</option>
-                  {availableBins.map((b) => (
-                    <option key={b.code} value={b.code}>
-                      {b.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setDefaultBin}
+                  selectClassName="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+                />
               </div>
             </div>
           </div>

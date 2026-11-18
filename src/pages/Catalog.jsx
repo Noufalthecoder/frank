@@ -1,3 +1,4 @@
+import BinPicker from '../components/BinPicker.jsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -1342,21 +1343,7 @@ export default function Catalog() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack / Shelf Bin</label>
-                  <select
-                    value={form.bin_id}
-                    onChange={(e) => setForm({ ...form, bin_id: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  >
-                    <option value="">Unassigned</option>
-                    {form.bin_id && !availableBins.some((b) => b.code === form.bin_id) && (
-                      <option value={form.bin_id}>{form.bin_id} (bin not found)</option>
-                    )}
-                    {availableBins.map((b) => (
-                      <option key={b.code} value={b.code}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </select>
+                  <BinPicker value={form.bin_id} onChange={(code) => setForm({ ...form, bin_id: code })} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">

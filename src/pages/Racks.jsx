@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { useAppDialog } from '../components/AppDialogContext.jsx';
+import BinPicker from '../components/BinPicker.jsx';
 
 export default function Racks({ embedded = false }) {
   const { showConfirm, showAlert } = useAppDialog();
@@ -61,17 +62,6 @@ export default function Racks({ embedded = false }) {
     (i) => !i.bin_id || !validBinCodes.has(String(i.bin_id).toUpperCase())
   );
   const selectedBin = racks.flatMap((r) => r.bins || []).find((b) => b.bin_code === selectedBinCode) || null;
-
-  const binOptions = () =>
-    racks.map((r) => (
-      <optgroup key={r.code} label={`${r.code} – ${r.name}`}>
-        {(r.bins || []).map((b) => (
-          <option key={b.bin_code} value={b.bin_code}>
-            {b.bin_code}
-          </option>
-        ))}
-      </optgroup>
-    ));
 
   const moveItem = async (itemId, binCode) => {
     if (!window.api || !window.api.moveItemToBin) return;
@@ -250,14 +240,14 @@ export default function Racks({ embedded = false }) {
                     <p className="text-[10px] font-mono text-slate-400 mb-1">
                       {item.sku}{item.bin_id ? ` · bad bin ${item.bin_id}` : ''}
                     </p>
-                    <select
-                      defaultValue=""
-                      onChange={(e) => e.target.value && moveItem(item.id, e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-[11px] font-mono text-slate-700"
-                    >
-                      <option value="">Assign to bin…</option>
-                      {binOptions()}
-                    </select>
+                    <BinPicker
+                      racks={racks}
+                      value=""
+                      autoPickFirst={false}
+                      rackPlaceholder="Assign to rack…"
+                      onChange={(code) => moveItem(item.id, code)}
+                      selectClassName="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-700"
+                    />
                   </div>
                 ))}
               </div>
@@ -579,25 +569,32 @@ export default function Racks({ embedded = false }) {
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 <p className="text-[11px] font-bold text-slate-600 uppercase">Products in this bin</p>
                 {selectedBin.items.map((item) => (
-                  <div key={item.id || item.sku} className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded-lg text-xs">
-                    <div className="min-w-0 pr-2">
-                      <p className="font-semibold text-slate-800 truncate">{item.name}</p>
-                      <p className="text-[10px] font-mono text-slate-400">{item.sku}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="font-bold text-emerald-700">
+                  <div key={item.id || item.sku} className="p-2 bg-white border border-slate-200 rounded-lg text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 pr-2">
+                        <p className="font-semibold text-slate-800 truncate">{item.name}</p>
+                        <p className="text-[10px] font-mono text-slate-400">{item.sku}</p>
+                      </div>
+                      <span className="font-bold text-emerald-700 flex-shrink-0">
                         {item.quantity} {item.unit || 'PCS'}
                       </span>
-                      <select
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                      <BinPicker
+                        racks={racks}
                         value=""
-                        onChange={(e) => e.target.value !== '' && moveItem(item.id, e.target.value === '__none__' ? '' : e.target.value)}
-                        title="Move product"
-                        className="w-16 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-[10px] text-slate-600"
+                        autoPickFirst={false}
+                        rackPlaceholder="Move to rack…"
+                        onChange={(code) => moveItem(item.id, code)}
+                        className="flex-1 min-w-0"
+                        selectClassName="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-700"
+                      />
+                      <button
+                        onClick={() => moveItem(item.id, '')}
+                        className="px-2 py-1 text-[11px] font-semibold text-slate-500 border border-slate-200 rounded-md hover:text-rose-600 hover:bg-rose-50"
                       >
-                        <option value="">Move…</option>
-                        <option value="__none__">Unassign</option>
-                        {binOptions()}
-                      </select>
+                        Unassign
+                      </button>
                     </div>
                   </div>
                 ))}
