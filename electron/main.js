@@ -106,7 +106,7 @@ function initSchema() {
       vendor_name TEXT NOT NULL,
       order_date TEXT NOT NULL,
       amount REAL NOT NULL,
-      status TEXT NOT NULL DEFAULT 'Open',
+      status TEXT NOT NULL DEFAULT 'Request',
       items_json TEXT
     );
 
@@ -157,6 +157,12 @@ function initSchema() {
     db.exec(`ALTER TABLE shop_profile ADD COLUMN gstin TEXT DEFAULT ''`);
   } catch (_) {
     // Column already exists
+  }
+  try {
+    db.exec(`UPDATE purchase_orders SET status = 'Request' WHERE status = 'Open'`);
+    db.exec(`UPDATE purchase_orders SET status = 'Received' WHERE status = 'Closed'`);
+  } catch (_) {
+    // Ignore if table not ready
   }
 
   // Ensure shop profile row exists with T. S. P Enterprises
@@ -352,11 +358,11 @@ function seedInitialData() {
 
   // Purchase Orders
   const samplePOs = [
-    { num: 'PO-00284', vendor: 'KPR Fasteners', date: today, amount: 48500.00, status: 'Open', items: [{ sku: 'DB-12', name: 'SDS Plus Drill Bit 12mm', quantity: 50, rate: 200 }] },
+    { num: 'PO-00284', vendor: 'KPR Fasteners', date: today, amount: 48500.00, status: 'Request', items: [{ sku: 'DB-12', name: 'SDS Plus Drill Bit 12mm', quantity: 50, rate: 200 }] },
     { num: 'PO-00283', vendor: 'Metro Tools Co.', date: yesterday, amount: 72000.00, status: 'Received', items: [] },
     { num: 'PO-00282', vendor: 'Shree Metals', date: twoDaysAgo, amount: 124000.00, status: 'Received', items: [] },
-    { num: 'PO-00281', vendor: 'Nice Hardware', date: twoDaysAgo, amount: 36750.00, status: 'Closed', items: [] },
-    { num: 'PO-00280', vendor: 'A1 Tools Distributors', date: twoDaysAgo, amount: 58200.00, status: 'Closed', items: [] }
+    { num: 'PO-00281', vendor: 'Nice Hardware', date: twoDaysAgo, amount: 36750.00, status: 'Received', items: [] },
+    { num: 'PO-00280', vendor: 'A1 Tools Distributors', date: twoDaysAgo, amount: 58200.00, status: 'Received', items: [] }
   ];
   const insertPO = db.prepare('INSERT OR IGNORE INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json) VALUES (?, ?, ?, ?, ?, ?)');
   samplePOs.forEach(p => insertPO.run(p.num, p.vendor, p.date, p.amount, p.status, JSON.stringify(p.items)));
@@ -644,11 +650,24 @@ ipcMain.handle('getPurchaseOrders', () => {
 
 ipcMain.handle('createPurchaseOrder', (event, po) => {
   const genNum = `PO-${String(Math.floor(10000 + Math.random() * 90000))}`;
+  const poStatus = po.status === 'Received' ? 'Received' : 'Request';
+  const items = Array.isArray(po.items) ? po.items : [];
   const stmt = db.prepare(`
     INSERT INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json)
     VALUES (?, ?, ?, ?, ?, ?)
   `);
-  stmt.run(po.po_number || genNum, po.vendor_name, po.order_date, po.amount, po.status || 'Open', JSON.stringify(po.items || []));
+  const tx = db.transaction(() => {
+    stmt.run(po.po_number || genNum, po.vendor_name, po.order_date, po.amount, poStatus, JSON.stringify(items));
+    if (poStatus === 'Received' && items.length > 0) {
+      const addStock = db.prepare('UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ?');
+      items.forEach(i => {
+        if (i.sku && Number(i.quantity) > 0) {
+          addStock.run(Number(i.quantity), i.sku);
+        }
+      });
+    }
+  });
+  tx();
   return { success: true };
 });
 
@@ -657,13 +676,14 @@ ipcMain.handle('updatePurchaseOrderStatus', (event, { id, status }) => {
     const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id);
     if (!po) return { success: false, error: 'PO not found.' };
     const prevStatus = po.status;
+    const nextStatus = status === 'Received' ? 'Received' : 'Request';
 
     const tx = db.transaction(() => {
-      db.prepare('UPDATE purchase_orders SET status = ? WHERE id = ?').run(status, id);
-      // If marking Open -> Received, automatically restock PO items into inventory
-      if (prevStatus !== 'Received' && status === 'Received') {
+      db.prepare('UPDATE purchase_orders SET status = ? WHERE id = ?').run(nextStatus, id);
+      // If marking Request -> Received, automatically restock PO items into inventory
+      if (prevStatus !== 'Received' && nextStatus === 'Received') {
         const items = JSON.parse(po.items_json || '[]');
-        const addStock = db.prepare('UPDATE items SET quantity = quantity + ? WHERE sku = ?');
+        const addStock = db.prepare('UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ?');
         items.forEach(i => {
           if (i.sku && Number(i.quantity) > 0) {
             addStock.run(Number(i.quantity), i.sku);
