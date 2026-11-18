@@ -51,7 +51,7 @@ export default function Procurement() {
 
   const showToast = (msg) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 3500);
+    setTimeout(() => setToast(''), 2000);
   };
 
   const loadData = async () => {
@@ -208,6 +208,14 @@ export default function Procurement() {
 
   return (
     <div className="space-y-5">
+      {/* Floating Top-Right Toast Notification (2s) */}
+      {toast && (
+        <div className="fixed top-4 right-5 z-[100] flex items-center gap-2 bg-white text-emerald-700 border border-emerald-200 shadow-lg px-3.5 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>{toast}</span>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -218,12 +226,6 @@ export default function Procurement() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          {toast && (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              {toast}
-            </span>
-          )}
           <button
             onClick={() => setShowAddVendorModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"

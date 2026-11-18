@@ -19,7 +19,8 @@ import {
   Square,
   LayoutGrid,
   Grid3X3,
-  List
+  List,
+  Check
 } from 'lucide-react';
 import ToolLibraryPicker from '../components/ToolLibraryPicker.jsx';
 import { TOOL_LIBRARY } from '../data/toolLibrary.js';
@@ -77,17 +78,34 @@ export default function Catalog() {
     } catch (_) {}
     return 'detail';
   });
+  const [showViewMenu, setShowViewMenu] = useState(false);
   const [toast, setToast] = useState('');
+  const viewMenuRef = useRef(null);
+  const toastTimerRef = useRef(null);
 
   const handleChangeViewMode = (mode) => {
     setViewMode(mode);
     setPage(1);
+    setShowViewMenu(false);
     try {
       localStorage.setItem(VIEW_STORAGE_KEY, mode);
     } catch (_) {}
   };
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (viewMenuRef.current && !viewMenuRef.current.contains(e.target)) {
+        setShowViewMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
@@ -121,7 +139,8 @@ export default function Catalog() {
 
   const showToast = (msg) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 3500);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(''), 2000);
   };
 
   // Form State for Add / Edit
@@ -482,6 +501,14 @@ export default function Catalog() {
 
   return (
     <div className="space-y-5">
+      {/* Floating Top-Right Toast Notification (2s) */}
+      {toast && (
+        <div className="fixed top-4 right-5 z-[100] flex items-center gap-2 bg-white text-emerald-700 border border-emerald-200 shadow-lg px-3.5 py-2.5 rounded-xl text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>{toast}</span>
+        </div>
+      )}
+
       {/* Hidden CSV File Input */}
       <input
         ref={fileInputRef}
@@ -500,12 +527,6 @@ export default function Catalog() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5">
-          {toast && (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              {toast}
-            </span>
-          )}
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
@@ -594,33 +615,55 @@ export default function Catalog() {
             <option value="Inactive">{t('cat_status')}: {t('cat_inactive')}</option>
           </select>
 
-          {/* View Switcher: Large, Medium, Small Icons & Row/Detail View */}
-          <div
-            className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200"
-            role="group"
-            aria-label="Catalog view mode"
-          >
-            {VIEW_MODES.map(({ id, labelKey, icon: Icon }) => {
-              const active = viewMode === id;
-              const label = t(labelKey);
+          {/* View Dropdown: Large, Medium, Small Icons & Row/Detail View */}
+          <div className="relative" ref={viewMenuRef}>
+            {(() => {
+              const currentView = VIEW_MODES.find((v) => v.id === viewMode) || VIEW_MODES[3];
+              const CurrentIcon = currentView.icon;
               return (
                 <button
-                  key={id}
                   type="button"
-                  onClick={() => handleChangeViewMode(id)}
-                  title={label}
-                  aria-label={label}
-                  aria-pressed={active}
-                  className={`p-1.5 rounded-md transition-all ${
-                    active
-                      ? 'bg-white text-blue-600 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                  onClick={() => setShowViewMenu((prev) => !prev)}
+                  aria-haspopup="menu"
+                  aria-expanded={showViewMenu}
+                  className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <CurrentIcon className="w-3.5 h-3.5 text-blue-600" />
+                  <span>{t('cat_view_label')}: {t(currentView.labelKey)}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showViewMenu ? 'rotate-180' : ''}`} />
                 </button>
               );
-            })}
+            })()}
+
+            {showViewMenu && (
+              <div
+                role="menu"
+                className="absolute right-0 mt-1.5 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-40"
+              >
+                {VIEW_MODES.map(({ id, labelKey, icon: Icon }) => {
+                  const active = viewMode === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => handleChangeViewMode(id)}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs transition-colors ${
+                        active
+                          ? 'bg-blue-50 text-blue-700 font-bold'
+                          : 'text-slate-700 hover:bg-slate-50 font-medium'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Icon className={`w-3.5 h-3.5 ${active ? 'text-blue-600' : 'text-slate-400'}`} />
+                        <span>{t(labelKey)}</span>
+                      </span>
+                      {active && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
