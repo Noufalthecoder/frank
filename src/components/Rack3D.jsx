@@ -14,9 +14,10 @@ const TONES = {
   ok: { front: '#34d399', side: '#10b981', top: '#6ee7b7', text: '#064e3b' },
   low: { front: '#fbbf24', side: '#f59e0b', top: '#fde68a', text: '#78350f' },
   out: { front: '#fb7185', side: '#e11d48', top: '#fda4af', text: '#881337' },
+  focus: { front: '#3b82f6', side: '#1d4ed8', top: '#93c5fd', text: '#ffffff' },
 };
 
-function Cuboid({ x, y, z = 0, w, h, d, tone, front, onClick, title, hover }) {
+function Cuboid({ x, y, z = 0, w, h, d, tone, front, onClick, title, hover, opacity = 1, glow = false }) {
   const face = (extra, bg) => ({
     position: 'absolute',
     background: bg,
@@ -36,6 +37,8 @@ function Cuboid({ x, y, z = 0, w, h, d, tone, front, onClick, title, hover }) {
         height: h,
         transformStyle: 'preserve-3d',
         transform: `translateZ(${z}px)`,
+        opacity,
+        filter: glow ? 'drop-shadow(0 0 10px rgba(59,130,246,.9))' : undefined,
         cursor: onClick ? 'pointer' : 'default',
       }}
     >
@@ -59,8 +62,9 @@ const PRESETS = {
   top: { rx: -62, ry: -14 },
 };
 
-export default function Rack3D({ rack, itemsById, onBinClick }) {
-  const [rot, setRot] = useState(PRESETS.angle);
+export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin = '', compact = false, width = 300 }) {
+  const [rot, setRot] = useState(compact ? { rx: -14, ry: -26 } : PRESETS.angle);
+  const hl = String(highlightBin || '').toUpperCase();
   const drag = useRef(null);
   const moved = useRef(false);
 
@@ -85,6 +89,7 @@ export default function Rack3D({ rack, itemsById, onBinClick }) {
   };
 
   const onDown = (e) => {
+    if (compact) return;
     drag.current = { x: e.clientX, y: e.clientY, ...rot };
     moved.current = false;
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -109,12 +114,13 @@ export default function Rack3D({ rack, itemsById, onBinClick }) {
     bins[`${b.level_no}-${b.slot_no}`] = b;
   });
 
-  const scale = Math.min(1, 560 / RW);
+  const scale = Math.min(1, (compact ? width : 560) / RW);
 
   return (
     <div>
       <style>{`.rack3d-bin{transition:transform .15s} .rack3d-bin:hover{filter:brightness(1.07)}`}</style>
 
+      {!compact && (
       <div className="flex items-center justify-between mb-2">
         <p className="text-[11px] text-slate-400">Drag to rotate · click a box to open the bin</p>
         <div className="flex items-center gap-1">
@@ -129,6 +135,7 @@ export default function Rack3D({ rack, itemsById, onBinClick }) {
           ))}
         </div>
       </div>
+      )}
 
       <div
         onPointerDown={onDown}
@@ -137,10 +144,10 @@ export default function Rack3D({ rack, itemsById, onBinClick }) {
         onPointerCancel={onUp}
         className="relative rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50 to-slate-100 overflow-hidden select-none touch-none"
         style={{
-          height: RH * scale + 120,
-          minHeight: 360,
+          height: compact ? RH * scale + 70 : RH * scale + 120,
+          minHeight: compact ? 0 : 360,
           perspective: 1500,
-          cursor: drag.current ? 'grabbing' : 'grab',
+          cursor: compact ? 'default' : drag.current ? 'grabbing' : 'grab',
         }}
       >
         {/* floor shadow */}
@@ -208,7 +215,8 @@ export default function Rack3D({ rack, itemsById, onBinClick }) {
                   const s = si + 1;
                   const bin = bins[`${l}-${s}`];
                   if (!bin) return null;
-                  const status = statusOf(bin);
+                  const isTarget = hl && bin.bin_code.toUpperCase() === hl;
+                  const status = hl ? (isTarget ? 'focus' : 'empty') : statusOf(bin);
                   const tone = TONES[status];
                   const names = (bin.items || []).map((i) => `${i.name} (${i.quantity})`).join('\n');
                   return (
@@ -222,10 +230,16 @@ export default function Rack3D({ rack, itemsById, onBinClick }) {
                       h={BIN_H}
                       d={BIN_D}
                       tone={tone}
-                      title={`${bin.bin_code}${names ? '\n' + names : '\nEmpty'}`}
-                      onClick={() => {
-                        if (!moved.current) onBinClick(bin);
-                      }}
+                      opacity={hl && !isTarget ? 0.45 : 1}
+                      glow={isTarget}
+                      title={compact ? undefined : `${bin.bin_code}${names ? '\n' + names : '\nEmpty'}`}
+                      onClick={
+                        compact || !onBinClick
+                          ? undefined
+                          : () => {
+                              if (!moved.current) onBinClick(bin);
+                            }
+                      }
                       front={
                         <div
                           style={{
@@ -244,7 +258,7 @@ export default function Rack3D({ rack, itemsById, onBinClick }) {
                             L{l}-S{s}
                           </span>
                           <span style={{ fontSize: 15, fontWeight: 800 }}>
-                            {status === 'empty' ? '—' : Number(bin.quantity).toLocaleString('en-IN')}
+                            {isTarget ? 'HERE' : status === 'empty' ? (hl ? '' : '—') : Number(bin.quantity).toLocaleString('en-IN')}
                           </span>
                         </div>
                       }
@@ -257,6 +271,7 @@ export default function Rack3D({ rack, itemsById, onBinClick }) {
         </div>
       </div>
 
+      {!compact && (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 text-[11px] text-slate-500">
         {[
           ['ok', 'In stock'],
@@ -270,6 +285,7 @@ export default function Rack3D({ rack, itemsById, onBinClick }) {
           </span>
         ))}
       </div>
+      )}
     </div>
   );
 }

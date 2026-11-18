@@ -37,6 +37,7 @@ import { useAppDialog } from '../components/AppDialogContext.jsx';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
 import ExportMenu from '../components/ExportMenu.jsx';
 import OrdersButton from '../components/OrdersButton.jsx';
+import BinLocation from '../components/BinLocation.jsx';
 
 const VIEW_MODES = [
   { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12 },
@@ -71,6 +72,7 @@ export default function Catalog() {
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [availableBins, setAvailableBins] = useState([]);
+  const [racks, setRacks] = useState([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [brandFilter, setBrandFilter] = useState('All');
@@ -187,9 +189,10 @@ export default function Catalog() {
 
   const loadRackBins = async () => {
     if (window.api && window.api.getRacks) {
-      const racks = await window.api.getRacks();
+      const rackList = await window.api.getRacks();
+      setRacks(rackList || []);
       const bins = [];
-      (racks || []).forEach((r) => {
+      (rackList || []).forEach((r) => {
         (r.bins || []).forEach((b) => {
           bins.push({ code: b.bin_code, label: `${b.bin_code} (${r.name})` });
         });
@@ -752,7 +755,7 @@ export default function Catalog() {
                         <div className="font-semibold text-slate-900">{tName(item.name)}</div>
                         <div className="text-[11px] text-slate-400">
                           {tCategory(item.category)} {item.brand ? `· ${item.brand}` : ''} · {t('dash_shelf')}:{' '}
-                          <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
+                          <BinLocation bin={item.bin_id} racks={racks} className="text-blue-600 font-medium" />
                         </div>
                       </div>
                     </div>
@@ -854,7 +857,7 @@ export default function Catalog() {
                       )}
                       <p className="text-[11px] text-slate-400 truncate mt-0.5">
                         {tCategory(item.category)}{item.brand ? ` · ${item.brand}` : ''} ·{' '}
-                        <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
+                        <BinLocation bin={item.bin_id} racks={racks} className="text-blue-600 font-medium" />
                       </p>
                     </div>
 
