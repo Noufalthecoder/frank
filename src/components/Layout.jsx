@@ -95,13 +95,13 @@ export default function Layout({ children }) {
   }, []);
 
   const navItems = [
-    { name: t('nav_pos'), path: '/pos', icon: ShoppingCart, emoji: '🛒' },
-    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard, emoji: '📊' },
-    { name: t('nav_catalog'), path: '/catalog', icon: Boxes, emoji: '📦' },
-    { name: t('nav_history'), path: '/history', icon: Receipt, emoji: '🧾' },
-    { name: t('nav_vendors'), path: '/vendors', icon: Truck, emoji: '🚚' },
-    { name: t('nav_finance'), path: '/finance', icon: Wallet, emoji: '💰' },
-    { name: t('nav_settings'), path: '/settings', icon: Settings, emoji: '⚙️' },
+    { name: t('nav_pos'), path: '/pos', icon: ShoppingCart },
+    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard },
+    { name: t('nav_catalog'), path: '/catalog', icon: Boxes },
+    { name: t('nav_history'), path: '/history', icon: Receipt },
+    { name: t('nav_vendors'), path: '/vendors', icon: Truck },
+    { name: t('nav_finance'), path: '/finance', icon: Wallet },
+    { name: t('nav_settings'), path: '/settings', icon: Settings },
   ];
 
   const handleSearchSubmit = (e) => {
@@ -143,17 +143,17 @@ export default function Layout({ children }) {
                 <React.Fragment key={item.path}>
                   <NavLink
                     to={item.path}
-                    className={`flex items-center gap-3 ml-3 w-[calc(100%-1.5rem)] px-4 py-[9px] rounded-lg text-[13px] font-medium text-slate-950 transition-colors ${
-                      isActive ? 'bg-[#e6eaf1]' : 'hover:bg-slate-100 hover:text-blue-600'
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`relative flex items-center gap-3 ml-3 mr-3 px-3 py-[9px] rounded-lg text-[13px] font-medium transition-colors ${
+                      isActive
+                        ? 'bg-slate-100 text-slate-900'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <span
-                      aria-hidden="true"
-                      className="w-[18px] text-center text-[16px] leading-none flex-shrink-0"
-                      style={{ fontFamily: '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif' }}
-                    >
-                      {item.emoji}
-                    </span>
+                    {isActive && (
+                      <span aria-hidden="true" className="absolute -left-3 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r bg-blue-600" />
+                    )}
+                    <item.icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} strokeWidth={1.75} />
                     <span className="truncate">{item.name}</span>
                   </NavLink>
                   {idx === 0 && <div className="h-3" aria-hidden="true" />}
@@ -170,7 +170,7 @@ export default function Layout({ children }) {
             onClick={() => navigate('/settings')}
             className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/70 transition-all text-left group"
           >
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-blue-100 flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-blue-100 flex-shrink-0">
               FR
             </div>
             <div className="min-w-0 flex-1">

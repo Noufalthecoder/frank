@@ -38,13 +38,14 @@ import { fuzzyFilter } from '../lib/fuzzySearch.js';
 import { getBilingualSearchFields } from '../i18n/productTamil.js';
 import ExportMenu from '../components/ExportMenu.jsx';
 import OrdersButton from '../components/OrdersButton.jsx';
+import Pagination, { usePagination } from '../components/Pagination.jsx';
 import BinLocation, { LocateButton, LocationModal } from '../components/BinLocation.jsx';
 
 const VIEW_MODES = [
-  { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12 },
-  { id: 'medium', labelKey: 'cat_view_medium', icon: LayoutGrid, pageSize: 15 },
-  { id: 'small', labelKey: 'cat_view_small', icon: Grid3X3, pageSize: 24 },
-  { id: 'detail', labelKey: 'cat_view_detail', icon: List, pageSize: 15 },
+  { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12, sizes: [6, 12, 24, 48] },
+  { id: 'medium', labelKey: 'cat_view_medium', icon: LayoutGrid, pageSize: 15, sizes: [15, 30, 60, 120] },
+  { id: 'small', labelKey: 'cat_view_small', icon: Grid3X3, pageSize: 24, sizes: [24, 48, 96, 192] },
+  { id: 'detail', labelKey: 'cat_view_detail', icon: List, pageSize: 15, sizes: [10, 15, 25, 50, 100] },
 ];
 const VIEW_STORAGE_KEY = 'tsp_catalog_view_mode';
 
@@ -84,7 +85,6 @@ export default function Catalog() {
   const [modalMode, setModalMode] = useState('library'); // 'library' | 'manual'
   const [editingItem, setEditingItem] = useState(null);
   const [formError, setFormError] = useState('');
-  const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState(() => {
     try {
       const saved = localStorage.getItem(VIEW_STORAGE_KEY);
@@ -523,10 +523,14 @@ export default function Catalog() {
   const uniqueCategories = Array.from(new Set(['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others', ...items.map((i) => i.category).filter(Boolean)]));
   const uniqueBrands = Array.from(new Set(items.map((i) => i.brand).filter(Boolean))).sort();
 
-  const pageSize = (VIEW_MODES.find((v) => v.id === viewMode) || VIEW_MODES[3]).pageSize;
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const paginatedItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const activeView = VIEW_MODES.find((v) => v.id === viewMode) || VIEW_MODES[3];
+  const pagination = usePagination(filteredItems.length, {
+    storageKey: `catalog-${activeView.id}`,
+    sizes: activeView.sizes,
+    defaultSize: activeView.pageSize,
+  });
+  const { setPage } = pagination;
+  const paginatedItems = pagination.slice(filteredItems);
 
   const getStockBadgeClass = (item) =>
     !isItemAvailable(item)
@@ -588,7 +592,7 @@ export default function Catalog() {
           <ExportMenu getSpec={getCatalogExport} onDone={showToast} className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all" />
           <button
             onClick={openAdd}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl text-xs font-bold text-white shadow-sm shadow-blue-600/25 active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl text-xs font-bold text-white shadow-sm active:scale-[0.98] transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t('cat_add_item')}</span>
@@ -1010,36 +1014,14 @@ export default function Catalog() {
           </div>
         )}
 
-        {/* Footer with Real Pagination */}
-        <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-medium">
-          <span>
-            {t('ct_showing_range', {
-              from: filteredItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1,
-              to: Math.min(currentPage * pageSize, filteredItems.length),
-              total: filteredItems.length,
-            })}
-          </span>
-
-          <div className="flex items-center gap-1">
-            <button
-              disabled={currentPage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {t('ct_prev')}
-            </button>
-            <span className="px-2.5 py-1 bg-blue-600 text-white rounded font-bold shadow-sm">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {t('ct_next')}
-            </button>
-          </div>
-        </div>
+        <Pagination
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          total={filteredItems.length}
+          sizes={pagination.sizes}
+          onPage={setPage}
+          onPageSize={pagination.setPageSize}
+        />
       </div>
 
       {/* Add / Edit Modal */}

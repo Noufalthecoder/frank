@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from '../components/Pagination.jsx';
 import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
@@ -155,6 +156,12 @@ export default function Finance() {
 
   const activeInvoices = invoices.filter((i) => i.status !== 'Returned' && inRange(i.date_time));
   const filteredExpenses = expenses.filter((e) => inRange(e.date));
+  const expensePg = usePagination(filteredExpenses.length, { storageKey: 'expenses', defaultSize: 10 });
+  const closingPg = usePagination(dayClosings.length, { storageKey: 'day-closings', sizes: [5, 10, 20, 50], defaultSize: 10 });
+  const resetExpensePage = expensePg.reset;
+  useEffect(() => {
+    resetExpensePage();
+  }, [dateRange, resetExpensePage]);
 
   const totalSales = activeInvoices.reduce((acc, inv) => acc + (Number(inv.total) || 0), 0);
   const totalExpenses = filteredExpenses.reduce((acc, exp) => acc + (Number(exp.amount) || 0), 0);
@@ -494,7 +501,7 @@ export default function Finance() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredExpenses.map((e) => (
+                {expensePg.slice(filteredExpenses).map((e) => (
                   <tr key={e.id} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-bold text-slate-900">{catLabel(e.category)}</td>
                     <td className="py-3 px-4 text-slate-600">{e.description || '—'}</td>
@@ -524,6 +531,7 @@ export default function Finance() {
               </tbody>
             </table>
           </div>
+          <Pagination page={expensePg.page} pageSize={expensePg.pageSize} total={filteredExpenses.length} sizes={expensePg.sizes} onPage={expensePg.setPage} onPageSize={expensePg.setPageSize} />
         </div>
       )}
 
@@ -631,8 +639,9 @@ export default function Finance() {
                 {t('fi_no_closings')}
               </p>
             ) : (
-              <div className="divide-y divide-slate-100 text-xs max-h-96 overflow-y-auto">
-                {dayClosings.map((dc) => (
+              <>
+              <div className="divide-y divide-slate-100 text-xs">
+                {closingPg.slice(dayClosings).map((dc) => (
                   <div key={dc.id || dc.closing_date} className="py-3 flex items-center justify-between">
                     <div>
                       <p className="font-bold text-slate-900 font-mono">{dc.closing_date}</p>
@@ -657,6 +666,8 @@ export default function Finance() {
                   </div>
                 ))}
               </div>
+              <Pagination page={closingPg.page} pageSize={closingPg.pageSize} total={dayClosings.length} sizes={closingPg.sizes} onPage={closingPg.setPage} onPageSize={closingPg.setPageSize} />
+              </>
             )}
           </div>
         </div>

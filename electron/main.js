@@ -21,7 +21,23 @@ const userDataDir = app.getPath("userData")
 fs.mkdirSync(userDataDir, { recursive: true })
 const dbpath = path.join(userDataDir, "billing.db")
 let db = new Database(dbpath)
-db.pragma('journal_mode = WAL')
+
+// Connection tuning. Re-applied whenever the connection is re-opened (restore).
+// journal_mode=WAL is persistent in the file; the rest are per-connection.
+//  - synchronous=FULL (kept at SQLite's safe default on purpose): every committed sale/stock change is
+//    fsynced, so a power cut in the shop cannot lose a bill that was already printed. NORMAL would
+//    save an fsync per commit but can drop the last few commits on power loss; billing data is not
+//    worth that trade.
+//  - foreign_keys is deliberately NOT enabled: the schema declares no FOREIGN KEY constraints, and
+//    rack_bins.rack_code / items.bin_id reference by code text, so enabling it would be a no-op at best.
+function applyPragmas(conn) {
+  conn.pragma('journal_mode = WAL')
+  conn.pragma('synchronous = FULL')
+  conn.pragma('temp_store = MEMORY')
+  conn.pragma('cache_size = -20000')      // ~20 MB page cache (default is ~2 MB)
+  conn.pragma('mmap_size = 134217728')    // 128 MB memory-mapped reads
+}
+applyPragmas(db)
 
 // Initialize Schema
 function initSchema() {
@@ -145,6 +161,18 @@ function initSchema() {
     );
   `);
 
+  // Secondary indexes for the real access paths (all idempotent; see docs/PERFORMANCE.md).
+  // scripts/bench-sql.sh extracts the block between the INDEXES markers, keep them intact.
+  db.exec(`
+    -- INDEXES-BEGIN
+    CREATE INDEX IF NOT EXISTS idx_items_upper_sku ON items(UPPER(sku));
+    CREATE INDEX IF NOT EXISTS idx_items_upper_bin ON items(UPPER(bin_id));
+    CREATE INDEX IF NOT EXISTS idx_rack_bins_rack ON rack_bins(rack_code, level_no, slot_no);
+    CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date_time);
+    CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date, id);
+    -- INDEXES-END
+  `);
+
   // Safe schema migrations for existing DBs
   try {
     db.exec(`ALTER TABLE invoices ADD COLUMN status TEXT NOT NULL DEFAULT 'Completed'`);
@@ -191,6 +219,9 @@ function initSchema() {
   const categories = ['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'];
   const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
   categories.forEach(c => insertCat.run(c));
+
+  // Let SQLite gather stats for any table/index that has none yet (cheap no-op otherwise).
+  try { db.pragma('optimize'); } catch (_) {}
 }
 
 function formatLocalDateTime(date = new Date()) {
@@ -298,12 +329,29 @@ ipcMain.handle('deleteItem', (event, id) => {
 
 // IPC Handlers: Racks & Bins
 ipcMain.handle('getRacks', () => {
+  // 3 queries total (was 1 + one rack_bins query per rack, plus an O(bins x items) filter).
   const racks = db.prepare('SELECT * FROM racks ORDER BY code ASC').all();
-  const allItems = db.prepare('SELECT id, sku, name, quantity, unit, bin_id FROM items').all();
+  const allBins = db.prepare('SELECT * FROM rack_bins ORDER BY rack_code, level_no, slot_no').all();
+  // Only assigned items matter: an empty bin_id never equals a (non-empty) bin_code.
+  const assigned = db.prepare(
+    "SELECT id, sku, name, quantity, unit, bin_id, reorder_level FROM items WHERE bin_id IS NOT NULL AND bin_id <> ''"
+  ).all();
+
+  const itemsByBin = new Map(); // UPPER(bin_id) -> items (original row order preserved)
+  for (const it of assigned) {
+    const key = String(it.bin_id).toUpperCase();
+    const list = itemsByBin.get(key);
+    if (list) list.push(it); else itemsByBin.set(key, [it]);
+  }
+  const binsByRack = new Map(); // rack_code -> bins (already ordered by level_no, slot_no)
+  for (const b of allBins) {
+    const list = binsByRack.get(b.rack_code);
+    if (list) list.push(b); else binsByRack.set(b.rack_code, [b]);
+  }
+
   return racks.map(r => {
-    const bins = db.prepare('SELECT * FROM rack_bins WHERE rack_code = ? ORDER BY level_no, slot_no').all(r.code);
-    const enrichedBins = bins.map(b => {
-      const binItems = allItems.filter(i => (i.bin_id || '').toUpperCase() === b.bin_code.toUpperCase());
+    const enrichedBins = (binsByRack.get(r.code) || []).map(b => {
+      const binItems = itemsByBin.get(b.bin_code.toUpperCase()) || [];
       const liveQty = binItems.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
       return { ...b, quantity: liveQty, items: binItems };
     });
@@ -464,9 +512,49 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
   }
 });
 
+
+// ---- Server-side paging helpers -------------------------------------------------------------
+// Shared by getInvoicesPage / getPurchaseOrdersPage / getExpensesPage. All user input is bound as
+// parameters; LIKE wildcards in user text are escaped (ESCAPE '\\') so '%' and '_' match literally.
+const likeEscape = (s) => String(s).replace(/[\\%_]/g, (c) => '\\' + c);
+function pageParams({ page, pageSize } = {}) {
+  const size = Math.min(200, Math.max(1, Math.floor(Number(pageSize)) || 12));
+  return { size, page: Math.floor(Number(page)) || 1 };
+}
+// Runs the count (+extra aggregate) query then the row query with a clamped page.
+function runPage({ table, where, params, order, size, page, aggSql }) {
+  const agg = db.prepare(`SELECT COUNT(*) AS total${aggSql ? ', ' + aggSql : ''} FROM ${table} ${where}`).get(...params);
+  const total = agg.total;
+  const totalPages = Math.max(1, Math.ceil(total / size));
+  const cur = Math.min(totalPages, Math.max(1, page));
+  const rows = db.prepare(`SELECT * FROM ${table} ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
+    .all(...params, size, (cur - 1) * size);
+  return { rows, total, page: cur, pageSize: size, totalPages, agg };
+}
+
 // IPC Handlers: Invoices & POS
 ipcMain.handle('getInvoices', () => {
   return db.prepare('SELECT * FROM invoices ORDER BY id DESC').all();
+});
+
+ipcMain.handle('getInvoicesPage', (event, opts = {}) => {
+  const { search = '', dateFrom = '', status = '' } = opts || {};
+  const { size, page } = pageParams(opts || {});
+  const conds = [], params = [];
+  const q = String(search || '').trim();
+  if (q) {
+    const like = `%${likeEscape(q)}%`;
+    conds.push(`(invoice_number LIKE ? ESCAPE '\\' OR customer_name LIKE ? ESCAPE '\\' OR payment_mode LIKE ? ESCAPE '\\' OR CAST(total AS TEXT) LIKE ? ESCAPE '\\')`);
+    params.push(like, like, like, like);
+  }
+  if (dateFrom) { conds.push('date_time >= ?'); params.push(String(dateFrom)); }
+  if (status) { conds.push('status = ?'); params.push(String(status)); }
+  const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
+  const r = runPage({
+    table: 'invoices', where, params, order: 'id DESC', size, page,
+    aggSql: "COALESCE(SUM(CASE WHEN status <> 'Returned' THEN total END), 0) AS sumTotal",
+  });
+  return { rows: r.rows, total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages, sumTotal: r.agg.sumTotal };
 });
 
 ipcMain.handle('createInvoice', (event, inv) => {
@@ -538,6 +626,26 @@ ipcMain.handle('getOutOfStockItems', () => {
 // IPC Handlers: Procurement & Vendors
 ipcMain.handle('getPurchaseOrders', () => {
   return db.prepare('SELECT * FROM purchase_orders ORDER BY id DESC').all();
+});
+
+ipcMain.handle('getPurchaseOrdersPage', (event, opts = {}) => {
+  const { search = '', status = '' } = opts || {};
+  const { size, page } = pageParams(opts || {});
+  const conds = [], params = [];
+  const q = String(search || '').trim();
+  if (q) {
+    const like = `%${likeEscape(q)}%`;
+    conds.push(`(po_number LIKE ? ESCAPE '\\' OR vendor_name LIKE ? ESCAPE '\\' OR order_date LIKE ? ESCAPE '\\' OR CAST(amount AS TEXT) LIKE ? ESCAPE '\\')`);
+    params.push(like, like, like, like);
+  }
+  if (status) {
+    // Legacy values are normalised to Request/Received (same as the startup migration).
+    const s = status === 'Received' || status === 'Closed' ? 'Received' : 'Request';
+    conds.push(s === 'Received' ? "status IN ('Received','Closed')" : "status NOT IN ('Received','Closed')");
+  }
+  const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
+  const r = runPage({ table: 'purchase_orders', where, params, order: 'id DESC', size, page });
+  return { rows: r.rows, total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages };
 });
 
 function applyPoStockDelta(line, deltaQty) {
@@ -718,6 +826,23 @@ ipcMain.handle('getExpenses', () => {
   return db.prepare('SELECT * FROM expenses ORDER BY date DESC, id DESC').all();
 });
 
+ipcMain.handle('getExpensesPage', (event, opts = {}) => {
+  const { search = '', category = '', dateFrom = '' } = opts || {};
+  const { size, page } = pageParams(opts || {});
+  const conds = [], params = [];
+  const q = String(search || '').trim();
+  if (q) {
+    const like = `%${likeEscape(q)}%`;
+    conds.push(`(category LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR payment_mode LIKE ? ESCAPE '\\' OR CAST(amount AS TEXT) LIKE ? ESCAPE '\\')`);
+    params.push(like, like, like, like);
+  }
+  if (category) { conds.push('category = ?'); params.push(String(category)); }
+  if (dateFrom) { conds.push('date >= ?'); params.push(String(dateFrom)); }
+  const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
+  const r = runPage({ table: 'expenses', where, params, order: 'date DESC, id DESC', size, page, aggSql: 'COALESCE(SUM(amount), 0) AS sumAmount' });
+  return { rows: r.rows, total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages, sumAmount: r.agg.sumAmount };
+});
+
 ipcMain.handle('addExpense', (event, exp) => {
   const stmt = db.prepare('INSERT INTO expenses (category, description, amount, date, payment_mode) VALUES (@category, @description, @amount, @date, @payment_mode)');
   stmt.run(exp);
@@ -777,10 +902,11 @@ ipcMain.handle('restoreDatabase', async () => {
     db.close();
     fs.copyFileSync(sourcePath, dbpath);
     db = new Database(dbpath);
+    applyPragmas(db);
     initSchema();
     return { success: true, path: sourcePath };
   } catch (err) {
-    try { db = new Database(dbpath); } catch (_) {}
+    try { db = new Database(dbpath); applyPragmas(db); } catch (_) {}
     return { success: false, error: err.message || 'Restore failed.' };
   }
 });
@@ -1055,6 +1181,11 @@ app.on('window-all-closed', () => {
     app.quit();
     win = null;
   }
+});
+
+// Refresh planner statistics on the way out (cheap; only analyses what changed a lot).
+app.on('before-quit', () => {
+  try { db.pragma('optimize'); } catch (_) {}
 });
 
 app.on('activate', () => {

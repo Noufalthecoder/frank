@@ -336,7 +336,7 @@ export default function PrintPreviewModal({
                 type="button"
                 disabled={printing}
                 onClick={() => handlePrint(false)}
-                className="w-full py-2.5 px-4 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-600/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-60"
+                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-60"
               >
                 <Printer className="w-4 h-4" />
                 <span>{t('st_print_now', { size: spec.id })}</span>

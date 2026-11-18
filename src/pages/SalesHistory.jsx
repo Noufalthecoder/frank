@@ -16,8 +16,19 @@ import { getPrintPreferences, executePrint, exportReceiptPdf } from '../lib/prin
 import { formatQty, isMeasurableUnit } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import ExportMenu from '../components/ExportMenu.jsx';
+import Pagination, { usePagination } from '../components/Pagination.jsx';
 
-const PAGE_SIZE = 12;
+const PAGE_SIZES = [10, 12, 25, 50, 100];
+
+// Lower bound (local time) for the date-range filter, in the DB's 'YYYY-MM-DD HH:MM:SS' format
+const dateFromFor = (range) => {
+  const days = range === 'Today' ? 0 : range === 'Last 7 Days' ? 6 : range === 'Last 30 Days' ? 29 : null;
+  if (days === null) return '';
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`;
+};
 
 export default function SalesHistory() {
   const { t, tName } = useLanguage();
@@ -27,11 +38,16 @@ export default function SalesHistory() {
     return k ? t(k) : m;
   };
   const statusLabel = (s) => (s === 'Returned' ? t('hist_returned') : s === 'Completed' ? t('hist_completed') : s);
-  const [invoices, setInvoices] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [sumTotal, setSumTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [refreshTick, setRefreshTick] = useState(0);
+  const reqId = React.useRef(0);
   const [shopProfile, setShopProfile] = useState(null);
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState('All Time');
-  const [page, setPage] = useState(1);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [printTarget, setPrintTarget] = useState(null);
   const [previewInvoice, setPreviewInvoice] = useState(null);
@@ -41,11 +57,10 @@ export default function SalesHistory() {
   const [toast, setToast] = useState('');
 
   useEffect(() => {
-    loadInvoices();
     if (window.api && window.api.getShopProfile) {
       window.api.getShopProfile().then((p) => { if (p) setShopProfile(p); });
     }
-    const handleStockUpdate = () => loadInvoices();
+    const handleStockUpdate = () => setRefreshTick((n) => n + 1);
     const handlePrefsUpdate = (e) => setPrintPrefs(e.detail || getPrintPreferences());
     window.addEventListener('stock-updated', handleStockUpdate);
     window.addEventListener('print-prefs-updated', handlePrefsUpdate);
@@ -55,12 +70,36 @@ export default function SalesHistory() {
     };
   }, []);
 
-  const loadInvoices = async () => {
-    if (window.api && window.api.getInvoices) {
-      const res = await window.api.getInvoices();
-      setInvoices(res || []);
-    }
-  };
+  // Server-side paging: only the visible page (plus a total) ever leaves the database
+  const pagination = usePagination(total, { storageKey: 'sales-history', sizes: PAGE_SIZES, defaultSize: 12 });
+  const { page, pageSize, setPage, reset: resetPage } = pagination;
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  useEffect(() => {
+    resetPage();
+  }, [debouncedSearch, dateRange, resetPage]);
+
+  useEffect(() => {
+    if (!(window.api && window.api.getInvoicesPage)) return undefined;
+    const id = ++reqId.current;
+    setLoading(true);
+    window.api
+      .getInvoicesPage({ page, pageSize, search: debouncedSearch, dateFrom: dateFromFor(dateRange) })
+      .then((res) => {
+        if (id !== reqId.current || !res) return; // a newer request superseded this one
+        setRows(res.rows || []);
+        setTotal(res.total || 0);
+        setSumTotal(res.sumTotal || 0);
+      })
+      .finally(() => id === reqId.current && setLoading(false));
+    return undefined;
+  }, [page, pageSize, debouncedSearch, dateRange, refreshTick]);
+
+  const loadInvoices = async () => setRefreshTick((n) => n + 1);
 
   const handleReturn = async (inv) => {
     const ok = await showConfirm({
@@ -85,36 +124,6 @@ export default function SalesHistory() {
     setToast(msg);
     setTimeout(() => setToast(''), 2000);
   };
-
-  const matchesDateRange = (dateStr) => {
-    if (dateRange === 'All Time') return true;
-    if (!dateStr) return false;
-    const d = new Date(String(dateStr).replace(' ', 'T'));
-    if (isNaN(d.getTime())) return true;
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    if (dateRange === 'Today') return d >= todayStart;
-    if (dateRange === 'Last 7 Days') return d >= new Date(todayStart.getTime() - 6 * 86400000);
-    if (dateRange === 'Last 30 Days') return d >= new Date(todayStart.getTime() - 29 * 86400000);
-    return true;
-  };
-
-  const filteredInvoices = invoices.filter((inv) => {
-    const q = search.toLowerCase();
-    const matchText =
-      (inv.invoice_number || '').toLowerCase().includes(q) ||
-      (inv.customer_name || '').toLowerCase().includes(q) ||
-      (inv.payment_mode || '').toLowerCase().includes(q) ||
-      String(inv.total).includes(q);
-    return matchText && matchesDateRange(inv.date_time);
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const paginatedInvoices = filteredInvoices.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
 
   const parseItems = (inv) => {
     if (!inv) return [];
@@ -153,11 +162,22 @@ export default function SalesHistory() {
     }
   };
 
-  const getSalesExport = () => ({
+  const getSalesExport = async () => {
+    // Export covers the whole filtered result, not just the visible page
+    let all = [];
+    for (let p = 1; ; p++) {
+      const res = await window.api.getInvoicesPage({ page: p, pageSize: 200, search: debouncedSearch, dateFrom: dateFromFor(dateRange) });
+      all = all.concat(res.rows || []);
+      if (p >= (res.totalPages || 1)) break;
+    }
+    return buildSalesExport(all);
+  };
+
+  const buildSalesExport = (list) => ({
     title: t('fi_export_title_sales'),
     filename: `sales_history_${new Date().toISOString().split('T')[0]}`,
     headers: [t('fi_exp_invoice_no'), t('fi_exp_datetime'), t('fi_exp_customer'), t('fi_exp_phone'), t('fi_exp_items'), t('fi_exp_subtotal'), t('fi_exp_discount'), t('fi_exp_total'), t('fi_exp_mode'), t('fi_exp_status')],
-    rows: filteredInvoices.map((inv) => [
+    rows: list.map((inv) => [
       inv.invoice_number, inv.date_time || '', inv.customer_name || t('fi_walkin'), inv.customer_phone || '',
       Number(inv.items_count || 0), Number(inv.subtotal || 0), Number(inv.discount || 0), Number(inv.total || 0),
       payLabel(inv.payment_mode || 'Cash'), statusLabel(inv.status || 'Completed'),
@@ -265,9 +285,7 @@ export default function SalesHistory() {
           {t('hist_filtered_total')}{' '}
           <span className="text-slate-900 font-bold">
             ₹{' '}
-            {filteredInvoices
-              .filter((i) => i.status !== 'Returned')
-              .reduce((sum, i) => sum + (Number(i.total) || 0), 0)
+            {Number(sumTotal)
               .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </span>
         </div>
@@ -289,7 +307,7 @@ export default function SalesHistory() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs">
-            {paginatedInvoices.map((inv) => {
+            {rows.map((inv) => {
               const isReturned = inv.status === 'Returned';
               return (
                 <tr key={inv.id} className={`hover:bg-slate-50/80 transition-colors ${isReturned ? 'opacity-70 bg-rose-50/20' : ''}`}>
@@ -347,7 +365,7 @@ export default function SalesHistory() {
                 </tr>
               );
             })}
-            {paginatedInvoices.length === 0 && (
+            {!loading && rows.length === 0 && (
               <tr>
                 <td colSpan={8} className="py-12 text-center text-xs text-slate-400">
                   {t('fi_no_invoices_match')}
@@ -357,36 +375,14 @@ export default function SalesHistory() {
           </tbody>
         </table>
 
-        {/* Footer with Real Pagination */}
-        <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-medium">
-          <span>
-            {t('fi_showing_range', {
-              from: filteredInvoices.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1,
-              to: Math.min(currentPage * PAGE_SIZE, filteredInvoices.length),
-              total: filteredInvoices.length,
-            })}
-          </span>
-
-          <div className="flex items-center gap-1">
-            <button
-              disabled={currentPage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {t('cat_prev')}
-            </button>
-            <span className="px-2.5 py-1 bg-blue-600 text-white rounded font-bold shadow-sm">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {t('cat_next')}
-            </button>
-          </div>
-        </div>
+        <Pagination
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          total={total}
+          sizes={PAGE_SIZES}
+          onPage={setPage}
+          onPageSize={pagination.setPageSize}
+        />
       </div>
 
       {/* Invoice Inspection Modal with Full Item Breakdown */}

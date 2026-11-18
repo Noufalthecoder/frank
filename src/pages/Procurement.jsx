@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from '../components/Pagination.jsx';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
@@ -520,6 +521,13 @@ export default function Procurement() {
     o.po_number,
   ]);
 
+  const poPg = usePagination(filteredOrders.length, { storageKey: 'purchase-orders', defaultSize: 10 });
+  const vendorPg = usePagination(vendors.length, { storageKey: 'vendors', defaultSize: 10 });
+  const resetPoPage = poPg.reset;
+  useEffect(() => {
+    resetPoPage();
+  }, [search, statusFilter, resetPoPage]);
+
   const pickerTotalMatches = fuzzyFilter(catalogItems, productPickerQuery, (i) =>
     getBilingualSearchFields(i)
   );
@@ -656,7 +664,7 @@ export default function Procurement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
-                {filteredOrders.map((po) => (
+                {poPg.slice(filteredOrders).map((po) => (
                   <tr key={po.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3 px-4 font-semibold text-slate-800">
                       {po.vendor_name}
@@ -727,6 +735,7 @@ export default function Procurement() {
               </tbody>
             </table>
           </div>
+          <Pagination page={poPg.page} pageSize={poPg.pageSize} total={filteredOrders.length} sizes={poPg.sizes} onPage={poPg.setPage} onPageSize={poPg.setPageSize} />
         </>
       )}
 
@@ -797,7 +806,7 @@ export default function Procurement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {vendors.map((v) => (
+              {vendorPg.slice(vendors).map((v) => (
                 <tr key={v.id} className="hover:bg-slate-50">
                   <td className="py-3 px-4 font-bold text-slate-900">{v.name}</td>
                   <td className="py-3 px-4 text-slate-600">{v.contact_person || '—'}</td>
@@ -823,6 +832,7 @@ export default function Procurement() {
               )}
             </tbody>
           </table>
+          <Pagination page={vendorPg.page} pageSize={vendorPg.pageSize} total={vendors.length} sizes={vendorPg.sizes} onPage={vendorPg.setPage} onPageSize={vendorPg.setPageSize} />
         </div>
       )}
 

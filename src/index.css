@@ -1,17 +1,122 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Design system: "Clinical Graphite"
+   Lexend, graphite neutrals, ONE accent (cobalt), 6-10px radii, 120ms motion.
+   The Tailwind palette is remapped below so every existing utility class
+   (slate-*, blue-*, emerald-*, rose-*, amber-*) renders in the new system.
+   ========================================================================== */
+@theme {
+  --font-sans: "Lexend", "Noto Sans Tamil", "Nirmala UI", "Latha", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Lexend reads heavy: cap at 600 (MedCord uses 400/500/600 only) */
+  --font-weight-bold: 600;
+  --font-weight-extrabold: 600;
+  --font-weight-black: 600;
+
+  /* Shape: 6-10px radii */
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
+
+  /* Neutrals (graphite ladder) */
+  --color-slate-50: #f6f7f9;
+  --color-slate-100: #eceef2;
+  --color-slate-200: #e6e8ed;
+  --color-slate-300: #d6d9e0;
+  --color-slate-400: #9a9daa;
+  --color-slate-500: #6b6f7d;
+  --color-slate-600: #4a4d5b;
+  --color-slate-700: #3a3d4a;
+  --color-slate-800: #23252f;
+  --color-slate-900: #15161c;
+  --color-slate-950: #0d0e12;
+  --color-gray-50: #f6f7f9;
+  --color-gray-100: #eceef2;
+  --color-gray-200: #e6e8ed;
+  --color-gray-300: #d6d9e0;
+  --color-gray-400: #9a9daa;
+  --color-gray-500: #6b6f7d;
+  --color-gray-600: #4a4d5b;
+  --color-gray-700: #3a3d4a;
+  --color-gray-800: #23252f;
+  --color-gray-900: #15161c;
+
+  /* Single accent: cobalt (blue + indigo collapse to the same hue) */
+  --color-blue-50: #eef1ff;
+  --color-blue-100: #e0e6ff;
+  --color-blue-200: #c7d0ff;
+  --color-blue-300: #a3b1ff;
+  --color-blue-400: #7a8fff;
+  --color-blue-500: #5470ff;
+  --color-blue-600: #3d5afe;
+  --color-blue-700: #2f4bed;
+  --color-blue-800: #263fd4;
+  --color-blue-900: #1f33a8;
+  --color-indigo-50: #eef1ff;
+  --color-indigo-100: #e0e6ff;
+  --color-indigo-200: #c7d0ff;
+  --color-indigo-300: #a3b1ff;
+  --color-indigo-400: #7a8fff;
+  --color-indigo-500: #5470ff;
+  --color-indigo-600: #3d5afe;
+  --color-indigo-700: #2f4bed;
+  --color-indigo-800: #263fd4;
+  --color-indigo-900: #1f33a8;
+
+  /* Semantic colours: meaning only */
+  --color-emerald-50: #e7f6f0;
+  --color-emerald-100: #d3eee3;
+  --color-emerald-200: #b7e3d2;
+  --color-emerald-300: #7fceb0;
+  --color-emerald-400: #3fb88b;
+  --color-emerald-500: #12a873;
+  --color-emerald-600: #0f9b6c;
+  --color-emerald-700: #0b7d57;
+  --color-emerald-800: #0a6347;
+  --color-emerald-900: #084f39;
+  --color-rose-50: #fdecee;
+  --color-rose-100: #fbdadf;
+  --color-rose-200: #f4bcc3;
+  --color-rose-300: #ec929d;
+  --color-rose-400: #e26474;
+  --color-rose-500: #d94c5d;
+  --color-rose-600: #d13a4b;
+  --color-rose-700: #b02c3c;
+  --color-rose-800: #8f2431;
+  --color-rose-900: #741f2a;
+  --color-amber-50: #fdf3e2;
+  --color-amber-100: #fbe8c6;
+  --color-amber-200: #f1d3a1;
+  --color-amber-300: #e8b865;
+  --color-amber-400: #d99a2e;
+  --color-amber-500: #c47f10;
+  --color-amber-600: #b26a00;
+  --color-amber-700: #8f5500;
+  --color-amber-800: #744500;
+  --color-amber-900: #5f3a00;
+}
+
 :root {
-  font-family: "Inter", "Noto Sans Tamil", "Segoe UI Variable", "Segoe UI", "Nirmala UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-  color: #0f172a;
-  background-color: #f6f8fb;
+  font-family: var(--font-sans);
+  color: #15161c;
+  background-color: #f6f7f9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  text-rendering: optimizeLegibility;
+  font-weight: 400;
 }
 
 .font-mono,
 kbd {
-  font-family: "JetBrains Mono", "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.015em;
 }
 
 body {
@@ -20,13 +125,32 @@ body {
   min-height: 100vh;
   width: 100vw;
   overflow-x: hidden;
-  background-color: #f6f8fb;
-  color: #0f172a;
+  background-color: #f6f7f9;
+  color: #15161c;
 }
 
 #root {
   min-height: 100vh;
   width: 100%;
+}
+
+/* Visible, consistent keyboard focus */
+:focus-visible {
+  outline: 2px solid #3d5afe;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+::selection {
+  background: rgba(61, 90, 254, 0.35);
+  color: #fff;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 /* Tabular figures for crisp aligned currency, stock & counters */
@@ -39,23 +163,20 @@ table th {
 /* Subtle multi-layered surface elevation (Linear / Stripe style) */
 .surface-card {
   background-color: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.85);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
+  border: 1px solid #e6e8ed;
+  box-shadow: 0 1px 2px rgba(16, 18, 27, 0.04);
 }
 
 .surface-card-interactive {
   background-color: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.85);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
-  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
-              border-color 180ms ease;
+  border: 1px solid #e6e8ed;
+  box-shadow: 0 1px 2px rgba(16, 18, 27, 0.04);
+  transition: border-color 120ms cubic-bezier(0.2, 0, 0, 1), box-shadow 120ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .surface-card-interactive:hover {
-  transform: translateY(-1px);
-  border-color: rgba(148, 163, 184, 0.55);
-  box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
+  border-color: #d6d9e0;
+  box-shadow: 0 4px 14px rgba(16, 18, 27, 0.07);
 }
 
 /* Refined micro-animations */
@@ -106,18 +227,20 @@ table th {
 
 /* Crisp custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.45);
-  border-radius: 9999px;
+  background: #d6d9e0;
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
+  background-color: #9a9daa;
 }
 
 /* Hide native number input spinner arrows */
@@ -134,7 +257,7 @@ table th {
 /* Softer, lower-brightness placeholder text across all inputs */
 input::placeholder,
 textarea::placeholder {
-  color: rgba(148, 163, 184, 0.55) !important;
+  color: #9a9daa !important;
   opacity: 1 !important;
 }
 

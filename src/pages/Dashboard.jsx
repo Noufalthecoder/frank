@@ -551,7 +551,7 @@ export default function Dashboard() {
           <div className="pt-3 border-t border-slate-100 mt-4">
             <button
               onClick={() => navigate('/pos')}
-              className="w-full py-2.5 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-bold rounded-xl shadow-sm shadow-blue-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm active:scale-[0.99] transition-all flex items-center justify-center gap-1.5"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span>{t('dash_create_bill')}</span>

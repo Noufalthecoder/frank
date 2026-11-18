@@ -44,11 +44,13 @@ contextBridge.exposeInMainWorld('api', {
 
   // Invoices & POS
   getInvoices: () => ipcRenderer.invoke('getInvoices'),
+  getInvoicesPage: (opts) => ipcRenderer.invoke('getInvoicesPage', opts),
   createInvoice: (inv) => ipcRenderer.invoke('createInvoice', inv),
   returnInvoice: (id) => ipcRenderer.invoke('returnInvoice', id),
 
   // Vendors & Purchase Orders
   getPurchaseOrders: () => ipcRenderer.invoke('getPurchaseOrders'),
+  getPurchaseOrdersPage: (opts) => ipcRenderer.invoke('getPurchaseOrdersPage', opts),
   createPurchaseOrder: (po) => ipcRenderer.invoke('createPurchaseOrder', po),
   updatePurchaseOrder: (po) => ipcRenderer.invoke('updatePurchaseOrder', po),
   updatePurchaseOrderStatus: (id, status, received) => ipcRenderer.invoke('updatePurchaseOrderStatus', { id, status, received }),
@@ -59,6 +61,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Finance & Expenses
   getExpenses: () => ipcRenderer.invoke('getExpenses'),
+  getExpensesPage: (opts) => ipcRenderer.invoke('getExpensesPage', opts),
   addExpense: (exp) => ipcRenderer.invoke('addExpense', exp),
   deleteExpense: (id) => ipcRenderer.invoke('deleteExpense', id),
   getDayClosings: () => ipcRenderer.invoke('getDayClosings'),

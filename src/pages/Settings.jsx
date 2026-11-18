@@ -640,7 +640,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={handleSavePrinterSettings}
-                  className="w-full py-2.5 px-4 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-600/20 active:scale-[0.99] transition-all"
+                  className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm active:scale-[0.99] transition-all"
                 >
                   {t('st_save_printer')}
                 </button>

@@ -1,6 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+// Fonts are bundled (no CDN) so the app looks identical fully offline
+import '@fontsource/lexend/latin-400.css'
+import '@fontsource/lexend/latin-500.css'
+import '@fontsource/lexend/latin-600.css'
+import '@fontsource/noto-sans-tamil/tamil-400.css'
+import '@fontsource/noto-sans-tamil/tamil-500.css'
+import '@fontsource/noto-sans-tamil/tamil-600.css'
 import './index.css'
 import { initBrowserApiFallback } from './lib/browserFallback.js'
 
