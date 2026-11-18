@@ -1172,7 +1172,7 @@ export default function Catalog() {
                     </span>
                   )}
                 </div>
-                <input
+                <input data-rule="text" maxLength={80}
                   type="text"
                   required
                   placeholder={t('ct_name_ph')}
@@ -1188,7 +1188,7 @@ export default function Catalog() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('ct_size_dim')}</label>
-                  <input
+                  <input data-rule="text" maxLength={30}
                     type="text"
                     placeholder={t('ct_size_ph')}
                     value={form.size}
@@ -1198,7 +1198,7 @@ export default function Catalog() {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('ct_brand')}</label>
-                  <input
+                  <input data-rule="text" maxLength={40}
                     type="text"
                     list="brand-suggestions"
                     placeholder={t('ct_brand_ph')}
@@ -1241,7 +1241,7 @@ export default function Catalog() {
                     <option value="Others">{tCategory('Others')} — {t('ct_type_new_category')}</option>
                   </select>
                   {catOther && (
-                    <input
+                    <input data-rule="text"
                       type="text"
                       autoFocus
                       maxLength={40}

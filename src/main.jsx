@@ -1,3 +1,4 @@
+import { installInputRules } from './lib/inputRules.js';
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
@@ -26,3 +27,5 @@ if (window.ipcRenderer && typeof window.ipcRenderer.on === 'function') {
     console.log(message)
   })
 }
+
+installInputRules();

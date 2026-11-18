@@ -975,14 +975,14 @@ export default function Procurement() {
                   <div className="bg-white p-3 rounded-lg border border-blue-200/80 space-y-2.5">
                     <p className="text-[13px] font-bold text-slate-800">{t('pr_new_product')}</p>
                     <div className="grid grid-cols-12 gap-2">
-                      <input
+                      <input data-rule="text" maxLength={80}
                         type="text"
                         placeholder={t('pr_ph_pname')}
                         value={quickItem.name}
                         onChange={(e) => setQuickItem({ ...quickItem, name: e.target.value })}
                         className="col-span-6 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
                       />
-                      <input
+                      <input data-rule="text" maxLength={30}
                         type="text"
                         placeholder={t('pr_ph_size')}
                         value={quickItem.size}
@@ -1289,7 +1289,7 @@ export default function Procurement() {
             <form onSubmit={handleAddVendor} className="space-y-3">
               <div>
                 <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_vendor_company')}</label>
-                <input
+                <input data-rule="text" maxLength={80}
                   type="text"
                   required
                   placeholder={t('pr_ph_vendor')}
@@ -1301,7 +1301,7 @@ export default function Procurement() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_h_contact')}</label>
-                  <input
+                  <input data-rule="alpha" maxLength={60}
                     type="text"
                     placeholder={t('pr_ph_contact')}
                     value={vendorForm.contact_person}
@@ -1311,7 +1311,7 @@ export default function Procurement() {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_h_phone')}</label>
-                  <input
+                  <input data-rule="phone" maxLength={15}
                     type="text"
                     placeholder="+91 98765 43210"
                     value={vendorForm.phone}
@@ -1333,7 +1333,7 @@ export default function Procurement() {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('pr_h_city')}</label>
-                  <input
+                  <input data-rule="alpha" maxLength={40}
                     type="text"
                     placeholder={t('pr_ph_city')}
                     value={vendorForm.city}

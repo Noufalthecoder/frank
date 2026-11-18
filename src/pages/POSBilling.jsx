@@ -1025,7 +1025,8 @@ export default function POSBilling() {
                                 type="number"
                                 min="0"
                                 max="100"
-                                value={item.discountPercent || 0}
+                                value={item.discountPercent || ''}
+                                placeholder="0"
                                 onChange={(e) => updateDiscountPercent(index, e.target.value)}
                                 className="no-spinner w-full text-right bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                               />
@@ -1183,7 +1184,8 @@ export default function POSBilling() {
                 type="number"
                 min="0"
                 max="100"
-                value={activeBill.billDiscountPercent || 0}
+                value={activeBill.billDiscountPercent || ''}
+                placeholder="0"
                 onChange={(e) =>
                   updateActiveBill({
                     billDiscountPercent: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)),
@@ -1242,7 +1244,7 @@ export default function POSBilling() {
               </div>
               <div className="relative">
                 <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
+                <input data-rule="alpha" maxLength={60}
                   ref={customerInputRef}
                   type="text"
                   placeholder={t('po_ph_customer')}
@@ -1259,7 +1261,7 @@ export default function POSBilling() {
               </label>
               <div className="relative">
                 <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
+                <input data-rule="phone" maxLength={15}
                   type="text"
                   placeholder="+91 98765 43210"
                   value={activeBill.customerPhone}

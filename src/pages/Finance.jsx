@@ -55,7 +55,7 @@ export default function Finance() {
 
   // Day closing state
   const todayStr = new Date().toISOString().split('T')[0];
-  const [openingCash, setOpeningCash] = useState(0);
+  const [openingCash, setOpeningCash] = useState('');
   const [countedCash, setCountedCash] = useState('');
   const [closingRemarks, setClosingRemarks] = useState('');
   const [closingSavedMsg, setClosingSavedMsg] = useState('');
@@ -557,7 +557,8 @@ export default function Finance() {
                 <span className="text-slate-600 font-medium">{t('fi_opening_cash')}</span>
                 <input
                   type="number"
-                  value={openingCash}
+                  value={openingCash || ''}
+                  placeholder="0"
                   onChange={(e) => setOpeningCash(parseFloat(e.target.value) || 0)}
                   className="w-28 text-right bg-white border border-slate-200 rounded px-2 py-1 font-bold text-slate-800"
                 />
@@ -703,7 +704,7 @@ export default function Finance() {
 
               <div>
                 <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('fi_description')}</label>
-                <input
+                <input data-rule="text" maxLength={120}
                   type="text"
                   placeholder={t('fi_desc_placeholder')}
                   value={newExp.description}
