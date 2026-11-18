@@ -35,6 +35,20 @@ function getCleanInitialData() {
   };
 }
 
+
+// ---- Paging helpers (mirror electron/main.js getInvoicesPage / getPurchaseOrdersPage / getExpensesPage) ----
+// Substring match, case-insensitive; wildcards are plain characters here, same as the escaped SQL LIKE.
+// SQLite CAST(REAL AS TEXT) renders whole numbers as '241.0'; mirror that so searching "1.0" behaves alike.
+const realText = (n) => (typeof n === 'number' && Number.isFinite(n) && Number.isInteger(n) ? n.toFixed(1) : n);
+const containsCI = (hay, needle) => String(hay ?? '').toLowerCase().includes(needle);
+function pageOf(all, opts) {
+  const size = Math.min(200, Math.max(1, Math.floor(Number(opts.pageSize)) || 12));
+  const total = all.length;
+  const totalPages = Math.max(1, Math.ceil(total / size));
+  const page = Math.min(totalPages, Math.max(1, Math.floor(Number(opts.page)) || 1));
+  return { rows: all.slice((page - 1) * size, page * size), total, page, pageSize: size, totalPages };
+}
+
 const normBin = (v) => String(v || '').trim().toUpperCase();
 const binExistsIn = (db, code) => (db.racks || []).some((r) => (r.bins || []).some((b) => b.bin_code.toUpperCase() === code));
 const binError = (code) => `Bin "${code}" does not exist. Pick a bin from Racks & Bins or leave it unassigned.`;
@@ -162,14 +176,19 @@ export function initBrowserApiFallback() {
 
     getRacks: async () => {
       const db = readDb();
+      const itemsByBin = new Map();
+      for (const it of db.items) {
+        const key = (it.bin_id || '').toUpperCase();
+        if (!key) continue;
+        const list = itemsByBin.get(key);
+        if (list) list.push(it); else itemsByBin.set(key, [it]);
+      }
       return db.racks
         .slice()
         .sort((a, b) => a.code.localeCompare(b.code))
         .map((r) => {
           const bins = (r.bins || []).map((b) => {
-            const binItems = db.items.filter(
-              (i) => (i.bin_id || '').toUpperCase() === b.bin_code.toUpperCase()
-            );
+            const binItems = itemsByBin.get(b.bin_code.toUpperCase()) || [];
             const liveQty = binItems.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
             return { ...b, quantity: liveQty, items: binItems };
           });
@@ -263,6 +282,22 @@ export function initBrowserApiFallback() {
     },
 
     getInvoices: async () => [...readDb().invoices].sort((a, b) => b.id - a.id),
+    getInvoicesPage: async (opts = {}) => {
+      opts = opts || {};
+      const q = String(opts.search || '').trim().toLowerCase();
+      const dateFrom = String(opts.dateFrom || '');
+      const status = String(opts.status || '');
+      const filtered = readDb().invoices
+        .filter((i) => {
+          if (q && !(containsCI(i.invoice_number, q) || containsCI(i.customer_name, q) || containsCI(i.payment_mode, q) || containsCI(realText(i.total), q))) return false;
+          if (dateFrom && !(String(i.date_time ?? '') >= dateFrom)) return false;
+          if (status && i.status !== status) return false;
+          return true;
+        })
+        .sort((a, b) => b.id - a.id);
+      const sumTotal = filtered.reduce((s, i) => (i.status === 'Returned' ? s : s + (Number(i.total) || 0)), 0);
+      return { ...pageOf(filtered, opts), sumTotal };
+    },
     createInvoice: async (inv) => {
       const db = readDb();
       const invNumber = inv.invoice_number || `INV-${String(Math.floor(100000 + Math.random() * 900000))}`;
@@ -322,6 +357,20 @@ export function initBrowserApiFallback() {
           status: p.status === 'Received' || p.status === 'Closed' ? 'Received' : 'Request',
         }))
         .sort((a, b) => b.id - a.id),
+    getPurchaseOrdersPage: async (opts = {}) => {
+      opts = opts || {};
+      const q = String(opts.search || '').trim().toLowerCase();
+      const want = opts.status ? (opts.status === 'Received' || opts.status === 'Closed' ? 'Received' : 'Request') : '';
+      const filtered = readDb().purchase_orders
+        .map((p) => ({ ...p, status: p.status === 'Received' || p.status === 'Closed' ? 'Received' : 'Request' }))
+        .filter((p) => {
+          if (q && !(containsCI(p.po_number, q) || containsCI(p.vendor_name, q) || containsCI(p.order_date, q) || containsCI(realText(p.amount), q))) return false;
+          if (want && p.status !== want) return false;
+          return true;
+        })
+        .sort((a, b) => b.id - a.id);
+      return pageOf(filtered, opts);
+    },
     createPurchaseOrder: async (po) => {
       const db = readDb();
       const id = db.purchase_orders.reduce((max, p) => Math.max(max, p.id || 0), 0) + 1;
@@ -478,6 +527,22 @@ export function initBrowserApiFallback() {
     },
 
     getExpenses: async () => [...readDb().expenses].sort((a, b) => b.id - a.id),
+    getExpensesPage: async (opts = {}) => {
+      opts = opts || {};
+      const q = String(opts.search || '').trim().toLowerCase();
+      const category = String(opts.category || '');
+      const dateFrom = String(opts.dateFrom || '');
+      const filtered = readDb().expenses
+        .filter((e) => {
+          if (q && !(containsCI(e.category, q) || containsCI(e.description, q) || containsCI(e.payment_mode, q) || containsCI(realText(e.amount), q))) return false;
+          if (category && e.category !== category) return false;
+          if (dateFrom && !(String(e.date ?? '') >= dateFrom)) return false;
+          return true;
+        })
+        .sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')) || b.id - a.id);
+      const sumAmount = filtered.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      return { ...pageOf(filtered, opts), sumAmount };
+    },
     addExpense: async (exp) => {
       const db = readDb();
       const id = db.expenses.reduce((max, x) => Math.max(max, x.id || 0), 0) + 1;
