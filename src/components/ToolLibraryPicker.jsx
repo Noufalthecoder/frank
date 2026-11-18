@@ -306,7 +306,7 @@ export default function ToolLibraryPicker({
                           min="1"
                           value={addCount}
                           onChange={(e) => setExplicitSizeQty(s.code, e.target.value)}
-                          className="w-12 text-center bg-white border border-blue-300 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="no-spinner w-12 text-center bg-white border border-blue-300 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                         <button
                           type="button"

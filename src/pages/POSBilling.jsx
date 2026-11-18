@@ -660,7 +660,7 @@ export default function POSBilling() {
                                 min="1"
                                 value={item.qty}
                                 onChange={(e) => setExplicitQty(index, e.target.value)}
-                                className="w-12 text-center bg-slate-50 border border-slate-200 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="no-spinner w-12 text-center bg-slate-50 border border-slate-200 rounded-md py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                               />
                               <button
                                 onClick={() => updateQty(index, 1)}
@@ -682,7 +682,7 @@ export default function POSBilling() {
                                 step="0.5"
                                 value={item.rate}
                                 onChange={(e) => updateRate(index, e.target.value)}
-                                className="w-full text-right bg-slate-50 border border-slate-200 rounded-md pl-5 pr-2 py-1 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="no-spinner w-full text-right bg-slate-50 border border-slate-200 rounded-md pl-5 pr-2 py-1 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
                           </td>
@@ -696,7 +696,7 @@ export default function POSBilling() {
                                 max="100"
                                 value={item.discountPercent || 0}
                                 onChange={(e) => updateDiscountPercent(index, e.target.value)}
-                                className="w-full text-right bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="no-spinner w-full text-right bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
                           </td>
@@ -858,9 +858,9 @@ export default function POSBilling() {
                     billDiscountPercent: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)),
                   })
                 }
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="no-spinner w-full bg-slate-50 border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
                 %
               </span>
             </div>
