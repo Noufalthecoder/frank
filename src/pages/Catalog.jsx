@@ -33,6 +33,7 @@ import {
 } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
+import { fuzzyFilter } from '../lib/fuzzySearch.js';
 
 const VIEW_MODES = [
   { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12 },
@@ -194,13 +195,7 @@ export default function Catalog() {
     }
   };
 
-  const filteredItems = items.filter((i) => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      i.name.toLowerCase().includes(q) ||
-      tName(i.name).toLowerCase().includes(q) ||
-      i.sku.toLowerCase().includes(q) ||
-      (i.size && i.size.toLowerCase().includes(q));
+  const preFilteredItems = items.filter((i) => {
     const matchCat = categoryFilter === 'All' || i.category === categoryFilter;
     const matchBrand = brandFilter === 'All' || i.brand === brandFilter;
     const available = isItemAvailable(i);
@@ -208,8 +203,17 @@ export default function Catalog() {
       statusFilter === 'All' ||
       (statusFilter === 'Available' && available) ||
       (statusFilter === 'Unavailable' && !available);
-    return matchSearch && matchCat && matchBrand && matchStatus;
+    return matchCat && matchBrand && matchStatus;
   });
+
+  const filteredItems = fuzzyFilter(preFilteredItems, search, (i) => [
+    i.name,
+    tName(i.name),
+    i.size,
+    i.brand,
+    i.category,
+    i.sku,
+  ]);
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -720,15 +724,6 @@ export default function Catalog() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              <th className="py-3 px-4 w-10">
-                <input
-                  type="checkbox"
-                  onChange={handleSelectAll}
-                  checked={selectedIds.length === filteredItems.length && filteredItems.length > 0}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-              </th>
-              <th className="py-3 px-4">{t('cat_col_sku')}</th>
               <th className="py-3 px-4">{t('cat_col_name')}</th>
               <th className="py-3 px-4">{t('cat_col_size')}</th>
               <th className="py-3 px-4">{t('cat_col_unit')}</th>
@@ -739,21 +734,11 @@ export default function Catalog() {
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs">
             {paginatedItems.map((item) => {
-              const isSelected = selectedIds.includes(item.id);
               return (
                 <tr
                   key={item.id}
-                  className={`hover:bg-slate-50/80 transition-colors ${isSelected ? 'bg-blue-50/40' : ''}`}
+                  className="hover:bg-slate-50/80 transition-colors"
                 >
-                  <td className="py-3 px-4">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleToggleSelect(item.id)}
-                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </td>
-                  <td className="py-3 px-4 font-mono font-medium text-slate-800">{item.sku}</td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 overflow-hidden p-0.5">
@@ -866,10 +851,11 @@ export default function Catalog() {
                       <p className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">
                         {tName(item.name)}
                       </p>
-                      <p className="text-[11px] text-slate-400 mt-1 truncate">
-                        <span className="font-mono text-slate-500">{item.sku}</span>
-                        {item.size ? ` · ${tName(item.size)}` : ''}
-                      </p>
+                      {item.size && (
+                        <p className="text-[11px] text-slate-500 font-medium mt-1 truncate">
+                          {tName(item.size)}
+                        </p>
+                      )}
                       <p className="text-[11px] text-slate-400 truncate mt-0.5">
                         {tCategory(item.category)}{item.brand ? ` · ${item.brand}` : ''} ·{' '}
                         <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
@@ -936,8 +922,8 @@ export default function Catalog() {
                       <p className="text-xs font-bold text-slate-900 leading-tight line-clamp-2">
                         {tName(item.name)}
                       </p>
-                      <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">
-                        {item.sku}{item.size ? ` · ${tName(item.size)}` : ''}
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {item.size ? tName(item.size) : tCategory(item.category)}
                       </p>
                     </div>
 
