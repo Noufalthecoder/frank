@@ -1073,66 +1073,48 @@ export default function POSBilling() {
           </div>
 
           {/* Keyboard Hotkey Bar */}
-          <div className="flex items-center gap-x-4 gap-y-1 flex-wrap px-1 text-[12px] text-slate-400">
-            <button
-              onClick={() => searchInputRef.current?.focus()}
-              className="flex items-center gap-1.5 hover:text-slate-700 transition-colors"
-            >
+          <div aria-hidden="true" className="pointer-events-none flex items-center gap-x-4 gap-y-1 flex-wrap px-1 text-[12px] text-slate-400">
+            <span className="flex items-center gap-1.5 cursor-default select-none">
               <kbd className="px-1.5 py-px bg-slate-100 border border-slate-200 rounded text-[11px] font-semibold text-slate-500">
                 F2
               </kbd>
               <span>{t('pos_find_product')}</span>
-            </button>
+            </span>
 
-            <button
-              onClick={() => customerInputRef.current?.focus()}
-              className="flex items-center gap-1.5 hover:text-slate-700 transition-colors"
-            >
+            <span className="flex items-center gap-1.5 cursor-default select-none">
               <kbd className="px-1.5 py-px bg-slate-100 border border-slate-200 rounded text-[11px] font-semibold text-slate-500">
                 F4
               </kbd>
               <span>{t('pos_customer')}</span>
-            </button>
+            </span>
 
-            <button
-              onClick={() => discountInputRef.current?.focus()}
-              className="flex items-center gap-1.5 hover:text-slate-700 transition-colors"
-            >
+            <span className="flex items-center gap-1.5 cursor-default select-none">
               <kbd className="px-1.5 py-px bg-slate-100 border border-slate-200 rounded text-[11px] font-semibold text-slate-500">
                 F6
               </kbd>
               <span>{t('pos_bill_discount')}</span>
-            </button>
+            </span>
 
-            <button
-              onClick={cyclePaymentMode}
-              className="flex items-center gap-1.5 hover:text-slate-700 transition-colors"
-            >
+            <span className="flex items-center gap-1.5 cursor-default select-none">
               <kbd className="px-1.5 py-px bg-slate-100 border border-slate-200 rounded text-[11px] font-semibold text-slate-500">
                 F8
               </kbd>
               <span>{t('pos_payment_mode')}</span>
-            </button>
+            </span>
 
-            <button
-              onClick={handleGenerateBill}
-              className="flex items-center gap-1.5 hover:text-slate-700 transition-colors text-blue-600 font-medium"
-            >
+            <span className="flex items-center gap-1.5  text-blue-600 font-medium cursor-default select-none">
               <kbd className="px-1.5 py-px bg-blue-50 border border-blue-200 rounded text-[11px] font-semibold text-blue-600">
                 F9
               </kbd>
               <span>{t('pos_complete_sale')}</span>
-            </button>
+            </span>
 
-            <button
-              onClick={addNewBill}
-              className="flex items-center gap-1.5 hover:text-slate-700 transition-colors"
-            >
+            <span className="flex items-center gap-1.5 cursor-default select-none">
               <kbd className="px-1.5 py-px bg-slate-100 border border-slate-200 rounded text-[11px] font-semibold text-slate-500">
                 Alt+N
               </kbd>
               <span>{t('po_new_bill_short')}</span>
-            </button>
+            </span>
 
             <span className="flex items-center gap-1.5">
               <kbd className="px-1.5 py-px bg-slate-100 border border-slate-200 rounded text-[11px] font-semibold text-slate-500">
