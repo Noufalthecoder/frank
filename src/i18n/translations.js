@@ -3,7 +3,7 @@ export const translations = {
     // Navigation & Shell
     nav_dashboard: 'Dashboard',
     nav_catalog: 'Catalog',
-    nav_pos: 'POS Billing',
+    nav_pos: 'Billing',
     nav_history: 'Sales History',
     nav_vendors: 'Vendors',
     nav_finance: 'Finance',
@@ -205,7 +205,7 @@ export const translations = {
     // Navigation & Shell
     nav_dashboard: 'முகப்பு',
     nav_catalog: 'பொருள் பட்டியல்',
-    nav_pos: 'பில்லிங் (POS)',
+    nav_pos: 'பில்லிங்',
     nav_history: 'விற்பனை வரலாறு',
     nav_vendors: 'சப்ளையர்கள்',
     nav_finance: 'நிதி & கணக்கு',
