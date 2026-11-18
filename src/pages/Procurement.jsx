@@ -754,44 +754,53 @@ export default function Procurement() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {openOrders.map((po) => {
-                const lines = parsePoItems(po);
-                return (
-                  <div key={po.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">{po.vendor_name}</p>
-                        <p className="text-[13px] text-slate-400 mt-0.5">{t('pr_ordered', { date: po.order_date })}</p>
-                      </div>
-                      <span className="text-sm font-black text-slate-900">
-                        ₹ {Number(po.amount).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-
-                    {lines.length > 0 && (
-                      <div className="bg-slate-50 rounded-lg border border-slate-100 p-2.5 space-y-1 text-[13px]">
-                        {lines.map((l, idx) => (
-                          <div key={idx} className="flex justify-between">
-                            <span className="text-slate-700 font-medium">{l.name}</span>
-                            <span className="font-bold text-emerald-700">
-                              +{formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')}
-                            </span>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4">{t('pr_h_vendor')}</th>
+                    <th className="py-3 px-4">{t('pr_h_order_date')}</th>
+                    <th className="py-3 px-4">{t('pr_order_items')}</th>
+                    <th className="py-3 px-4 text-right">{t('pr_h_amount')}</th>
+                    <th className="py-3 px-4 text-right">{t('pr_h_action')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {openOrders.map((po) => {
+                    const lines = parsePoItems(po);
+                    return (
+                      <tr key={po.id} className="hover:bg-slate-50/80 transition-colors align-top">
+                        <td className="py-3.5 px-4 font-semibold text-slate-900">{po.vendor_name}</td>
+                        <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">{po.order_date}</td>
+                        <td className="py-3.5 px-4">
+                          <div className="space-y-1">
+                            {lines.map((l, idx) => (
+                              <div key={idx} className="flex items-center justify-between gap-4 max-w-md">
+                                <span className="text-slate-700">{l.name}</span>
+                                <span className="font-semibold text-emerald-700 whitespace-nowrap tabular-nums">
+                                  +{formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')}
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => handleStatusChange(po, 'Received')}
-                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <PackageCheck className="w-4 h-4" />
-                      <span>{t('pr_receive_update')}</span>
-                    </button>
-                  </div>
-                );
-              })}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                          ₹ {Number(po.amount).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            onClick={() => handleStatusChange(po, 'Received')}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors whitespace-nowrap"
+                          >
+                            <PackageCheck className="w-4 h-4" />
+                            <span>{t('pr_receive_update')}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
