@@ -4,7 +4,6 @@ import { LanguageProvider } from './i18n/LanguageContext.jsx';
 import { AppDialogProvider } from './components/AppDialogContext.jsx';
 import Layout from './components/Layout.jsx';
 
-import Landing from './pages/Landing.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Catalog from './pages/Catalog.jsx';
 import Racks from './pages/Racks.jsx';
@@ -21,7 +20,7 @@ export default function App() {
         <HashRouter>
           <Layout>
             <Routes>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<Navigate to="/pos" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/catalog" element={<Catalog />} />
               <Route path="/racks" element={<Navigate to="/settings?tab=racks" replace />} />

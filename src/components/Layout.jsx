@@ -121,7 +121,7 @@ export default function Layout({ children }) {
       <aside className="w-[260px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between">
         <div className="flex flex-col min-h-0">
           {/* Brand header */}
-          <NavLink to="/" title={t('nav_home')} className="flex items-center gap-3 px-5 min-h-[56px] border-b border-slate-200 hover:bg-slate-50 transition-colors">
+          <div className="flex items-center gap-3 px-5 min-h-[56px] border-b border-slate-200">
             <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center flex-shrink-0">
               <Layers className="w-4 h-4" />
             </div>
@@ -133,7 +133,7 @@ export default function Layout({ children }) {
                 {shopProfile.address_line1 || 'Beach Road'} · {shopProfile.address_line2 || 'Tharuvaikulam'}
               </p>
             </div>
-          </NavLink>
+          </div>
 
           {/* Navigation: POS Billing first, then a gap, then the rest */}
           <nav className="py-4 flex flex-col gap-1 overflow-y-auto">
