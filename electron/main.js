@@ -651,6 +651,40 @@ ipcMain.handle('getPurchaseOrders', () => {
   return db.prepare('SELECT * FROM purchase_orders ORDER BY id DESC').all();
 });
 
+function applyPoStockDelta(line, deltaQty) {
+  const delta = Number(deltaQty) || 0;
+  if (Math.abs(delta) < 1e-9) return;
+  const pid = Number(line.product_id) || 0;
+  const sku = String(line.sku || '').trim().toUpperCase();
+  let target = null;
+  if (pid > 0) {
+    target = db.prepare('SELECT id, sku, quantity, status FROM items WHERE id = ?').get(pid);
+  }
+  if (!target && sku) {
+    target = db.prepare('SELECT id, sku, quantity, status FROM items WHERE UPPER(sku) = ?').get(sku);
+  }
+  if (!target) return;
+  const nextQty = Number(Math.max(0, Number(target.quantity || 0) + delta).toFixed(6));
+  const nextStatus = nextQty > 0 && (target.status === 'Unavailable' || target.status === 'Inactive')
+    ? 'Available'
+    : target.status;
+  db.prepare('UPDATE items SET quantity = ?, status = ? WHERE id = ?').run(nextQty, nextStatus, target.id);
+}
+
+function aggregatePoLines(lines) {
+  const map = new Map();
+  (Array.isArray(lines) ? lines : []).forEach((l) => {
+    const pid = Number(l.product_id) || 0;
+    const sku = String(l.sku || '').trim().toUpperCase();
+    const key = pid > 0 ? `id:${pid}` : sku ? `sku:${sku}` : '';
+    if (!key) return;
+    const prev = map.get(key) || { product_id: pid, sku, qty: 0 };
+    prev.qty = Number((prev.qty + (Number(l.quantity) || 0)).toFixed(6));
+    map.set(key, prev);
+  });
+  return map;
+}
+
 ipcMain.handle('createPurchaseOrder', (event, po) => {
   const genNum = `PO-${String(Math.floor(10000 + Math.random() * 90000))}`;
   const poStatus = po.status === 'Received' ? 'Received' : 'Request';
@@ -662,36 +696,70 @@ ipcMain.handle('createPurchaseOrder', (event, po) => {
   const tx = db.transaction(() => {
     stmt.run(po.po_number || genNum, po.vendor_name, po.order_date, po.amount, poStatus, JSON.stringify(items));
     if (poStatus === 'Received' && items.length > 0) {
-      const addStock = db.prepare('UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ?');
-      items.forEach(i => {
-        if (i.sku && Number(i.quantity) > 0) {
-          addStock.run(Number(i.quantity), i.sku);
-        }
-      });
+      items.forEach((line) => applyPoStockDelta(line, Number(line.quantity) || 0));
     }
   });
   tx();
   return { success: true };
 });
 
+ipcMain.handle('updatePurchaseOrder', (event, po) => {
+  try {
+    const existing = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(po.id);
+    if (!existing) return { success: false, error: 'PO not found.' };
+    const prevStatus = existing.status === 'Received' || existing.status === 'Closed' ? 'Received' : 'Request';
+    const nextStatus = po.status === 'Received' ? 'Received' : 'Request';
+    const prevItems = JSON.parse(existing.items_json || '[]');
+    const nextItems = Array.isArray(po.items) ? po.items : prevItems;
+
+    const tx = db.transaction(() => {
+      db.prepare(`
+        UPDATE purchase_orders
+        SET vendor_name = ?, order_date = ?, amount = ?, status = ?, items_json = ?
+        WHERE id = ?
+      `).run(
+        po.vendor_name ?? existing.vendor_name,
+        po.order_date ?? existing.order_date,
+        po.amount ?? existing.amount,
+        nextStatus,
+        JSON.stringify(nextItems),
+        po.id
+      );
+
+      // Compute exact per-product delta so inventory updates cleanly without double-counting
+      const prevMap = prevStatus === 'Received' ? aggregatePoLines(prevItems) : new Map();
+      const nextMap = nextStatus === 'Received' ? aggregatePoLines(nextItems) : new Map();
+      const allKeys = new Set([...prevMap.keys(), ...nextMap.keys()]);
+      allKeys.forEach((key) => {
+        const prevEntry = prevMap.get(key);
+        const nextEntry = nextMap.get(key);
+        const delta = Number(((nextEntry?.qty || 0) - (prevEntry?.qty || 0)).toFixed(6));
+        if (Math.abs(delta) > 1e-9) {
+          applyPoStockDelta(nextEntry || prevEntry, delta);
+        }
+      });
+    });
+    tx();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message || 'Failed to update PO.' };
+  }
+});
+
 ipcMain.handle('updatePurchaseOrderStatus', (event, { id, status }) => {
   try {
     const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id);
     if (!po) return { success: false, error: 'PO not found.' };
-    const prevStatus = po.status;
+    const prevStatus = po.status === 'Received' || po.status === 'Closed' ? 'Received' : 'Request';
     const nextStatus = status === 'Received' ? 'Received' : 'Request';
 
     const tx = db.transaction(() => {
       db.prepare('UPDATE purchase_orders SET status = ? WHERE id = ?').run(nextStatus, id);
-      // If marking Request -> Received, automatically restock PO items into inventory
+      const items = JSON.parse(po.items_json || '[]');
       if (prevStatus !== 'Received' && nextStatus === 'Received') {
-        const items = JSON.parse(po.items_json || '[]');
-        const addStock = db.prepare('UPDATE items SET quantity = ROUND(quantity + ?, 6) WHERE sku = ?');
-        items.forEach(i => {
-          if (i.sku && Number(i.quantity) > 0) {
-            addStock.run(Number(i.quantity), i.sku);
-          }
-        });
+        items.forEach((line) => applyPoStockDelta(line, Number(line.quantity) || 0));
+      } else if (prevStatus === 'Received' && nextStatus !== 'Received') {
+        items.forEach((line) => applyPoStockDelta(line, -(Number(line.quantity) || 0)));
       }
     });
     tx();
