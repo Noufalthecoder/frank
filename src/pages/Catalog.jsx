@@ -1271,22 +1271,6 @@ export default function Catalog() {
                 </div>
               </div>
 
-              {isMeasurableUnit(form.unit) && (
-                <div
-                  className={`rounded-lg px-3 py-2 text-[11px] font-medium border flex items-center justify-between ${
-                    getUnitGroup(form.unit) === 'length'
-                      ? 'bg-sky-50/70 border-sky-200 text-sky-800'
-                      : 'bg-violet-50/70 border-violet-200 text-violet-800'
-                  }`}
-                >
-                  <span>
-                    {getUnitGroup(form.unit) === 'length'
-                      ? `Measured by Length (${normalizeUnit(form.unit)}) — in POS Billing you can sell in m or cm and stock converts automatically.`
-                      : `Measured by Weight (${normalizeUnit(form.unit)}) — in POS Billing you can sell in kg, g, or mg and stock converts automatically.`}
-                  </span>
-                </div>
-              )}
-
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
