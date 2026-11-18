@@ -79,8 +79,14 @@ function scoreTokenAgainstWords(token, fullText, words) {
     }
   }
 
-  if (best === 0 && token.length >= 2 && isSubsequence(token, fullText)) {
-    best = 42;
+  if (best === 0 && token.length >= 3) {
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (w.length <= token.length * 2 + 2 && isSubsequence(token, w)) {
+        best = 46;
+        break;
+      }
+    }
   }
 
   return best;

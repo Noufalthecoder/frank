@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { UNIT_OPTIONS, normalizeUnit, formatQty } from '../lib/units.js';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
+import { getBilingualSearchFields } from '../i18n/productTamil.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
 import ExportMenu from '../components/ExportMenu.jsx';
@@ -492,14 +493,9 @@ export default function Procurement() {
     o.po_number,
   ]);
 
-  const pickerTotalMatches = fuzzyFilter(catalogItems, productPickerQuery, (i) => [
-    i.name,
-    tName(i.name),
-    i.size,
-    i.brand,
-    i.category,
-    i.sku,
-  ]);
+  const pickerTotalMatches = fuzzyFilter(catalogItems, productPickerQuery, (i) =>
+    getBilingualSearchFields(i)
+  );
   const pickerVisibleItems = pickerTotalMatches.slice(0, 10);
   const selectedPickerProduct = catalogItems.find((i) => String(i.id) === String(lineProductId));
 

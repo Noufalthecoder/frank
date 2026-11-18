@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { TOOL_LIBRARY } from '../data/toolLibrary.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import { fuzzyFilter } from '../lib/fuzzySearch.js';
+import { getBilingualSearchFields } from '../i18n/productTamil.js';
 
 export default function ToolLibraryPicker({
   existingItemsMap = {},
@@ -30,18 +32,15 @@ export default function ToolLibraryPicker({
 
   const categories = ['All', 'Tools', 'Fasteners', 'Electrical', 'Plumbing', 'Paints & Adhesives'];
 
-  const filteredTools = TOOL_LIBRARY.filter((tool) => {
-    const q = query.trim().toLowerCase();
-    const matchCat = catFilter === 'All' || tool.category === catFilter;
-    if (!q) return matchCat;
-    const matchTool =
-      tool.name.toLowerCase().includes(q) ||
-      tName(tool.name).toLowerCase().includes(q) ||
-      tool.brand.toLowerCase().includes(q) ||
-      tool.description.toLowerCase().includes(q) ||
-      tool.sizes.some((s) => s.size.toLowerCase().includes(q));
-    return matchCat && matchTool;
-  });
+  const catFilteredTools = TOOL_LIBRARY.filter(
+    (tool) => catFilter === 'All' || tool.category === catFilter
+  );
+
+  const filteredTools = fuzzyFilter(catFilteredTools, query, (tool) => [
+    ...getBilingualSearchFields(tool),
+    tool.description,
+    ...tool.sizes.map((s) => s.size),
+  ]);
 
   const openTool = (tool) => {
     setSelectedTool(tool);

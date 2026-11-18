@@ -250,7 +250,150 @@ const WORD_MAP = {
   deg: '°',
   generic: 'ஜெனரிக்',
   pcs: 'எண்ணிக்கை',
+  water: 'தண்ணீர்',
+  garden: 'கார்டன்',
+  joint: 'ஜாயிண்ட்',
+  gate: 'கேட்',
+  ball: 'பால்',
+  connector: 'கனெக்டர்',
+  adapter: 'அடாப்டர்',
+  motor: 'மோட்டார்',
+  pump: 'பம்ப்',
+  tank: 'டேங்க்',
+  door: 'கதவு',
+  window: 'ஜன்னல்',
+  key: 'சாவி',
+  ladder: 'ஏணி',
+  bucket: 'பக்கெட்',
+  roof: 'கூரை',
+  tile: 'டைல்ஸ்',
+  tiles: 'டைல்ஸ்',
+  sand: 'மணல்',
+  stone: 'கல்',
+  wall: 'சுவர்',
+  floor: 'தரை',
+  woodwork: 'மரவேலை',
+  plumbing: 'பிளம்பிங்',
+  electrical: 'மின்சாரம்',
+  hardware: 'ஹார்ட்வேர்',
 };
+
+// Tanglish (Romanized Tamil) & everyday Tamil shop aliases -> canonical English + Tamil tokens
+const TANGLISH_ALIASES = [
+  { ta: ['கம்பி', 'வயர்'], en: ['wire', 'rod', 'bar', 'cable'], tanglish: ['kambi', 'kampi', 'vayar', 'wire'] },
+  { ta: ['சுத்தியல்'], en: ['hammer'], tanglish: ['suthiyal', 'suthil', 'suthi'] },
+  { ta: ['ஆணி', 'ஆணிகள்'], en: ['nail', 'nails'], tanglish: ['aani', 'ani'] },
+  { ta: ['திருகு', 'திருகுகள்'], en: ['screw', 'screws'], tanglish: ['thirugu', 'tirugu', 'skru'] },
+  { ta: ['குழாய்', 'பைப்', 'ஹோஸ்'], en: ['pipe', 'hose', 'tap'], tanglish: ['kuzhai', 'kulai', 'kuzhaye', 'paip'] },
+  { ta: ['தண்ணீர்', 'நீர்'], en: ['water'], tanglish: ['thanni', 'tanni', 'thanneer', 'neer'] },
+  { ta: ['பித்தளை'], en: ['brass'], tanglish: ['pithalai', 'pitalai', 'pithala'] },
+  { ta: ['செம்பு', 'காப்பர்'], en: ['copper'], tanglish: ['sembu', 'chempu', 'sempu', 'koppar'] },
+  { ta: ['இரும்பு', 'ஸ்டீல்'], en: ['iron', 'steel', 'metal'], tanglish: ['irumbu', 'irumpu', 'steel'] },
+  { ta: ['பசை'], en: ['glue', 'adhesive', 'fevicol', 'epoxy'], tanglish: ['pasai', 'pasa'] },
+  { ta: ['பூட்டு'], en: ['lock', 'padlock'], tanglish: ['poottu', 'pootu', 'puttu'] },
+  { ta: ['சாவி'], en: ['key', 'spanner'], tanglish: ['saavi', 'savi', 'chavi'] },
+  { ta: ['கயிறு'], en: ['rope'], tanglish: ['kayiru', 'kairu'] },
+  { ta: ['சங்கிலி'], en: ['chain'], tanglish: ['sangili', 'changili'] },
+  { ta: ['உளி'], en: ['chisel'], tanglish: ['uli'] },
+  { ta: ['ரம்பம்'], en: ['saw', 'hacksaw'], tanglish: ['rambam', 'rampam'] },
+  { ta: ['அரம்'], en: ['file'], tanglish: ['aram'] },
+  { ta: ['பெயிண்ட்', 'வர்ணம்'], en: ['paint', 'primer'], tanglish: ['paint', 'varnam'] },
+  { ta: ['பிரஷ்', 'தூரிகை'], en: ['brush'], tanglish: ['brush', 'thoorigai'] },
+  { ta: ['கண்ணாடி'], en: ['glass', 'goggles'], tanglish: ['kannadi', 'kanadi'] },
+  { ta: ['மரம்', 'மர'], en: ['wood', 'wooden'], tanglish: ['maram', 'mara'] },
+  { ta: ['கதவு'], en: ['door'], tanglish: ['kathavu', 'kadhavu'] },
+  { ta: ['ஜன்னல்'], en: ['window'], tanglish: ['jannal'] },
+  { ta: ['ஏணி'], en: ['ladder'], tanglish: ['eni', 'yeni'] },
+  { ta: ['கருவிகள்'], en: ['tools', 'tool'], tanglish: ['karuvigal', 'karuvi'] },
+  { ta: ['மின்சாரம்'], en: ['electrical', 'electric'], tanglish: ['minsaram', 'current'] },
+  { ta: ['வலை'], en: ['mesh', 'net'], tanglish: ['valai', 'vala'] },
+  { ta: ['கீல்'], en: ['hinge'], tanglish: ['keel', 'kil'] },
+  { ta: ['கொக்கி'], en: ['hook'], tanglish: ['kokki', 'koki'] },
+  { ta: ['கைப்பிடி'], en: ['handle', 'knob'], tanglish: ['kaipidi', 'kaippidi'] },
+  { ta: ['எண்ணெய்'], en: ['oil'], tanglish: ['ennai', 'yennai'] },
+  { ta: ['கையுறை'], en: ['gloves'], tanglish: ['kaiyurai'] },
+  { ta: ['தலைக்கவசம்'], en: ['helmet'], tanglish: ['thalaikavasam'] },
+  { ta: ['அளவுகோல்'], en: ['scale', 'ruler'], tanglish: ['alavukol'] },
+  { ta: ['நுண்ணிய', 'பொடி'], en: ['fine', 'powder'], tanglish: ['podi'] },
+  { ta: ['போல்ட்'], en: ['bolt', 'bolts'], tanglish: ['bolt'] },
+  { ta: ['நட்'], en: ['nut', 'nuts'], tanglish: ['nut', 'nattu', 'marai'] },
+  { ta: ['வாஷர்'], en: ['washer'], tanglish: ['washer'] },
+  { ta: ['ஸ்பேனர்', 'ரெஞ்ச்'], en: ['spanner', 'wrench'], tanglish: ['spanner', 'wrench'] },
+  { ta: ['பிளையர்'], en: ['plier', 'pliers'], tanglish: ['plier', 'cutting'] },
+  { ta: ['டிரில்'], en: ['drill'], tanglish: ['drill'] },
+  { ta: ['வால்வு'], en: ['valve'], tanglish: ['valve'] },
+  { ta: ['எல்போ'], en: ['elbow'], tanglish: ['elbow'] },
+];
+
+// Build reverse map (Tamil word -> English words) from PHRASE_MAP, WORD_MAP, and CATEGORY_TA
+const REVERSE_TA_TO_EN = (() => {
+  const map = new Map();
+  const add = (ta, en) => {
+    const key = String(ta || '').trim();
+    if (!key) return;
+    if (!map.has(key)) map.set(key, new Set());
+    map.get(key).add(String(en || '').toLowerCase());
+  };
+  Object.entries(WORD_MAP).forEach(([en, ta]) => add(ta, en));
+  Object.entries(CATEGORY_TA).forEach(([en, ta]) => add(ta, en));
+  PHRASE_MAP.forEach(([en, ta]) => add(ta, en));
+  TANGLISH_ALIASES.forEach(({ ta, en, tanglish }) => {
+    ta.forEach((t) => {
+      en.forEach((e) => add(t, e));
+      tanglish.forEach((tg) => add(t, tg));
+    });
+  });
+  return map;
+})();
+
+/**
+ * Returns rich bilingual search fields (English + Tamil + Tanglish synonyms)
+ * so searching in English, Tanglish, or Tamil always finds the closest product
+ * regardless of the active UI language or whether the product was saved in English or Tamil.
+ */
+export function getBilingualSearchFields(item) {
+  if (!item) return [];
+  const rawName = String(item.name || '');
+  const taName = translateProductName(rawName, 'ta');
+  const rawCat = String(item.category || '');
+  const taCat = translateCategory(rawCat, 'ta');
+
+  const extraTokens = new Set();
+  const combinedLower = `${rawName} ${rawCat}`.toLowerCase();
+  const combinedTa = `${rawName} ${taName} ${taCat}`;
+
+  // Expand English/Tamil/Tanglish aliases bidirectionally
+  for (const entry of TANGLISH_ALIASES) {
+    const hitEn = entry.en.some((w) => combinedLower.includes(w));
+    const hitTa = entry.ta.some((w) => combinedTa.includes(w));
+    if (hitEn || hitTa) {
+      entry.en.forEach((w) => extraTokens.add(w));
+      entry.ta.forEach((w) => extraTokens.add(w));
+      entry.tanglish.forEach((w) => extraTokens.add(w));
+    }
+  }
+
+  // If product name contains Tamil script directly, also inject English equivalents from reverse map
+  if (/[\u0B80-\u0BFF]/.test(rawName)) {
+    for (const [taKey, enSet] of REVERSE_TA_TO_EN.entries()) {
+      if (rawName.includes(taKey)) {
+        enSet.forEach((e) => extraTokens.add(e));
+      }
+    }
+  }
+
+  return [
+    rawName,
+    taName,
+    item.size,
+    item.brand,
+    rawCat,
+    taCat,
+    Array.from(extraTokens).join(' '),
+    item.bin_id,
+    item.sku,
+  ];
+}
 
 function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
