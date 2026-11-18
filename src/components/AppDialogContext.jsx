@@ -64,7 +64,7 @@ export function AppDialogProvider({ children }) {
     danger: {
       iconBg: 'bg-rose-50 text-rose-600 ring-rose-200/80',
       Icon: AlertTriangle,
-      confirmBtn: 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/20',
+      confirmBtn: 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm',
     },
     warning: {
       iconBg: 'bg-amber-50 text-amber-600 ring-amber-200/80',
@@ -74,17 +74,17 @@ export function AppDialogProvider({ children }) {
     success: {
       iconBg: 'bg-emerald-50 text-emerald-600 ring-emerald-200/80',
       Icon: CheckCircle2,
-      confirmBtn: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20',
+      confirmBtn: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm',
     },
     primary: {
       iconBg: 'bg-blue-50 text-blue-600 ring-blue-200/80',
       Icon: Info,
-      confirmBtn: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-600/20',
+      confirmBtn: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm',
     },
     info: {
       iconBg: 'bg-blue-50 text-blue-600 ring-blue-200/80',
       Icon: Info,
-      confirmBtn: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-600/20',
+      confirmBtn: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm',
     },
   };
 

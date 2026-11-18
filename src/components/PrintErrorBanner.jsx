@@ -12,7 +12,7 @@ export default function PrintErrorBanner({
 }) {
   const { t } = useLanguage();
   return (
-    <div className="animate-popover rounded-2xl bg-white border border-rose-200/90 shadow-lg shadow-rose-900/5 p-4 space-y-3">
+    <div className="animate-popover rounded-2xl bg-white border border-rose-200/90 shadow-lg p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 text-rose-600">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />

@@ -1161,7 +1161,7 @@ export default function POSBilling() {
               <span className="tabular-nums">{roundOff >= 0 ? `+ ₹ ${roundOff.toFixed(2)}` : `– ₹ ${Math.abs(roundOff).toFixed(2)}`}</span>
             </div>
 
-            <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-white border border-blue-200/70 flex items-center justify-between">
+            <div className="mt-3 p-3.5 rounded-xl bg-blue-50/90 border border-blue-200/70 flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-900/70">{t('pos_total')}</span>
               <span className="text-[28px] font-black text-blue-600 tracking-[-0.03em] tabular-nums leading-none">
                 ₹ {roundedTotal.toFixed(2)}
@@ -1283,7 +1283,7 @@ export default function POSBilling() {
             className={`w-full py-3 px-4 rounded-xl text-[13px] font-bold tracking-[-0.01em] transition-all flex items-center justify-between ${
               activeBill.cart.length === 0
                 ? 'bg-slate-100/90 text-slate-400 border border-slate-200/90 cursor-not-allowed shadow-none'
-                : 'bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border border-blue-700/80 shadow-md shadow-blue-600/25 ring-1 ring-inset ring-white/15 active:scale-[0.99]'
+                : 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-700/80 shadow-md ring-1 ring-inset ring-white/15 active:scale-[0.99]'
             }`}
           >
             <span className="flex items-center gap-2">
