@@ -3,57 +3,11 @@ import { normalizeUnit } from './units.js';
 // LocalStorage-backed fallback for window.api when previewing in a regular browser.
 // Inside Electron (.exe), preload.js defines window.api (backed by SQLite), so this does nothing.
 
-const STORAGE_KEY = 'tsp_enterprises_browser_db_v3';
+const STORAGE_KEY = 'tsp_enterprises_browser_db_v4';
 
 function formatLocalDateTime(date = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
-
-function buildDefaultRacks() {
-  const specs = [
-    { code: 'R01', name: 'Fasteners', zone: 'Fasteners', levels: 4, slots_per_level: 4 },
-    { code: 'R02', name: 'Plumbing & Paints', zone: 'Plumbing & Paints', levels: 4, slots_per_level: 4 },
-    { code: 'R03', name: 'Washers & Nuts', zone: 'Fasteners', levels: 4, slots_per_level: 4 },
-    { code: 'R04', name: 'Tools', zone: 'Hardware', levels: 4, slots_per_level: 4 },
-    { code: 'R05', name: 'Electrical', zone: 'Electrical', levels: 4, slots_per_level: 4 },
-  ];
-  return specs.map((r, idx) => {
-    const bins = [];
-    for (let l = 1; l <= r.levels; l++) {
-      for (let s = 1; s <= r.slots_per_level; s++) {
-        bins.push({
-          bin_code: `${r.code}-L${l}-S${s}`,
-          rack_code: r.code,
-          level_no: l,
-          slot_no: s,
-          quantity: 0,
-        });
-      }
-    }
-    return { id: idx + 1, ...r, bins };
-  });
-}
-
-function getStarterItems() {
-  return [
-    { id: 1, sku: 'HB-M6-20', name: 'Hex Bolt M6 x 20mm', size: 'M6 x 20', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', selling_price: 6.5, cost_price: 4.0, quantity: 650, reorder_level: 50, bin_id: 'R01-L1-S1', status: 'Active' },
-    { id: 2, sku: 'HB-M8-40', name: 'Hex Bolt M8 x 40mm', size: 'M8 x 40', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', selling_price: 12.0, cost_price: 8.5, quantity: 1240, reorder_level: 50, bin_id: 'R01-L1-S4', status: 'Active' },
-    { id: 3, sku: 'HB-M10-50', name: 'Hex Bolt M10 x 50mm', size: 'M10 x 50', unit: 'PCS', category: 'Fasteners', brand: 'Unbrako', selling_price: 18.0, cost_price: 12.5, quantity: 842, reorder_level: 40, bin_id: 'R01-L2-S1', status: 'Active' },
-    { id: 4, sku: 'NT-M8', name: 'Hex Nut M8', size: 'M8', unit: 'PCS', category: 'Fasteners', brand: 'Generic', selling_price: 2.0, cost_price: 1.2, quantity: 4980, reorder_level: 500, bin_id: 'R02-L1-S2', status: 'Active' },
-    { id: 5, sku: 'WS-M8', name: 'Flat Washer M8', size: 'M8', unit: 'PCS', category: 'Fasteners', brand: 'Generic', selling_price: 1.5, cost_price: 0.8, quantity: 5320, reorder_level: 500, bin_id: 'R03-L1-S1', status: 'Active' },
-    { id: 6, sku: 'DB-10', name: 'SDS Plus Drill Bit 10mm', size: '10mm', unit: 'PCS', category: 'Tools', brand: 'Bosch', selling_price: 220.0, cost_price: 160.0, quantity: 118, reorder_level: 20, bin_id: 'R04-L1-S3', status: 'Active' },
-    { id: 7, sku: 'DB-12', name: 'SDS Plus Drill Bit 12mm', size: '12mm', unit: 'PCS', category: 'Tools', brand: 'Bosch', selling_price: 280.0, cost_price: 200.0, quantity: 0, reorder_level: 15, bin_id: 'R04-L1-S4', status: 'Active' },
-    { id: 8, sku: 'HM-500', name: 'Ball Peen Hammer 500g', size: '500g', unit: 'PCS', category: 'Tools', brand: 'Taparia', selling_price: 280.0, cost_price: 210.0, quantity: 45, reorder_level: 15, bin_id: 'R04-L2-S1', status: 'Active' },
-    { id: 9, sku: 'DBL-4', name: 'Diamond Blade 4" Concrete', size: '4 inch', unit: 'PCS', category: 'Tools', brand: 'Bosch', selling_price: 290.0, cost_price: 210.0, quantity: 0, reorder_level: 10, bin_id: 'R04-L4-S1', status: 'Active' },
-    { id: 10, sku: 'WR-15-RD', name: 'Copper House Wire 1.5 sq mm Red 90m', size: '1.5 sq mm', unit: 'BOX', category: 'Electrical', brand: 'Finolex', selling_price: 1950.0, cost_price: 1620.0, quantity: 18, reorder_level: 5, bin_id: 'R05-L1-S1', status: 'Active' },
-    { id: 11, sku: 'PVC-1', name: 'PVC Pipe 1" Class 3 6kg', size: '1 inch', unit: 'm', category: 'Plumbing', brand: 'Finolex', selling_price: 85.0, cost_price: 60.0, quantity: 96, reorder_level: 30, bin_id: 'R02-L2-S1', status: 'Active' },
-    { id: 12, sku: 'PBR-3', name: 'Flat Paint Brush 3"', size: '3 inch', unit: 'PCS', category: 'Paints & Adhesives', brand: 'Generic', selling_price: 55.0, cost_price: 36.0, quantity: 0, reorder_level: 10, bin_id: 'R02-L3-S4', status: 'Active' },
-    { id: 13, sku: 'GI-BW-20G', name: 'GI Binding Wire 20 Gauge', size: '20 SWG', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', selling_price: 120.0, cost_price: 90.0, quantity: 50, reorder_level: 10, bin_id: 'R01-L3-S3', status: 'Active' },
-    { id: 14, sku: 'NYL-ROPE-8', name: 'Nylon Braided Rope 8mm', size: '8mm', unit: 'm', category: 'Others', brand: 'Generic', selling_price: 25.0, cost_price: 16.0, quantity: 150, reorder_level: 25, bin_id: 'R02-L4-S1', status: 'Active' },
-    { id: 15, sku: 'MS-NAIL-2IN', name: 'MS Wire Nails 2" (Loose)', size: '2 inch', unit: 'kg', category: 'Fasteners', brand: 'Tata Agrico', selling_price: 110.0, cost_price: 82.0, quantity: 40, reorder_level: 10, bin_id: 'R01-L3-S4', status: 'Active' },
-    { id: 16, sku: 'CU-WND-24G', name: 'Enamelled Copper Winding Wire', size: '24 SWG', unit: 'g', category: 'Electrical', brand: 'Finolex', selling_price: 1.5, cost_price: 1.05, quantity: 2000, reorder_level: 250, bin_id: 'R05-L2-S2', status: 'Active' },
-  ];
 }
 
 function getCleanInitialData() {
@@ -71,36 +25,13 @@ function getCleanInitialData() {
       pincode: '628105',
       invoice_footer: 'Thank you for your business! Goods once sold cannot be returned without bill.',
     },
-    items: getStarterItems(),
-    racks: buildDefaultRacks(),
+    items: [],
+    racks: [],
     invoices: [],
     purchase_orders: [],
-    vendors: [
-      { id: 1, name: 'KPR Fasteners', contact_person: 'K. Ramesh', phone: '+91 94441 23456', city: 'Coimbatore' },
-      { id: 2, name: 'Metro Tools Co.', contact_person: 'S. Kumar', phone: '+91 98840 54321', city: 'Chennai' },
-      { id: 3, name: 'Shree Metals', contact_person: 'Anand Patel', phone: '+91 97123 45678', city: 'Ahmedabad' },
-    ],
+    vendors: [],
     expenses: [],
     day_closings: [],
-  };
-}
-
-function getDefaultData() {
-  return {
-    ...getCleanInitialData(),
-    invoices: [
-      { id: 1, invoice_number: 'INV-001248', date_time: formatLocalDateTime(), customer_name: 'Raj Builders', customer_phone: '', subtotal: 1240, discount: 0, total: 1240, payment_mode: 'Cash', items_count: 5, items_json: '[]', status: 'Completed' },
-      { id: 2, invoice_number: 'INV-001247', date_time: formatLocalDateTime(), customer_name: 'Sree Constructions', customer_phone: '', subtotal: 2500, discount: 40, total: 2460, payment_mode: 'UPI', items_count: 8, items_json: '[]', status: 'Completed' },
-      { id: 3, invoice_number: 'INV-001246', date_time: formatLocalDateTime(), customer_name: 'KPN Interiors', customer_phone: '', subtotal: 940, discount: 0, total: 940, payment_mode: 'Card', items_count: 3, items_json: '[]', status: 'Completed' },
-    ],
-    purchase_orders: [
-      { id: 1, po_number: 'PO-00284', vendor_name: 'KPR Fasteners', order_date: new Date().toISOString().slice(0, 10), amount: 48500, status: 'Request', items_json: '[]' },
-      { id: 2, po_number: 'PO-00283', vendor_name: 'Metro Tools Co.', order_date: new Date().toISOString().slice(0, 10), amount: 72000, status: 'Received', items_json: '[]' },
-    ],
-    expenses: [
-      { id: 1, category: 'Shop Rent', description: 'Monthly shop lease', amount: 60000, date: new Date().toISOString().slice(0, 10), payment_mode: 'Bank' },
-      { id: 2, category: 'Electricity', description: 'TNEB commercial bill', amount: 18400, date: new Date().toISOString().slice(0, 10), payment_mode: 'UPI' },
-    ],
   };
 }
 
@@ -113,35 +44,7 @@ function readDb() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
 
-    // Migrate catalog items from previous browser storage versions without carrying over dummy invoices/expenses
     const initial = getCleanInitialData();
-    const prevV1Raw = localStorage.getItem('tsp_enterprises_browser_db_v1');
-    const prevV2Raw = localStorage.getItem('tsp_enterprises_browser_db_v2');
-    const prevV1 = prevV1Raw ? JSON.parse(prevV1Raw) : null;
-    const prevV2 = prevV2Raw ? JSON.parse(prevV2Raw) : null;
-
-    if (prevV1 || prevV2) {
-      const mergedItemsMap = new Map();
-      const baseItems = (prevV1?.items && prevV1.items.length > 0) ? prevV1.items : initial.items;
-      baseItems.forEach((item) => {
-        if (item?.sku) mergedItemsMap.set(String(item.sku).toUpperCase(), item);
-      });
-      (prevV2?.items || []).forEach((item) => {
-        if (item?.sku) mergedItemsMap.set(String(item.sku).toUpperCase(), item);
-      });
-      let nextId = 1;
-      initial.items = Array.from(mergedItemsMap.values()).map((item) => ({
-        ...item,
-        id: nextId++,
-      }));
-      if (prevV2?.shop_profile || prevV1?.shop_profile) {
-        initial.shop_profile = { ...initial.shop_profile, ...(prevV1?.shop_profile || {}), ...(prevV2?.shop_profile || {}) };
-      }
-      if (prevV2?.invoices?.length) {
-        initial.invoices = prevV2.invoices;
-      }
-    }
-
     localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
     return initial;
   } catch (err) {
@@ -595,7 +498,6 @@ export function initBrowserApiFallback() {
       error: 'SQLite .db restore runs inside the Desktop .exe application.',
     }),
     seedDemoData: async () => {
-      writeDb(getDefaultData());
       return { success: true };
     },
     resetDatabase: async () => {

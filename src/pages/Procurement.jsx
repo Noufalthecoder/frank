@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
   Plus,
@@ -10,11 +10,14 @@ import {
   CheckCircle2,
   PackageCheck,
   UserPlus,
-  Download
+  Download,
+  ChevronDown
 } from 'lucide-react';
 import { UNIT_OPTIONS, normalizeUnit, formatQty } from '../lib/units.js';
+import { fuzzyFilter } from '../lib/fuzzySearch.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
+import ExportMenu from '../components/ExportMenu.jsx';
 
 const generateQuickSku = (name, size) => {
   const words = String(name || '')
@@ -36,7 +39,7 @@ const generateQuickSku = (name, size) => {
 };
 
 export default function Procurement() {
-  const { t } = useLanguage();
+  const { t, tName } = useLanguage();
   const { showAlert, showConfirm } = useAppDialog();
   const [activeTab, setActiveTab] = useState('Purchase Orders');
   const [orders, setOrders] = useState([]);
@@ -61,6 +64,10 @@ export default function Procurement() {
   const [lineProductId, setLineProductId] = useState('');
   const [lineQty, setLineQty] = useState('10');
   const [lineRate, setLineRate] = useState('');
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [productPickerQuery, setProductPickerQuery] = useState('');
+  const productPickerRef = useRef(null);
+  const productPickerSearchRef = useRef(null);
 
   // Quick inline "Create New Catalog Item" inside the PO modal
   const [showQuickItemForm, setShowQuickItemForm] = useState(false);
@@ -85,9 +92,24 @@ export default function Procurement() {
   useEffect(() => {
     loadData();
     const onStockUpdated = () => loadData();
+    const onClickOutside = (e) => {
+      if (productPickerRef.current && !productPickerRef.current.contains(e.target)) {
+        setShowProductPicker(false);
+      }
+    };
     window.addEventListener('stock-updated', onStockUpdated);
-    return () => window.removeEventListener('stock-updated', onStockUpdated);
+    document.addEventListener('mousedown', onClickOutside);
+    return () => {
+      window.removeEventListener('stock-updated', onStockUpdated);
+      document.removeEventListener('mousedown', onClickOutside);
+    };
   }, []);
+
+  useEffect(() => {
+    if (showProductPicker) {
+      setTimeout(() => productPickerSearchRef.current?.focus(), 30);
+    }
+  }, [showProductPicker]);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -113,6 +135,8 @@ export default function Procurement() {
     await loadData();
     setEditingPo(null);
     setShowQuickItemForm(false);
+    setShowProductPicker(false);
+    setProductPickerQuery('');
     setLineProductId('');
     setLineQty('10');
     setLineRate('');
@@ -144,6 +168,8 @@ export default function Procurement() {
     });
     setEditingPo(po);
     setShowQuickItemForm(false);
+    setShowProductPicker(false);
+    setProductPickerQuery('');
     setLineProductId('');
     setLineQty('10');
     setLineRate('');
@@ -454,64 +480,52 @@ export default function Procurement() {
     return 'Request';
   };
 
-  const filteredOrders = orders.filter((o) => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      (o.po_number || '').toLowerCase().includes(q) ||
-      (o.vendor_name || '').toLowerCase().includes(q);
+  const statusFilteredOrders = orders.filter((o) => {
     const normalized = normalizePoStatus(o.status);
-    const matchStatus = statusFilter === 'All' || normalized === statusFilter;
-    return matchSearch && matchStatus;
+    return statusFilter === 'All' || normalized === statusFilter;
   });
+
+  const filteredOrders = fuzzyFilter(statusFilteredOrders, search, (o) => [
+    o.vendor_name,
+    ...parsePoItems(o).map((l) => l.name),
+    o.order_date,
+    o.po_number,
+  ]);
+
+  const pickerTotalMatches = fuzzyFilter(catalogItems, productPickerQuery, (i) => [
+    i.name,
+    tName(i.name),
+    i.size,
+    i.brand,
+    i.category,
+    i.sku,
+  ]);
+  const pickerVisibleItems = pickerTotalMatches.slice(0, 10);
+  const selectedPickerProduct = catalogItems.find((i) => String(i.id) === String(lineProductId));
 
   const openOrders = orders.filter((o) => normalizePoStatus(o.status) === 'Request');
 
-  const handleExportCsv = () => {
-    const esc = (val) => {
-      const s = String(val ?? '');
-      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-    };
+  const getProcurementExport = () => {
     const today = new Date().toISOString().split('T')[0];
-
     if (activeTab === 'Vendors') {
-      const headers = ['Vendor Name', 'Contact Person', 'Phone', 'Email', 'City'];
-      const rows = vendors.map((v) => [
-        esc(v.name || ''),
-        esc(v.contact_person || ''),
-        esc(v.phone || ''),
-        esc(v.email || ''),
-        esc(v.city || ''),
-      ]);
-      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `vendors_${today}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast(`Exported ${vendors.length} vendor${vendors.length === 1 ? '' : 's'} to CSV.`);
-    } else {
-      const source = activeTab === 'Goods Receipt (GRN)' ? openOrders : filteredOrders;
-      const headers = ['PO Number', 'Vendor', 'Order Date', 'Status', 'Amount'];
-      const rows = source.map((o) => [
-        esc(o.po_number || ''),
-        esc(o.vendor_name || ''),
-        esc(o.order_date || ''),
-        esc(normalizePoStatus(o.status)),
-        Number(o.amount || 0).toFixed(2),
-      ]);
-      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `purchase_orders_${today}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast(`Exported ${source.length} purchase order${source.length === 1 ? '' : 's'} to CSV.`);
+      return {
+        title: 'Vendors',
+        filename: `vendors_${today}`,
+        headers: ['Vendor Name', 'Contact Person', 'Phone', 'Email', 'City'],
+        rows: vendors.map((v) => [v.name || '', v.contact_person || '', v.phone || '', v.email || '', v.city || '']),
+      };
     }
+    const source = activeTab === 'Goods Receipt (GRN)' ? openOrders : filteredOrders;
+    return {
+      title: 'Purchase Orders',
+      filename: `purchase_orders_${today}`,
+      headers: ['PO Number', 'Vendor', 'Order Date', 'Status', 'Amount'],
+      rows: source.map((o) => [
+        o.po_number || '', o.vendor_name || '', o.order_date || '', normalizePoStatus(o.status), Number(o.amount || 0),
+      ]),
+    };
   };
+
 
   return (
     <div className="space-y-5">
@@ -533,13 +547,7 @@ export default function Procurement() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>{t('cat_export_csv')}</span>
-          </button>
+          <ExportMenu getSpec={getProcurementExport} onDone={showToast} />
           <button
             onClick={() => setShowAddVendorModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
@@ -594,7 +602,7 @@ export default function Procurement() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search by PO no. or vendor..."
+                placeholder="Search by vendor or product..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
@@ -617,7 +625,6 @@ export default function Procurement() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3 px-4">PO No.</th>
                   <th className="py-3 px-4">Vendor</th>
                   <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">Amount</th>
@@ -628,9 +635,6 @@ export default function Procurement() {
               <tbody className="divide-y divide-slate-100 text-xs">
                 {filteredOrders.map((po) => (
                   <tr key={po.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                      {po.po_number}
-                    </td>
                     <td className="py-3 px-4 font-semibold text-slate-800">
                       {po.vendor_name}
                     </td>
@@ -692,7 +696,7 @@ export default function Procurement() {
                 ))}
                 {filteredOrders.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-400">
+                    <td colSpan={5} className="py-10 text-center text-slate-400">
                       No purchase orders found.
                     </td>
                   </tr>
@@ -721,9 +725,8 @@ export default function Procurement() {
                   <div key={po.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <span className="font-mono font-bold text-sm text-slate-900">{po.po_number}</span>
-                        <p className="text-xs font-semibold text-blue-600 mt-0.5">{po.vendor_name}</p>
-                        <p className="text-[11px] text-slate-400">Ordered: {po.order_date}</p>
+                        <p className="text-sm font-bold text-slate-900">{po.vendor_name}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Ordered: {po.order_date}</p>
                       </div>
                       <span className="text-sm font-black text-slate-900">
                         ₹ {Number(po.amount).toLocaleString('en-IN')}
@@ -734,8 +737,10 @@ export default function Procurement() {
                       <div className="bg-slate-50 rounded-lg border border-slate-100 p-2.5 space-y-1 text-[11px]">
                         {lines.map((l, idx) => (
                           <div key={idx} className="flex justify-between">
-                            <span className="text-slate-700 font-medium">{l.name} ({l.sku})</span>
-                            <span className="font-bold text-emerald-700">+{l.quantity} units</span>
+                            <span className="text-slate-700 font-medium">{l.name}</span>
+                            <span className="font-bold text-emerald-700">
+                              +{formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -798,13 +803,13 @@ export default function Procurement() {
         </div>
       )}
 
-      {/* Create / Edit PO Modal (Dynamic Vendors + Synced Product IDs + Inline Catalog Creator) */}
+      {/* Create / Edit PO Modal (Dynamic Vendors + Searchable 10-Item Product Picker + Inline Catalog Creator) */}
       {showNewPoModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="animate-modal bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-xl max-h-[92vh] overflow-y-auto p-5 space-y-4">
+          <div className="animate-modal bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-xl max-h-[92vh] overflow-visible p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">
-                {editingPo ? `Edit Purchase Order · ${editingPo.po_number}` : 'Create Purchase Order'}
+                {editingPo ? 'Edit Purchase Order' : 'Create Purchase Order'}
               </h3>
               <button
                 type="button"
@@ -950,27 +955,110 @@ export default function Procurement() {
                 )}
 
                 <div className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-6">
+                  <div className="col-span-6 relative" ref={productPickerRef}>
                     <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">
                       Product
                     </label>
-                    <select
-                      value={lineProductId}
-                      onChange={(e) => {
-                        const pid = e.target.value;
-                        setLineProductId(pid);
-                        const p = catalogItems.find((i) => String(i.id) === String(pid));
-                        if (p) setLineRate(String(p.cost_price || p.selling_price || 0));
-                      }}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                    <button
+                      type="button"
+                      onClick={() => setShowProductPicker((prev) => !prev)}
+                      className="w-full flex items-center justify-between gap-2 bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500"
                     >
-                      <option value="">Select product...</option>
-                      {catalogItems.map((i) => (
-                        <option key={i.id} value={String(i.id)}>
-                          #{i.id} · {i.name} ({i.sku}) — Stock: {formatQty(i.quantity)} {normalizeUnit(i.unit || 'PCS')}
-                        </option>
-                      ))}
-                    </select>
+                      <span className={`truncate ${selectedPickerProduct ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
+                        {selectedPickerProduct
+                          ? `${tName(selectedPickerProduct.name)}${selectedPickerProduct.size ? ` (${selectedPickerProduct.size})` : ''}`
+                          : 'Select product...'}
+                      </span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform ${
+                          showProductPicker ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {showProductPicker && (
+                      <div className="animate-popover absolute left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-2xl shadow-slate-900/15 z-[80] overflow-hidden min-w-[300px]">
+                        {/* Search bar inside product list */}
+                        <div className="p-2 border-b border-slate-100 bg-slate-50/80">
+                          <div className="relative flex items-center">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+                            <input
+                              ref={productPickerSearchRef}
+                              type="text"
+                              placeholder="Search product..."
+                              value={productPickerQuery}
+                              onChange={(e) => setProductPickerQuery(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500"
+                            />
+                            {productPickerQuery && (
+                              <button
+                                type="button"
+                                onClick={() => setProductPickerQuery('')}
+                                className="absolute right-2 text-slate-400 hover:text-slate-600"
+                                title="Clear search"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Max 10 closest matching products */}
+                        <div className="max-h-60 overflow-y-auto divide-y divide-slate-100">
+                          {pickerVisibleItems.length === 0 ? (
+                            <div className="py-5 px-3 text-center text-[11px] text-slate-400">
+                              No matching products found.
+                            </div>
+                          ) : (
+                            pickerVisibleItems.map((i) => {
+                              const isPicked = String(i.id) === String(lineProductId);
+                              const u = normalizeUnit(i.unit || 'PCS');
+                              return (
+                                <button
+                                  key={i.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setLineProductId(String(i.id));
+                                    setLineRate(String(i.cost_price || i.selling_price || 0));
+                                    setShowProductPicker(false);
+                                    setProductPickerQuery('');
+                                  }}
+                                  className={`w-full px-3 py-2 flex items-center justify-between gap-2 text-left transition-colors ${
+                                    isPicked ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-800'
+                                  }`}
+                                >
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold truncate">{tName(i.name)}</p>
+                                    <p className="text-[10px] text-slate-400 truncate">
+                                      {i.size ? `${tName(i.size)} · ` : ''}
+                                      {i.category || 'Hardware'}
+                                    </p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-[11px] font-bold text-slate-700 tabular-nums">
+                                      ₹ {Number(i.cost_price || i.selling_price || 0).toFixed(0)}
+                                    </p>
+                                    <p
+                                      className={`text-[10px] font-semibold tabular-nums ${
+                                        Number(i.quantity) <= 0 ? 'text-rose-600' : 'text-emerald-600'
+                                      }`}
+                                    >
+                                      Stock: {formatQty(i.quantity)} {u}
+                                    </p>
+                                  </div>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        {pickerTotalMatches.length > 10 && (
+                          <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-400 text-center font-medium">
+                            Showing top 10 of {pickerTotalMatches.length} items — search to filter
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="col-span-2">
                     <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Qty</label>
@@ -1009,7 +1097,6 @@ export default function Procurement() {
                     {poForm.items.map((l, idx) => (
                       <div key={idx} className="py-1.5 flex items-center justify-between text-[11px]">
                         <span className="font-medium text-slate-700">
-                          {l.product_id ? <span className="font-mono text-slate-400 mr-1">#{l.product_id}</span> : null}
                           {l.name} ({formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')} × ₹{l.rate})
                         </span>
                         <div className="flex items-center gap-2">
@@ -1170,8 +1257,8 @@ export default function Procurement() {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 font-mono">{selectedPo.po_number}</h3>
-                <p className="text-xs text-slate-500">{selectedPo.vendor_name} · {selectedPo.order_date}</p>
+                <h3 className="text-sm font-bold text-slate-900">{selectedPo.vendor_name}</h3>
+                <p className="text-xs text-slate-500">Order Date: {selectedPo.order_date}</p>
               </div>
               <button onClick={() => setSelectedPo(null)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
@@ -1191,8 +1278,10 @@ export default function Procurement() {
                   <p className="font-bold text-slate-700 text-[11px] uppercase">Ordered Items</p>
                   {parsePoItems(selectedPo).map((l, idx) => (
                     <div key={idx} className="flex justify-between bg-slate-50 p-2 rounded">
-                      <span>{l.name} ({l.sku})</span>
-                      <span className="font-bold">{l.quantity} × ₹{l.rate}</span>
+                      <span>{l.name}</span>
+                      <span className="font-bold">
+                        {formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')} × ₹{l.rate}
+                      </span>
                     </div>
                   ))}
                 </div>

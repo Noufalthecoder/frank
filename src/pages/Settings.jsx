@@ -173,21 +173,6 @@ export default function Settings() {
     }
   };
 
-  const handleLoadDemoData = async () => {
-    const ok = await showConfirm({
-      title: 'Load Sample Demo Data',
-      message: 'Load 30 sample hardware items, 5 racks, sample vendors, and sample bills?',
-      confirmLabel: 'Load Demo Data',
-      tone: 'primary',
-    });
-    if (!ok) return;
-    if (window.api && window.api.seedDemoData) {
-      await window.api.seedDemoData();
-      setDbStatusMsg('Sample hardware demo data loaded!');
-      window.dispatchEvent(new CustomEvent('stock-updated'));
-    }
-  };
-
   const handleResetDatabase = async () => {
     const ok = await showConfirm({
       title: 'Reset Database',
@@ -752,16 +737,8 @@ export default function Settings() {
               </div>
 
               <div className="pt-4 border-t border-slate-100 space-y-2.5">
-                <p className="text-xs font-bold text-slate-700">Evaluation & Setup Tools</p>
+                <p className="text-xs font-bold text-slate-700">Danger Zone</p>
                 <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={handleLoadDemoData}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Load Sample Hardware Data</span>
-                  </button>
-
                   <button
                     onClick={handleResetDatabase}
                     className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold transition-colors"
