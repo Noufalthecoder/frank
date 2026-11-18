@@ -541,8 +541,19 @@ export default function POSBilling() {
                           className="hover:bg-blue-50/70 cursor-pointer transition-colors"
                         >
                           <td className="py-2.5 px-4">
-                            <p className="font-bold text-slate-900 leading-tight">{item.name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">{item.sku}</p>
+                            <div className="flex items-center gap-2.5">
+                              {item.image_url && (
+                                <img
+                                  src={item.image_url}
+                                  alt={item.name}
+                                  className="w-8 h-8 rounded-md object-contain bg-white border border-slate-200 p-0.5 flex-shrink-0"
+                                />
+                              )}
+                              <div>
+                                <p className="font-bold text-slate-900 leading-tight">{item.name}</p>
+                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{item.sku}</p>
+                              </div>
+                            </div>
                           </td>
                           <td className="py-2.5 px-3 font-medium text-slate-600">
                             {item.bin_id || '—'}

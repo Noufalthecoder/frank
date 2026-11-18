@@ -1,21 +1,17 @@
-import { app, ipcMain, dialog, BrowserWindow, screen } from "electron";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-import fs from "node:fs";
-const require2 = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-process.env.APP_ROOT = path.join(__dirname, "..");
-const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
-let win;
-const Database = require2("better-sqlite3");
-const dbpath = path.join(app.getPath("userData"), "billing.db");
-let db = new Database(dbpath);
-function initSchema() {
-  db.exec(`
+import { app as _, ipcMain as n, dialog as b, BrowserWindow as O, screen as v } from "electron";
+import { createRequire as q } from "node:module";
+import { fileURLToPath as x } from "node:url";
+import S from "node:path";
+import y from "node:fs";
+const B = q(import.meta.url), I = S.dirname(x(import.meta.url));
+process.env.APP_ROOT = S.join(I, "..");
+const h = process.env.VITE_DEV_SERVER_URL, Y = S.join(process.env.APP_ROOT, "dist-electron"), U = S.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = h ? S.join(process.env.APP_ROOT, "public") : U;
+let N;
+const g = B("better-sqlite3"), L = S.join(_.getPath("userData"), "billing.db");
+let t = new g(L);
+function A() {
+  t.exec(`
     CREATE TABLE IF NOT EXISTS shop_profile (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       shop_name TEXT NOT NULL DEFAULT 'T. S. P Enterprises',
@@ -135,35 +131,30 @@ function initSchema() {
     );
   `);
   try {
-    db.exec(`ALTER TABLE invoices ADD COLUMN status TEXT NOT NULL DEFAULT 'Completed'`);
-  } catch (_) {
+    t.exec("ALTER TABLE invoices ADD COLUMN status TEXT NOT NULL DEFAULT 'Completed'");
+  } catch {
   }
-  const profile = db.prepare("SELECT id FROM shop_profile WHERE id = 1").get();
-  if (!profile) {
-    db.prepare(`
-      INSERT INTO shop_profile (id, shop_name, tagline, phone, email, address_line1, address_line2, city, pincode)
-      VALUES (1, 'T. S. P Enterprises', 'Hardware, Tools & Fasteners', '+91 98765 43210', 'tspenterprises@gmail.com', 'Beach Road', 'Tharuvaikulam', 'Thoothukudi', '628105')
-    `).run();
-  } else {
-    db.prepare(`
+  try {
+    t.exec("ALTER TABLE items ADD COLUMN image_url TEXT DEFAULT ''");
+  } catch {
+  }
+  t.prepare("SELECT id FROM shop_profile WHERE id = 1").get() ? t.prepare(`
       UPDATE shop_profile 
       SET shop_name = 'T. S. P Enterprises', email = 'tspenterprises@gmail.com', address_line1 = 'Beach Road', address_line2 = 'Tharuvaikulam', city = 'Thoothukudi', pincode = '628105'
       WHERE id = 1 AND (shop_name LIKE '%StockMate%' OR shop_name LIKE '%Sekar%')
+    `).run() : t.prepare(`
+      INSERT INTO shop_profile (id, shop_name, tagline, phone, email, address_line1, address_line2, city, pincode)
+      VALUES (1, 'T. S. P Enterprises', 'Hardware, Tools & Fasteners', '+91 98765 43210', 'tspenterprises@gmail.com', 'Beach Road', 'Tharuvaikulam', 'Thoothukudi', '628105')
     `).run();
-  }
-  const itemCount = db.prepare("SELECT count(*) as count FROM items").get().count;
-  if (VITE_DEV_SERVER_URL && itemCount === 0) {
-    seedInitialData();
-  }
+  const e = t.prepare("SELECT count(*) as count FROM items").get().count;
+  h && e === 0 && C();
 }
-function seedInitialData() {
-  const categories = ["Fasteners", "Tools", "Electrical", "Plumbing", "Paints & Adhesives", "Others"];
-  const insertCat = db.prepare("INSERT OR IGNORE INTO categories (name) VALUES (?)");
-  categories.forEach((c) => insertCat.run(c));
-  const brands = ["Tata Agrico", "Bosch", "Unbrako", "Taparia", "Finolex", "Asian Paints", "Pidilite", "Corroshield", "Generic"];
-  const insertBrand = db.prepare("INSERT OR IGNORE INTO brands (name) VALUES (?)");
-  brands.forEach((b) => insertBrand.run(b));
-  const sampleItems = [
+function C() {
+  const a = ["Fasteners", "Tools", "Electrical", "Plumbing", "Paints & Adhesives", "Others"], e = t.prepare("INSERT OR IGNORE INTO categories (name) VALUES (?)");
+  a.forEach((s) => e.run(s));
+  const r = ["Tata Agrico", "Bosch", "Unbrako", "Taparia", "Finolex", "Asian Paints", "Pidilite", "Corroshield", "Generic"], i = t.prepare("INSERT OR IGNORE INTO brands (name) VALUES (?)");
+  r.forEach((s) => i.run(s));
+  const d = [
     // Fasteners
     { sku: "HB-M6-20", name: "Hex Bolt M6 x 20mm", size: "M6 x 20", unit: "PCS", category: "Fasteners", brand: "Unbrako", price: 6.5, cost: 4, qty: 650, reorder: 50, bin: "R01-L1-S1" },
     { sku: "HB-M6-30", name: "Hex Bolt M6 x 30mm", size: "M6 x 30", unit: "PCS", category: "Fasteners", brand: "Unbrako", price: 8, cost: 5.2, qty: 420, reorder: 40, bin: "R01-L1-S2" },
@@ -213,37 +204,30 @@ function seedInitialData() {
     { sku: "PNT-RO-1L", name: "Red Oxide Metal Primer 1 Litre", size: "1 Litre", unit: "PCS", category: "Paints & Adhesives", brand: "Asian Paints", price: 190, cost: 145, qty: 16, reorder: 5, bin: "R02-L3-S3" },
     { sku: "PBR-3", name: 'Flat Paint Brush 3"', size: "3 inch", unit: "PCS", category: "Paints & Adhesives", brand: "Generic", price: 55, cost: 36, qty: 0, reorder: 10, bin: "R02-L3-S4" }
     // ZERO STOCK ALERT
-  ];
-  const insertItem = db.prepare(`
+  ], m = t.prepare(`
     INSERT OR REPLACE INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
     VALUES (@sku, @name, @size, @unit, @category, @brand, @price, @cost, @qty, @reorder, @bin, 'Active')
   `);
-  sampleItems.forEach((i) => insertItem.run(i));
-  const sampleRacks = [
+  d.forEach((s) => m.run(s));
+  const l = [
     { code: "R01", name: "Fasteners", zone: "Fasteners", binsCount: 24 },
     { code: "R02", name: "Bolts & Nuts", zone: "Fasteners", binsCount: 12 },
     { code: "R03", name: "Washers", zone: "Fasteners", binsCount: 12 },
     { code: "R04", name: "Tools", zone: "Hardware", binsCount: 16 },
     { code: "R05", name: "Electrical", zone: "Electrical", binsCount: 20 }
-  ];
-  const insertRack = db.prepare("INSERT OR IGNORE INTO racks (code, name, zone, levels, slots_per_level) VALUES (?, ?, ?, 4, 4)");
-  const insertBin = db.prepare("INSERT OR IGNORE INTO rack_bins (bin_code, rack_code, level_no, slot_no, quantity) VALUES (?, ?, ?, ?, ?)");
-  sampleRacks.forEach((r) => {
-    insertRack.run(r.code, r.name, r.zone);
-    for (let l = 1; l <= 4; l++) {
-      for (let s = 1; s <= 4; s++) {
-        const binCode = `${r.code}-L${l}-S${s}`;
-        insertBin.run(binCode, r.code, l, s, 0);
+  ], o = t.prepare("INSERT OR IGNORE INTO racks (code, name, zone, levels, slots_per_level) VALUES (?, ?, ?, 4, 4)"), c = t.prepare("INSERT OR IGNORE INTO rack_bins (bin_code, rack_code, level_no, slot_no, quantity) VALUES (?, ?, ?, ?, ?)");
+  l.forEach((s) => {
+    o.run(s.code, s.name, s.zone);
+    for (let R = 1; R <= 4; R++)
+      for (let E = 1; E <= 4; E++) {
+        const f = `${s.code}-L${R}-S${E}`;
+        c.run(f, s.code, R, E, 0);
       }
-    }
   });
-  const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-  const yesterday = new Date(Date.now() - 864e5).toISOString().split("T")[0];
-  const twoDaysAgo = new Date(Date.now() - 1728e5).toISOString().split("T")[0];
-  const sampleInvoices = [
+  const u = (/* @__PURE__ */ new Date()).toISOString().split("T")[0], T = new Date(Date.now() - 864e5).toISOString().split("T")[0], p = new Date(Date.now() - 1728e5).toISOString().split("T")[0], k = [
     {
       num: "INV-001248",
-      date: `${today} 11:24:00`,
+      date: `${u} 11:24:00`,
       cust: "Raj Builders",
       count: 2,
       sub: 1240,
@@ -257,7 +241,7 @@ function seedInitialData() {
     },
     {
       num: "INV-001247",
-      date: `${today} 10:56:00`,
+      date: `${u} 10:56:00`,
       cust: "Sree Constructions",
       count: 2,
       sub: 2500,
@@ -271,7 +255,7 @@ function seedInitialData() {
     },
     {
       num: "INV-001246",
-      date: `${yesterday} 17:41:00`,
+      date: `${T} 17:41:00`,
       cust: "KPN Interiors",
       count: 2,
       sub: 940,
@@ -285,7 +269,7 @@ function seedInitialData() {
     },
     {
       num: "INV-001245",
-      date: `${yesterday} 15:17:00`,
+      date: `${T} 15:17:00`,
       cust: "Sunil Traders",
       count: 2,
       sub: 1900,
@@ -299,7 +283,7 @@ function seedInitialData() {
     },
     {
       num: "INV-001244",
-      date: `${twoDaysAgo} 11:02:00`,
+      date: `${p} 11:02:00`,
       cust: "Apex Enterprises",
       count: 2,
       sub: 760,
@@ -310,177 +294,136 @@ function seedInitialData() {
         { sku: "SP-10", name: 'Adjustable Spanner 10"', quantity: 2, rate: 380, discount: 0, total: 760 }
       ]
     }
-  ];
-  const insertInvoice = db.prepare(`
+  ], D = t.prepare(`
     INSERT OR IGNORE INTO invoices (invoice_number, date_time, customer_name, subtotal, discount, total, payment_mode, items_count, items_json, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed')
   `);
-  sampleInvoices.forEach((inv) => {
-    insertInvoice.run(inv.num, inv.date, inv.cust, inv.sub, inv.disc, inv.total, inv.mode, inv.count, JSON.stringify(inv.items));
+  k.forEach((s) => {
+    D.run(s.num, s.date, s.cust, s.sub, s.disc, s.total, s.mode, s.count, JSON.stringify(s.items));
   });
-  const samplePOs = [
-    { num: "PO-00284", vendor: "KPR Fasteners", date: today, amount: 48500, status: "Open", items: [{ sku: "DB-12", name: "SDS Plus Drill Bit 12mm", quantity: 50, rate: 200 }] },
-    { num: "PO-00283", vendor: "Metro Tools Co.", date: yesterday, amount: 72e3, status: "Received", items: [] },
-    { num: "PO-00282", vendor: "Shree Metals", date: twoDaysAgo, amount: 124e3, status: "Received", items: [] },
-    { num: "PO-00281", vendor: "Nice Hardware", date: twoDaysAgo, amount: 36750, status: "Closed", items: [] },
-    { num: "PO-00280", vendor: "A1 Tools Distributors", date: twoDaysAgo, amount: 58200, status: "Closed", items: [] }
-  ];
-  const insertPO = db.prepare("INSERT OR IGNORE INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json) VALUES (?, ?, ?, ?, ?, ?)");
-  samplePOs.forEach((p) => insertPO.run(p.num, p.vendor, p.date, p.amount, p.status, JSON.stringify(p.items)));
-  const existingVendors = db.prepare("SELECT count(*) as count FROM vendors").get().count;
-  if (existingVendors === 0) {
-    const sampleVendors = [
+  const M = [
+    { num: "PO-00284", vendor: "KPR Fasteners", date: u, amount: 48500, status: "Open", items: [{ sku: "DB-12", name: "SDS Plus Drill Bit 12mm", quantity: 50, rate: 200 }] },
+    { num: "PO-00283", vendor: "Metro Tools Co.", date: T, amount: 72e3, status: "Received", items: [] },
+    { num: "PO-00282", vendor: "Shree Metals", date: p, amount: 124e3, status: "Received", items: [] },
+    { num: "PO-00281", vendor: "Nice Hardware", date: p, amount: 36750, status: "Closed", items: [] },
+    { num: "PO-00280", vendor: "A1 Tools Distributors", date: p, amount: 58200, status: "Closed", items: [] }
+  ], F = t.prepare("INSERT OR IGNORE INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json) VALUES (?, ?, ?, ?, ?, ?)");
+  if (M.forEach((s) => F.run(s.num, s.vendor, s.date, s.amount, s.status, JSON.stringify(s.items))), t.prepare("SELECT count(*) as count FROM vendors").get().count === 0) {
+    const s = [
       { name: "KPR Fasteners", person: "K. Ramesh", phone: "+91 94441 23456", city: "Coimbatore" },
       { name: "Metro Tools Co.", person: "S. Kumar", phone: "+91 98840 54321", city: "Chennai" },
       { name: "Shree Metals", person: "Anand Patel", phone: "+91 97123 45678", city: "Ahmedabad" },
       { name: "Nice Hardware", person: "V. Naresh", phone: "+91 99401 11223", city: "Madurai" },
       { name: "A1 Tools Distributors", person: "Mohan Lal", phone: "+91 98200 99887", city: "Mumbai" }
-    ];
-    const insertVendor = db.prepare("INSERT INTO vendors (name, contact_person, phone, city) VALUES (?, ?, ?, ?)");
-    sampleVendors.forEach((v) => insertVendor.run(v.name, v.person, v.phone, v.city));
+    ], R = t.prepare("INSERT INTO vendors (name, contact_person, phone, city) VALUES (?, ?, ?, ?)");
+    s.forEach((E) => R.run(E.name, E.person, E.phone, E.city));
   }
-  const existingExp = db.prepare("SELECT count(*) as count FROM expenses").get().count;
-  if (existingExp === 0) {
-    const sampleExpenses = [
-      { cat: "Shop Rent", desc: "Monthly godown & shop lease", amount: 15e3, date: twoDaysAgo, mode: "Bank" },
-      { cat: "Electricity", desc: "TNEB commercial bill", amount: 4200, date: yesterday, mode: "UPI" },
-      { cat: "Transport", desc: "Freight delivery & tempo", amount: 1200, date: today, mode: "Cash" },
-      { cat: "Others", desc: "Tea, stationery, packing tape", amount: 450, date: today, mode: "Cash" }
-    ];
-    const insertExpense = db.prepare("INSERT INTO expenses (category, description, amount, date, payment_mode) VALUES (?, ?, ?, ?, ?)");
-    sampleExpenses.forEach((e) => insertExpense.run(e.cat, e.desc, e.amount, e.date, e.mode));
+  if (t.prepare("SELECT count(*) as count FROM expenses").get().count === 0) {
+    const s = [
+      { cat: "Shop Rent", desc: "Monthly godown & shop lease", amount: 15e3, date: p, mode: "Bank" },
+      { cat: "Electricity", desc: "TNEB commercial bill", amount: 4200, date: T, mode: "UPI" },
+      { cat: "Transport", desc: "Freight delivery & tempo", amount: 1200, date: u, mode: "Cash" },
+      { cat: "Others", desc: "Tea, stationery, packing tape", amount: 450, date: u, mode: "Cash" }
+    ], R = t.prepare("INSERT INTO expenses (category, description, amount, date, payment_mode) VALUES (?, ?, ?, ?, ?)");
+    s.forEach((E) => R.run(E.cat, E.desc, E.amount, E.date, E.mode));
   }
 }
-initSchema();
-ipcMain.handle("getShopProfile", () => {
-  return db.prepare("SELECT * FROM shop_profile WHERE id = 1").get();
-});
-ipcMain.handle("updateShopProfile", (event, profile) => {
-  const stmt = db.prepare(`
+A();
+n.handle("getShopProfile", () => t.prepare("SELECT * FROM shop_profile WHERE id = 1").get());
+n.handle("updateShopProfile", (a, e) => (t.prepare(`
     UPDATE shop_profile
     SET shop_name = @shop_name, tagline = @tagline, phone = @phone, email = @email,
         address_line1 = @address_line1, address_line2 = @address_line2, city = @city, pincode = @pincode,
         invoice_footer = @invoice_footer, updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
-  `);
-  stmt.run(profile);
-  return { success: true };
-});
-ipcMain.handle("getItems", () => {
-  return db.prepare("SELECT * FROM items ORDER BY id DESC").all();
-});
-ipcMain.handle("searchItems", (event, query) => {
-  const q = `%${query}%`;
-  return db.prepare(`
+  `).run(e), { success: !0 }));
+n.handle("getItems", () => t.prepare("SELECT * FROM items ORDER BY id DESC").all());
+n.handle("searchItems", (a, e) => {
+  const r = `%${e}%`;
+  return t.prepare(`
     SELECT * FROM items 
     WHERE sku LIKE ? OR name LIKE ? OR size LIKE ? OR category LIKE ?
     ORDER BY name ASC
-  `).all(q, q, q, q);
+  `).all(r, r, r, r);
 });
-ipcMain.handle("addItem", (event, item) => {
+n.handle("addItem", (a, e) => {
   try {
-    const normalizedSku = String(item.sku || "").trim().toUpperCase();
-    if (!normalizedSku) return { success: false, error: "SKU is required." };
-    const stmt = db.prepare(`
-      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
-      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, 'Active')
-    `);
-    const res = stmt.run({
-      ...item,
-      sku: normalizedSku,
-      name: String(item.name || "").trim(),
-      bin_id: String(item.bin_id || "").trim().toUpperCase()
+    const r = String(e.sku || "").trim().toUpperCase();
+    if (!r) return { success: !1, error: "SKU is required." };
+    const d = t.prepare(`
+      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
+      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, 'Active')
+    `).run({
+      ...e,
+      sku: r,
+      name: String(e.name || "").trim(),
+      bin_id: String(e.bin_id || "").trim().toUpperCase(),
+      image_url: String(e.image_url || "").trim()
     });
-    return { success: true, id: Number(res.lastInsertRowid) };
-  } catch (err) {
-    if (String(err.message || "").includes("UNIQUE")) {
-      return { success: false, error: `SKU "${String(item.sku || "").trim().toUpperCase()}" already exists. Use a unique SKU or edit the existing product.` };
-    }
-    return { success: false, error: err.message || "Failed to add product." };
+    return { success: !0, id: Number(d.lastInsertRowid) };
+  } catch (r) {
+    return String(r.message || "").includes("UNIQUE") ? { success: !1, error: `SKU "${String(e.sku || "").trim().toUpperCase()}" already exists. Use a unique SKU or edit the existing product.` } : { success: !1, error: r.message || "Failed to add product." };
   }
 });
-ipcMain.handle("updateItem", (event, item) => {
+n.handle("updateItem", (a, e) => {
   try {
-    const normalizedSku = String(item.sku || "").trim().toUpperCase();
-    const stmt = db.prepare(`
+    const r = String(e.sku || "").trim().toUpperCase();
+    return t.prepare(`
       UPDATE items 
       SET sku = @sku, name = @name, size = @size, unit = @unit, category = @category, brand = @brand,
           selling_price = @selling_price, cost_price = @cost_price, quantity = @quantity,
-          reorder_level = @reorder_level, bin_id = @bin_id, status = @status
+          reorder_level = @reorder_level, bin_id = @bin_id, image_url = @image_url, status = @status
       WHERE id = @id
-    `);
-    stmt.run({
-      ...item,
-      sku: normalizedSku,
-      name: String(item.name || "").trim(),
-      bin_id: String(item.bin_id || "").trim().toUpperCase()
-    });
-    return { success: true };
-  } catch (err) {
-    if (String(err.message || "").includes("UNIQUE")) {
-      return { success: false, error: `Another product already uses SKU "${String(item.sku || "").trim().toUpperCase()}".` };
-    }
-    return { success: false, error: err.message || "Failed to update product." };
+    `).run({
+      ...e,
+      sku: r,
+      name: String(e.name || "").trim(),
+      bin_id: String(e.bin_id || "").trim().toUpperCase(),
+      image_url: String(e.image_url || "").trim()
+    }), { success: !0 };
+  } catch (r) {
+    return String(r.message || "").includes("UNIQUE") ? { success: !1, error: `Another product already uses SKU "${String(e.sku || "").trim().toUpperCase()}".` } : { success: !1, error: r.message || "Failed to update product." };
   }
 });
-ipcMain.handle("deleteItem", (event, id) => {
-  db.prepare("DELETE FROM items WHERE id = ?").run(id);
-  return { success: true };
-});
-ipcMain.handle("getRacks", () => {
-  const racks = db.prepare("SELECT * FROM racks ORDER BY code ASC").all();
-  const allItems = db.prepare("SELECT id, sku, name, quantity, unit, bin_id FROM items").all();
-  return racks.map((r) => {
-    const bins = db.prepare("SELECT * FROM rack_bins WHERE rack_code = ? ORDER BY level_no, slot_no").all(r.code);
-    const enrichedBins = bins.map((b) => {
-      const binItems = allItems.filter((i) => (i.bin_id || "").toUpperCase() === b.bin_code.toUpperCase());
-      const liveQty = binItems.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
-      return { ...b, quantity: liveQty, items: binItems };
+n.handle("deleteItem", (a, e) => (t.prepare("DELETE FROM items WHERE id = ?").run(e), { success: !0 }));
+n.handle("getRacks", () => {
+  const a = t.prepare("SELECT * FROM racks ORDER BY code ASC").all(), e = t.prepare("SELECT id, sku, name, quantity, unit, bin_id FROM items").all();
+  return a.map((r) => {
+    const d = t.prepare("SELECT * FROM rack_bins WHERE rack_code = ? ORDER BY level_no, slot_no").all(r.code).map((m) => {
+      const l = e.filter((c) => (c.bin_id || "").toUpperCase() === m.bin_code.toUpperCase()), o = l.reduce((c, u) => c + (Number(u.quantity) || 0), 0);
+      return { ...m, quantity: o, items: l };
     });
-    return { ...r, binsCount: enrichedBins.length, bins: enrichedBins };
+    return { ...r, binsCount: d.length, bins: d };
   });
 });
-ipcMain.handle("addRack", (event, rack) => {
+n.handle("addRack", (a, e) => {
   try {
-    const code = String(rack.code || "").trim().toUpperCase();
-    const name = String(rack.name || "").trim();
-    if (!code || !name) {
-      return { success: false, error: "Rack code and name are required." };
-    }
-    const levels = Math.min(10, Math.max(1, parseInt(rack.levels) || 4));
-    const slots = Math.min(10, Math.max(1, parseInt(rack.slots_per_level) || 4));
-    const stmt = db.prepare("INSERT INTO racks (code, name, zone, levels, slots_per_level) VALUES (@code, @name, @zone, @levels, @slots_per_level)");
-    stmt.run({
-      code,
-      name,
-      zone: String(rack.zone || "General").trim(),
-      levels,
-      slots_per_level: slots
+    const r = String(e.code || "").trim().toUpperCase(), i = String(e.name || "").trim();
+    if (!r || !i)
+      return { success: !1, error: "Rack code and name are required." };
+    const d = Math.min(10, Math.max(1, parseInt(e.levels) || 4)), m = Math.min(10, Math.max(1, parseInt(e.slots_per_level) || 4));
+    t.prepare("INSERT INTO racks (code, name, zone, levels, slots_per_level) VALUES (@code, @name, @zone, @levels, @slots_per_level)").run({
+      code: r,
+      name: i,
+      zone: String(e.zone || "General").trim(),
+      levels: d,
+      slots_per_level: m
     });
-    const insertBin = db.prepare("INSERT OR IGNORE INTO rack_bins (bin_code, rack_code, level_no, slot_no, quantity) VALUES (?, ?, ?, ?, 0)");
-    for (let l = 1; l <= levels; l++) {
-      for (let s = 1; s <= slots; s++) {
-        insertBin.run(`${code}-L${l}-S${s}`, code, l, s);
-      }
-    }
-    return { success: true, code };
-  } catch (err) {
-    if (String(err.message || "").includes("UNIQUE")) {
-      return { success: false, error: `Rack code "${String(rack.code || "").trim().toUpperCase()}" already exists. Choose a unique code (e.g. R06).` };
-    }
-    return { success: false, error: err.message || "Failed to create rack." };
+    const o = t.prepare("INSERT OR IGNORE INTO rack_bins (bin_code, rack_code, level_no, slot_no, quantity) VALUES (?, ?, ?, ?, 0)");
+    for (let c = 1; c <= d; c++)
+      for (let u = 1; u <= m; u++)
+        o.run(`${r}-L${c}-S${u}`, r, c, u);
+    return { success: !0, code: r };
+  } catch (r) {
+    return String(r.message || "").includes("UNIQUE") ? { success: !1, error: `Rack code "${String(e.code || "").trim().toUpperCase()}" already exists. Choose a unique code (e.g. R06).` } : { success: !1, error: r.message || "Failed to create rack." };
   }
 });
-ipcMain.handle("deleteRack", (event, code) => {
-  db.prepare("DELETE FROM rack_bins WHERE rack_code = ?").run(code);
-  db.prepare("DELETE FROM racks WHERE code = ?").run(code);
-  return { success: true };
-});
-ipcMain.handle("bulkImportItems", (event, itemsList) => {
+n.handle("deleteRack", (a, e) => (t.prepare("DELETE FROM rack_bins WHERE rack_code = ?").run(e), t.prepare("DELETE FROM racks WHERE code = ?").run(e), { success: !0 }));
+n.handle("bulkImportItems", (a, e) => {
   try {
-    const stmt = db.prepare(`
-      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
-      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, 'Active')
+    const r = t.prepare(`
+      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
+      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, 'Active')
       ON CONFLICT(sku) DO UPDATE SET
         name = excluded.name,
         size = excluded.size,
@@ -491,223 +434,151 @@ ipcMain.handle("bulkImportItems", (event, itemsList) => {
         cost_price = excluded.cost_price,
         quantity = excluded.quantity,
         reorder_level = excluded.reorder_level,
-        bin_id = excluded.bin_id
+        bin_id = excluded.bin_id,
+        image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE items.image_url END
     `);
-    const insertMany = db.transaction((rows) => {
-      let imported = 0;
-      for (const row of rows) {
-        const sku = String(row.sku || "").trim().toUpperCase();
-        const name = String(row.name || "").trim();
-        if (!sku || !name) continue;
-        stmt.run({
-          sku,
-          name,
-          size: String(row.size || "").trim(),
-          unit: String(row.unit || "PCS").trim().toUpperCase(),
-          category: String(row.category || "Others").trim(),
-          brand: String(row.brand || "Generic").trim(),
-          selling_price: parseFloat(row.selling_price) || 0,
-          cost_price: parseFloat(row.cost_price) || 0,
-          quantity: parseFloat(row.quantity) || 0,
-          reorder_level: parseFloat(row.reorder_level) || 10,
-          bin_id: String(row.bin_id || "").trim().toUpperCase()
-        });
-        imported++;
+    return { success: !0, count: t.transaction((m) => {
+      let l = 0;
+      for (const o of m) {
+        const c = String(o.sku || "").trim().toUpperCase(), u = String(o.name || "").trim();
+        !c || !u || (r.run({
+          sku: c,
+          name: u,
+          size: String(o.size || "").trim(),
+          unit: String(o.unit || "PCS").trim().toUpperCase(),
+          category: String(o.category || "Others").trim(),
+          brand: String(o.brand || "Generic").trim(),
+          selling_price: parseFloat(o.selling_price) || 0,
+          cost_price: parseFloat(o.cost_price) || 0,
+          quantity: parseFloat(o.quantity) || 0,
+          reorder_level: parseFloat(o.reorder_level) || 10,
+          bin_id: String(o.bin_id || "").trim().toUpperCase(),
+          image_url: String(o.image_url || "").trim()
+        }), l++);
       }
-      return imported;
-    });
-    const count = insertMany(itemsList || []);
-    return { success: true, count };
-  } catch (err) {
-    return { success: false, error: err.message || "CSV import failed." };
+      return l;
+    })(e || []) };
+  } catch (r) {
+    return { success: !1, error: r.message || "CSV import failed." };
   }
 });
-ipcMain.handle("getInvoices", () => {
-  return db.prepare("SELECT * FROM invoices ORDER BY id DESC").all();
-});
-ipcMain.handle("createInvoice", (event, inv) => {
-  const genNum = `INV-${String(Math.floor(1e5 + Math.random() * 9e5))}`;
-  const invNumber = inv.invoice_number || genNum;
-  const nowStr = (/* @__PURE__ */ new Date()).toISOString().replace("T", " ").slice(0, 19);
-  const insert = db.prepare(`
+n.handle("getInvoices", () => t.prepare("SELECT * FROM invoices ORDER BY id DESC").all());
+n.handle("createInvoice", (a, e) => {
+  const r = `INV-${String(Math.floor(1e5 + Math.random() * 9e5))}`, i = e.invoice_number || r, d = (/* @__PURE__ */ new Date()).toISOString().replace("T", " ").slice(0, 19), l = t.prepare(`
     INSERT INTO invoices (invoice_number, date_time, customer_name, customer_phone, subtotal, discount, total, payment_mode, items_count, items_json, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed')
-  `);
-  const res = insert.run(
-    invNumber,
-    nowStr,
-    inv.customer_name || "Walk-in Customer",
-    inv.customer_phone || "",
-    inv.subtotal,
-    inv.discount || 0,
-    inv.total,
-    inv.payment_mode || "Cash",
-    inv.items.length,
-    JSON.stringify(inv.items)
-  );
-  const updateStock = db.prepare("UPDATE items SET quantity = MAX(0, quantity - ?) WHERE sku = ? OR id = ?");
-  const checkStock = db.prepare("SELECT id, sku, name, quantity FROM items WHERE (sku = ? OR id = ?)");
-  const zeroStockAlerts = [];
-  inv.items.forEach((item) => {
-    updateStock.run(item.quantity, item.sku || "", item.id || 0);
-    const updated = checkStock.get(item.sku || "", item.id || 0);
-    if (updated && updated.quantity <= 0) {
-      zeroStockAlerts.push(updated);
-    }
-  });
-  return { success: true, id: Number(res.lastInsertRowid), invoice_number: invNumber, zeroStockAlerts };
+  `).run(
+    i,
+    d,
+    e.customer_name || "Walk-in Customer",
+    e.customer_phone || "",
+    e.subtotal,
+    e.discount || 0,
+    e.total,
+    e.payment_mode || "Cash",
+    e.items.length,
+    JSON.stringify(e.items)
+  ), o = t.prepare("UPDATE items SET quantity = MAX(0, quantity - ?) WHERE sku = ? OR id = ?"), c = t.prepare("SELECT id, sku, name, quantity FROM items WHERE (sku = ? OR id = ?)"), u = [];
+  return e.items.forEach((T) => {
+    o.run(T.quantity, T.sku || "", T.id || 0);
+    const p = c.get(T.sku || "", T.id || 0);
+    p && p.quantity <= 0 && u.push(p);
+  }), { success: !0, id: Number(l.lastInsertRowid), invoice_number: i, zeroStockAlerts: u };
 });
-ipcMain.handle("returnInvoice", (event, id) => {
+n.handle("returnInvoice", (a, e) => {
   try {
-    const inv = db.prepare("SELECT * FROM invoices WHERE id = ?").get(id);
-    if (!inv) return { success: false, error: "Invoice not found." };
-    if (inv.status === "Returned") return { success: false, error: "Invoice was already returned." };
-    const items = JSON.parse(inv.items_json || "[]");
-    const restock = db.prepare("UPDATE items SET quantity = quantity + ? WHERE sku = ? OR id = ?");
-    const tx = db.transaction(() => {
-      items.forEach((item) => {
-        restock.run(Number(item.quantity) || 0, item.sku || "", item.id || 0);
-      });
-      db.prepare(`UPDATE invoices SET status = 'Returned' WHERE id = ?`).run(id);
-    });
-    tx();
-    return { success: true, restockedCount: items.length };
-  } catch (err) {
-    return { success: false, error: err.message || "Return failed." };
+    const r = t.prepare("SELECT * FROM invoices WHERE id = ?").get(e);
+    if (!r) return { success: !1, error: "Invoice not found." };
+    if (r.status === "Returned") return { success: !1, error: "Invoice was already returned." };
+    const i = JSON.parse(r.items_json || "[]"), d = t.prepare("UPDATE items SET quantity = quantity + ? WHERE sku = ? OR id = ?");
+    return t.transaction(() => {
+      i.forEach((l) => {
+        d.run(Number(l.quantity) || 0, l.sku || "", l.id || 0);
+      }), t.prepare("UPDATE invoices SET status = 'Returned' WHERE id = ?").run(e);
+    })(), { success: !0, restockedCount: i.length };
+  } catch (r) {
+    return { success: !1, error: r.message || "Return failed." };
   }
 });
-ipcMain.handle("getOutOfStockItems", () => {
-  return db.prepare("SELECT * FROM items WHERE quantity <= 0 ORDER BY name ASC").all();
-});
-ipcMain.handle("getPurchaseOrders", () => {
-  return db.prepare("SELECT * FROM purchase_orders ORDER BY id DESC").all();
-});
-ipcMain.handle("createPurchaseOrder", (event, po) => {
-  const genNum = `PO-${String(Math.floor(1e4 + Math.random() * 9e4))}`;
-  const stmt = db.prepare(`
+n.handle("getOutOfStockItems", () => t.prepare("SELECT * FROM items WHERE quantity <= 0 ORDER BY name ASC").all());
+n.handle("getPurchaseOrders", () => t.prepare("SELECT * FROM purchase_orders ORDER BY id DESC").all());
+n.handle("createPurchaseOrder", (a, e) => {
+  const r = `PO-${String(Math.floor(1e4 + Math.random() * 9e4))}`;
+  return t.prepare(`
     INSERT INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json)
     VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(po.po_number || genNum, po.vendor_name, po.order_date, po.amount, po.status || "Open", JSON.stringify(po.items || []));
-  return { success: true };
+  `).run(e.po_number || r, e.vendor_name, e.order_date, e.amount, e.status || "Open", JSON.stringify(e.items || [])), { success: !0 };
 });
-ipcMain.handle("updatePurchaseOrderStatus", (event, { id, status }) => {
+n.handle("updatePurchaseOrderStatus", (a, { id: e, status: r }) => {
   try {
-    const po = db.prepare("SELECT * FROM purchase_orders WHERE id = ?").get(id);
-    if (!po) return { success: false, error: "PO not found." };
-    const prevStatus = po.status;
-    const tx = db.transaction(() => {
-      db.prepare("UPDATE purchase_orders SET status = ? WHERE id = ?").run(status, id);
-      if (prevStatus !== "Received" && status === "Received") {
-        const items = JSON.parse(po.items_json || "[]");
-        const addStock = db.prepare("UPDATE items SET quantity = quantity + ? WHERE sku = ?");
-        items.forEach((i) => {
-          if (i.sku && Number(i.quantity) > 0) {
-            addStock.run(Number(i.quantity), i.sku);
-          }
+    const i = t.prepare("SELECT * FROM purchase_orders WHERE id = ?").get(e);
+    if (!i) return { success: !1, error: "PO not found." };
+    const d = i.status;
+    return t.transaction(() => {
+      if (t.prepare("UPDATE purchase_orders SET status = ? WHERE id = ?").run(r, e), d !== "Received" && r === "Received") {
+        const l = JSON.parse(i.items_json || "[]"), o = t.prepare("UPDATE items SET quantity = quantity + ? WHERE sku = ?");
+        l.forEach((c) => {
+          c.sku && Number(c.quantity) > 0 && o.run(Number(c.quantity), c.sku);
         });
       }
-    });
-    tx();
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
+    })(), { success: !0 };
+  } catch (i) {
+    return { success: !1, error: i.message };
   }
 });
-ipcMain.handle("deletePurchaseOrder", (event, id) => {
-  db.prepare("DELETE FROM purchase_orders WHERE id = ?").run(id);
-  return { success: true };
-});
-ipcMain.handle("getVendors", () => {
-  return db.prepare("SELECT * FROM vendors ORDER BY name ASC").all();
-});
-ipcMain.handle("addVendor", (event, vendor) => {
-  const stmt = db.prepare("INSERT INTO vendors (name, contact_person, phone, email, city) VALUES (@name, @contact_person, @phone, @email, @city)");
-  stmt.run({
-    name: vendor.name || "",
-    contact_person: vendor.contact_person || "",
-    phone: vendor.phone || "",
-    email: vendor.email || "",
-    city: vendor.city || ""
-  });
-  return { success: true };
-});
-ipcMain.handle("deleteVendor", (event, id) => {
-  db.prepare("DELETE FROM vendors WHERE id = ?").run(id);
-  return { success: true };
-});
-ipcMain.handle("getExpenses", () => {
-  return db.prepare("SELECT * FROM expenses ORDER BY date DESC, id DESC").all();
-});
-ipcMain.handle("addExpense", (event, exp) => {
-  const stmt = db.prepare("INSERT INTO expenses (category, description, amount, date, payment_mode) VALUES (@category, @description, @amount, @date, @payment_mode)");
-  stmt.run(exp);
-  return { success: true };
-});
-ipcMain.handle("deleteExpense", (event, id) => {
-  db.prepare("DELETE FROM expenses WHERE id = ?").run(id);
-  return { success: true };
-});
-ipcMain.handle("getDayClosings", () => {
-  return db.prepare("SELECT * FROM day_closings ORDER BY closing_date DESC").all();
-});
-ipcMain.handle("recordDayClosing", (event, dc) => {
-  const stmt = db.prepare(`
+n.handle("deletePurchaseOrder", (a, e) => (t.prepare("DELETE FROM purchase_orders WHERE id = ?").run(e), { success: !0 }));
+n.handle("getVendors", () => t.prepare("SELECT * FROM vendors ORDER BY name ASC").all());
+n.handle("addVendor", (a, e) => (t.prepare("INSERT INTO vendors (name, contact_person, phone, email, city) VALUES (@name, @contact_person, @phone, @email, @city)").run({
+  name: e.name || "",
+  contact_person: e.contact_person || "",
+  phone: e.phone || "",
+  email: e.email || "",
+  city: e.city || ""
+}), { success: !0 }));
+n.handle("deleteVendor", (a, e) => (t.prepare("DELETE FROM vendors WHERE id = ?").run(e), { success: !0 }));
+n.handle("getExpenses", () => t.prepare("SELECT * FROM expenses ORDER BY date DESC, id DESC").all());
+n.handle("addExpense", (a, e) => (t.prepare("INSERT INTO expenses (category, description, amount, date, payment_mode) VALUES (@category, @description, @amount, @date, @payment_mode)").run(e), { success: !0 }));
+n.handle("deleteExpense", (a, e) => (t.prepare("DELETE FROM expenses WHERE id = ?").run(e), { success: !0 }));
+n.handle("getDayClosings", () => t.prepare("SELECT * FROM day_closings ORDER BY closing_date DESC").all());
+n.handle("recordDayClosing", (a, e) => (t.prepare(`
     INSERT OR REPLACE INTO day_closings (closing_date, opening_cash, total_cash_sales, total_expenses, system_expected_cash, counted_cash, difference, remarks)
     VALUES (@closing_date, @opening_cash, @total_cash_sales, @total_expenses, @system_expected_cash, @counted_cash, @difference, @remarks)
-  `);
-  stmt.run(dc);
-  return { success: true };
-});
-ipcMain.handle("getDatabasePath", () => dbpath);
-ipcMain.handle("backupDatabase", async () => {
-  const { filePath } = await dialog.showSaveDialog({
+  `).run(e), { success: !0 }));
+n.handle("getDatabasePath", () => L);
+n.handle("backupDatabase", async () => {
+  const { filePath: a } = await b.showSaveDialog({
     title: "Backup T. S. P Enterprises Database",
     defaultPath: `tsp_enterprises_backup_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.db`,
     filters: [{ name: "SQLite Database", extensions: ["db", "sqlite"] }]
   });
-  if (filePath) {
-    await db.backup(filePath);
-    return { success: true, path: filePath };
-  }
-  return { success: false };
+  return a ? (await t.backup(a), { success: !0, path: a }) : { success: !1 };
 });
-ipcMain.handle("restoreDatabase", async () => {
-  const { canceled, filePaths } = await dialog.showOpenDialog({
+n.handle("restoreDatabase", async () => {
+  const { canceled: a, filePaths: e } = await b.showOpenDialog({
     title: "Restore Database Backup (.db)",
     filters: [{ name: "SQLite Database", extensions: ["db", "sqlite"] }],
     properties: ["openFile"]
   });
-  if (canceled || !filePaths || filePaths.length === 0) {
-    return { success: false };
-  }
+  if (a || !e || e.length === 0)
+    return { success: !1 };
   try {
-    const sourcePath = filePaths[0];
-    const safetyBackup = `${dbpath}.pre_restore.bak`;
+    const r = e[0], i = `${L}.pre_restore.bak`;
     try {
-      fs.copyFileSync(dbpath, safetyBackup);
-    } catch (_) {
+      y.copyFileSync(L, i);
+    } catch {
     }
-    db.close();
-    fs.copyFileSync(sourcePath, dbpath);
-    db = new Database(dbpath);
-    initSchema();
-    return { success: true, path: sourcePath };
-  } catch (err) {
+    return t.close(), y.copyFileSync(r, L), t = new g(L), A(), { success: !0, path: r };
+  } catch (r) {
     try {
-      db = new Database(dbpath);
-    } catch (_) {
+      t = new g(L);
+    } catch {
     }
-    return { success: false, error: err.message || "Restore failed." };
+    return { success: !1, error: r.message || "Restore failed." };
   }
 });
-ipcMain.handle("seedDemoData", () => {
-  seedInitialData();
-  return { success: true };
-});
-ipcMain.handle("resetDatabase", () => {
-  const tx = db.transaction(() => {
-    db.exec(`
+n.handle("seedDemoData", () => (C(), { success: !0 }));
+n.handle("resetDatabase", () => (t.transaction(() => {
+  t.exec(`
       DELETE FROM items;
       DELETE FROM racks;
       DELETE FROM rack_bins;
@@ -717,45 +588,32 @@ ipcMain.handle("resetDatabase", () => {
       DELETE FROM expenses;
       DELETE FROM day_closings;
     `);
-  });
-  tx();
-  return { success: true };
-});
-function createWindow() {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-  win = new BrowserWindow({
-    width: Math.min(1440, width),
-    height: Math.min(900, height),
+})(), { success: !0 }));
+function P() {
+  const { width: a, height: e } = v.getPrimaryDisplay().workAreaSize;
+  N = new O({
+    width: Math.min(1440, a),
+    height: Math.min(900, e),
     minWidth: 1024,
     minHeight: 700,
     title: "T. S. P Enterprises - Inventory & Billing",
-    icon: path.join(process.env.VITE_PUBLIC, "icon.png"),
+    icon: S.join(process.env.VITE_PUBLIC, "icon.png"),
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs"),
-      nodeIntegration: false,
-      contextIsolation: true
+      preload: S.join(I, "preload.mjs"),
+      nodeIntegration: !1,
+      contextIsolation: !0
     }
-  });
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-  } else {
-    win.loadFile(path.join(RENDERER_DIST, "index.html"));
-  }
+  }), h ? N.loadURL(h) : N.loadFile(S.join(U, "index.html"));
 }
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-    win = null;
-  }
+_.on("window-all-closed", () => {
+  process.platform !== "darwin" && (_.quit(), N = null);
 });
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+_.on("activate", () => {
+  O.getAllWindows().length === 0 && P();
 });
-app.whenReady().then(createWindow);
+_.whenReady().then(P);
 export {
-  MAIN_DIST,
-  RENDERER_DIST,
-  VITE_DEV_SERVER_URL
+  Y as MAIN_DIST,
+  U as RENDERER_DIST,
+  h as VITE_DEV_SERVER_URL
 };

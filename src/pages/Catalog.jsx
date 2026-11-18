@@ -12,8 +12,11 @@ import {
   Package,
   Layers,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Wrench
 } from 'lucide-react';
+import ToolLibraryPicker from '../components/ToolLibraryPicker.jsx';
+import { TOOL_LIBRARY } from '../data/toolLibrary.js';
 
 const PAGE_SIZE = 15;
 
@@ -29,6 +32,7 @@ const EMPTY_FORM = {
   quantity: '',
   reorder_level: '20',
   bin_id: 'R01-L1-S1',
+  image_url: '',
 };
 
 export default function Catalog() {
@@ -41,6 +45,7 @@ export default function Catalog() {
   const [statusFilter, setStatusFilter] = useState('Active');
   const [selectedIds, setSelectedIds] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [modalMode, setModalMode] = useState('library'); // 'library' | 'manual'
   const [editingItem, setEditingItem] = useState(null);
   const [formError, setFormError] = useState('');
   const [page, setPage] = useState(1);
@@ -176,6 +181,7 @@ export default function Catalog() {
   const openAdd = () => {
     setFormError('');
     setEditingItem(null);
+    setModalMode('library');
     setForm({
       ...EMPTY_FORM,
       bin_id: availableBins[0]?.code || 'R01-L1-S1',
@@ -187,6 +193,7 @@ export default function Catalog() {
   const openEdit = (item) => {
     setFormError('');
     setEditingItem(item);
+    setModalMode('manual');
     setForm({
       sku: item.sku,
       name: item.name,
@@ -199,10 +206,46 @@ export default function Catalog() {
       quantity: item.quantity,
       reorder_level: item.reorder_level,
       bin_id: item.bin_id || 'R01-L1-S1',
+      image_url: item.image_url || '',
     });
     loadRackBins();
     setShowAddModal(true);
   };
+
+  const handleBulkAddFromLibrary = async (selectedItems) => {
+    if (!window.api || !window.api.bulkImportItems) return;
+    const res = await window.api.bulkImportItems(selectedItems);
+    if (res && res.success) {
+      setShowAddModal(false);
+      await loadItems();
+      window.dispatchEvent(new CustomEvent('stock-updated'));
+      showToast(`Added ${res.count} tool size${res.count === 1 ? '' : 's'} to catalog.`);
+    } else {
+      alert(res?.error || 'Failed to add selected tools.');
+    }
+  };
+
+  const handleFillFromLibrary = (itemPayload) => {
+    setFormError('');
+    setEditingItem(null);
+    setForm({
+      sku: itemPayload.sku,
+      name: itemPayload.name,
+      size: itemPayload.size || '',
+      unit: itemPayload.unit || 'PCS',
+      category: itemPayload.category || 'Tools',
+      brand: itemPayload.brand || 'Generic',
+      selling_price: String(itemPayload.selling_price ?? ''),
+      cost_price: String(itemPayload.cost_price ?? ''),
+      quantity: String(itemPayload.quantity ?? '25'),
+      reorder_level: String(itemPayload.reorder_level ?? '10'),
+      bin_id: itemPayload.bin_id || availableBins[0]?.code || 'R01-L1-S1',
+      image_url: itemPayload.image_url || '',
+    });
+    setModalMode('manual');
+  };
+
+  const existingSkus = new Set(items.map((i) => String(i.sku || '').toUpperCase()));
 
   // CSV Export
   const handleExportCsv = () => {
@@ -461,10 +504,25 @@ export default function Catalog() {
                   </td>
                   <td className="py-3 px-4 font-mono font-medium text-slate-800">{item.sku}</td>
                   <td className="py-3 px-4">
-                    <div className="font-semibold text-slate-900">{item.name}</div>
-                    <div className="text-[11px] text-slate-400">
-                      {item.category} {item.brand ? `· ${item.brand}` : ''} · Shelf:{' '}
-                      <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 overflow-hidden p-0.5">
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <Package className="w-4 h-4 text-slate-300" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-900">{item.name}</div>
+                        <div className="text-[11px] text-slate-400">
+                          {item.category} {item.brand ? `· ${item.brand}` : ''} · Shelf:{' '}
+                          <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
+                        </div>
+                      </div>
                     </div>
                   </td>
                   <td className="py-3 px-4 text-slate-600">{item.size || '—'}</td>
@@ -548,11 +606,41 @@ export default function Catalog() {
       {/* Add / Edit Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">
-                {editingItem ? 'Edit Product' : 'Add New Product'}
-              </h3>
+          <div className={`bg-white rounded-xl shadow-2xl border border-slate-200 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-3xl' : 'max-w-lg'}`}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-bold text-slate-900">
+                  {editingItem ? 'Edit Product' : 'Add Product to Catalog'}
+                </h3>
+                {!editingItem && (
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setModalMode('library')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
+                        modalMode === 'library'
+                          ? 'bg-white text-blue-600 shadow-2xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Wrench className="w-3 h-3" />
+                      <span>Tool Library ({TOOL_LIBRARY.reduce((s, t) => s + t.sizes.length, 0)} Sizes)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModalMode('manual')}
+                      className={`px-2.5 py-1 rounded-md transition-all ${
+                        modalMode === 'manual'
+                          ? 'bg-white text-blue-600 shadow-2xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Manual Entry
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded"
@@ -561,13 +649,50 @@ export default function Catalog() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveItem} className="p-5 space-y-4">
+            {/* Tab 1: Tool Library Visual Picker */}
+            {!editingItem && modalMode === 'library' ? (
+              <div className="p-5 overflow-y-auto">
+                <ToolLibraryPicker
+                  existingSkus={existingSkus}
+                  availableBins={availableBins}
+                  onFillManualForm={handleFillFromLibrary}
+                  onBulkAddSizes={handleBulkAddFromLibrary}
+                />
+              </div>
+            ) : (
+            <form onSubmit={handleSaveItem} className="p-5 space-y-4 overflow-y-auto">
               {formError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 font-medium flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
                   <span>{formError}</span>
                 </div>
               )}
+
+              {/* Product Image Preview & Quick Picker */}
+              <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 overflow-hidden p-1">
+                  {form.image_url ? (
+                    <img src={form.image_url} alt={form.name || 'Preview'} className="w-full h-full object-contain" />
+                  ) : (
+                    <Package className="w-5 h-5 text-slate-300" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-1">Product Image (Preset or Custom URL)</label>
+                  <select
+                    value={form.image_url || ''}
+                    onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">No Image (Default Icon)</option>
+                    {TOOL_LIBRARY.map((t) => (
+                      <option key={t.id} value={t.image}>
+                        {t.name} Photo
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -768,6 +893,7 @@ export default function Catalog() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

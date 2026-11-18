@@ -172,6 +172,7 @@ export function initBrowserApiFallback() {
           quantity: parseFloat(row.quantity) || 0,
           reorder_level: parseFloat(row.reorder_level) || 10,
           bin_id: String(row.bin_id || '').trim().toUpperCase(),
+          image_url: String(row.image_url || '').trim(),
           status: 'Active',
         };
         if (idx >= 0) {

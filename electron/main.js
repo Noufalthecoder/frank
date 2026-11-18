@@ -147,6 +147,11 @@ function initSchema() {
   } catch (_) {
     // Column already exists
   }
+  try {
+    db.exec(`ALTER TABLE items ADD COLUMN image_url TEXT DEFAULT ''`);
+  } catch (_) {
+    // Column already exists
+  }
 
   // Ensure shop profile row exists with T. S. P Enterprises
   const profile = db.prepare('SELECT id FROM shop_profile WHERE id = 1').get();
@@ -388,14 +393,15 @@ ipcMain.handle('addItem', (event, item) => {
     const normalizedSku = String(item.sku || '').trim().toUpperCase();
     if (!normalizedSku) return { success: false, error: 'SKU is required.' };
     const stmt = db.prepare(`
-      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
-      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, 'Active')
+      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
+      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, 'Active')
     `);
     const res = stmt.run({
       ...item,
       sku: normalizedSku,
       name: String(item.name || '').trim(),
       bin_id: String(item.bin_id || '').trim().toUpperCase(),
+      image_url: String(item.image_url || '').trim(),
     });
     return { success: true, id: Number(res.lastInsertRowid) };
   } catch (err) {
@@ -413,7 +419,7 @@ ipcMain.handle('updateItem', (event, item) => {
       UPDATE items 
       SET sku = @sku, name = @name, size = @size, unit = @unit, category = @category, brand = @brand,
           selling_price = @selling_price, cost_price = @cost_price, quantity = @quantity,
-          reorder_level = @reorder_level, bin_id = @bin_id, status = @status
+          reorder_level = @reorder_level, bin_id = @bin_id, image_url = @image_url, status = @status
       WHERE id = @id
     `);
     stmt.run({
@@ -421,6 +427,7 @@ ipcMain.handle('updateItem', (event, item) => {
       sku: normalizedSku,
       name: String(item.name || '').trim(),
       bin_id: String(item.bin_id || '').trim().toUpperCase(),
+      image_url: String(item.image_url || '').trim(),
     });
     return { success: true };
   } catch (err) {
@@ -492,8 +499,8 @@ ipcMain.handle('deleteRack', (event, code) => {
 ipcMain.handle('bulkImportItems', (event, itemsList) => {
   try {
     const stmt = db.prepare(`
-      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, status)
-      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, 'Active')
+      INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
+      VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, 'Active')
       ON CONFLICT(sku) DO UPDATE SET
         name = excluded.name,
         size = excluded.size,
@@ -504,7 +511,8 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
         cost_price = excluded.cost_price,
         quantity = excluded.quantity,
         reorder_level = excluded.reorder_level,
-        bin_id = excluded.bin_id
+        bin_id = excluded.bin_id,
+        image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE items.image_url END
     `);
     const insertMany = db.transaction((rows) => {
       let imported = 0;
@@ -524,6 +532,7 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
           quantity: parseFloat(row.quantity) || 0,
           reorder_level: parseFloat(row.reorder_level) || 10,
           bin_id: String(row.bin_id || '').trim().toUpperCase(),
+          image_url: String(row.image_url || '').trim(),
         });
         imported++;
       }
