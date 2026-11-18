@@ -3,6 +3,7 @@ import {
   Search,
   Plus,
   Eye,
+  Edit2,
   Trash2,
   X,
   Truck,
@@ -11,8 +12,28 @@ import {
   UserPlus,
   Download
 } from 'lucide-react';
+import { UNIT_OPTIONS, normalizeUnit, formatQty } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
+
+const generateQuickSku = (name, size) => {
+  const words = String(name || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(Boolean);
+  const prefix =
+    words.length >= 2
+      ? words.slice(0, 3).map((w) => w[0]).join('')
+      : (words[0] || 'ITM').slice(0, 3);
+  const sizePart = String(size || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 6);
+  return sizePart ? `${prefix}-${sizePart}` : `${prefix}-${String(Date.now()).slice(-4)}`;
+};
 
 export default function Procurement() {
   const { t } = useLanguage();
@@ -24,6 +45,7 @@ export default function Procurement() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showNewPoModal, setShowNewPoModal] = useState(false);
+  const [editingPo, setEditingPo] = useState(null);
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
   const [selectedPo, setSelectedPo] = useState(null);
   const [toast, setToast] = useState('');
@@ -36,9 +58,21 @@ export default function Procurement() {
     status: 'Request',
     items: [],
   });
-  const [lineSku, setLineSku] = useState('');
+  const [lineProductId, setLineProductId] = useState('');
   const [lineQty, setLineQty] = useState('10');
   const [lineRate, setLineRate] = useState('');
+
+  // Quick inline "Create New Catalog Item" inside the PO modal
+  const [showQuickItemForm, setShowQuickItemForm] = useState(false);
+  const [quickItem, setQuickItem] = useState({
+    name: '',
+    size: '',
+    category: 'Fasteners',
+    unit: 'PCS',
+    cost_price: '',
+    selling_price: '',
+    order_qty: '10',
+  });
 
   const [vendorForm, setVendorForm] = useState({
     name: '',
@@ -50,6 +84,9 @@ export default function Procurement() {
 
   useEffect(() => {
     loadData();
+    const onStockUpdated = () => loadData();
+    window.addEventListener('stock-updated', onStockUpdated);
+    return () => window.removeEventListener('stock-updated', onStockUpdated);
   }, []);
 
   const showToast = (msg) => {
@@ -72,30 +109,188 @@ export default function Procurement() {
     }
   };
 
+  const openCreatePoModal = async () => {
+    await loadData();
+    setEditingPo(null);
+    setShowQuickItemForm(false);
+    setLineProductId('');
+    setLineQty('10');
+    setLineRate('');
+    setPoForm({
+      po_number: '',
+      vendor_name: vendors[0]?.name || '',
+      order_date: new Date().toISOString().split('T')[0],
+      amount: '',
+      status: 'Request',
+      items: [],
+    });
+    setShowNewPoModal(true);
+  };
+
+  const openEditPoModal = async (po) => {
+    await loadData();
+    const parsedLines = parsePoItems(po).map((l) => {
+      const matched =
+        (l.product_id ? catalogItems.find((i) => i.id === Number(l.product_id)) : null) ||
+        catalogItems.find((i) => String(i.sku || '').toUpperCase() === String(l.sku || '').toUpperCase());
+      return {
+        product_id: matched ? matched.id : l.product_id || null,
+        sku: matched ? matched.sku : l.sku || '',
+        name: matched ? matched.name : l.name || '',
+        unit: normalizeUnit(matched?.unit || l.unit || 'PCS'),
+        quantity: Number(l.quantity) || 1,
+        rate: Number(l.rate) || 0,
+      };
+    });
+    setEditingPo(po);
+    setShowQuickItemForm(false);
+    setLineProductId('');
+    setLineQty('10');
+    setLineRate('');
+    setPoForm({
+      po_number: po.po_number,
+      vendor_name: po.vendor_name || vendors[0]?.name || '',
+      order_date: po.order_date || new Date().toISOString().split('T')[0],
+      amount: String(po.amount ?? ''),
+      status: normalizePoStatus(po.status),
+      items: parsedLines,
+    });
+    setShowNewPoModal(true);
+  };
+
   const addLineToPo = () => {
-    if (!lineSku) return;
-    const prod = catalogItems.find((i) => i.sku === lineSku);
+    if (!lineProductId) return;
+    const prod = catalogItems.find((i) => String(i.id) === String(lineProductId));
     if (!prod) return;
-    const qty = Math.max(1, parseFloat(lineQty) || 1);
+    const qty = Math.max(0.01, parseFloat(lineQty) || 1);
     const rate = parseFloat(lineRate) || Number(prod.cost_price) || Number(prod.selling_price) || 0;
-    const nextItems = [
-      ...poForm.items,
-      { sku: prod.sku, name: prod.name, quantity: qty, rate },
-    ];
-    const calcAmount = nextItems.reduce((sum, i) => sum + i.quantity * i.rate, 0);
+    const existingIdx = poForm.items.findIndex(
+      (l) => (l.product_id && Number(l.product_id) === Number(prod.id)) || String(l.sku || '').toUpperCase() === String(prod.sku || '').toUpperCase()
+    );
+    let nextItems;
+    if (existingIdx >= 0) {
+      nextItems = poForm.items.map((l, idx) =>
+        idx === existingIdx
+          ? {
+              ...l,
+              product_id: prod.id,
+              sku: prod.sku,
+              name: prod.name,
+              unit: normalizeUnit(prod.unit || 'PCS'),
+              quantity: Number((Number(l.quantity || 0) + qty).toFixed(4)),
+              rate,
+            }
+          : l
+      );
+    } else {
+      nextItems = [
+        ...poForm.items,
+        {
+          product_id: prod.id,
+          sku: prod.sku,
+          name: prod.name,
+          unit: normalizeUnit(prod.unit || 'PCS'),
+          quantity: qty,
+          rate,
+        },
+      ];
+    }
+    const calcAmount = nextItems.reduce((sum, i) => sum + Number(i.quantity) * Number(i.rate), 0);
     setPoForm((prev) => ({
       ...prev,
       items: nextItems,
       amount: calcAmount.toFixed(2),
     }));
-    setLineSku('');
+    setLineProductId('');
     setLineQty('10');
     setLineRate('');
   };
 
+  const handleQuickCreateCatalogItem = async () => {
+    const name = quickItem.name.trim();
+    const cost = parseFloat(quickItem.cost_price);
+    const sell = parseFloat(quickItem.selling_price);
+    const qty = parseFloat(quickItem.order_qty);
+    if (!name) {
+      await showAlert({ title: 'Product Name Required', message: 'Enter a product name to add to Catalog.', tone: 'warning' });
+      return;
+    }
+    if (isNaN(cost) || cost < 0 || isNaN(sell) || sell <= 0) {
+      await showAlert({ title: 'Price Required', message: 'Enter valid Cost Rate and Selling Price.', tone: 'warning' });
+      return;
+    }
+    if (isNaN(qty) || qty <= 0) {
+      await showAlert({ title: 'Quantity Required', message: 'Enter a valid order quantity greater than 0.', tone: 'warning' });
+      return;
+    }
+
+    let sku = generateQuickSku(name, quickItem.size);
+    if (catalogItems.some((i) => String(i.sku || '').toUpperCase() === sku)) {
+      sku = `${sku}-${String(Date.now()).slice(-3)}`;
+    }
+    const unit = normalizeUnit(quickItem.unit || 'PCS');
+
+    if (window.api && window.api.addItem) {
+      const res = await window.api.addItem({
+        sku,
+        name,
+        size: quickItem.size.trim(),
+        unit,
+        category: quickItem.category || 'Fasteners',
+        brand: poForm.vendor_name || 'Generic',
+        selling_price: sell,
+        cost_price: cost,
+        quantity: 0, // Stock is added automatically when this PO is marked Received
+        reorder_level: 10,
+        bin_id: 'R01-L1-S1',
+        image_url: '',
+        status: 'Available',
+      });
+      if (!res || res.success === false) {
+        await showAlert({
+          title: 'Could Not Create Product',
+          message: res?.error || 'Failed to add product to Catalog.',
+          tone: 'danger',
+        });
+        return;
+      }
+
+      const nextItems = [
+        ...poForm.items,
+        {
+          product_id: res.id,
+          sku,
+          name,
+          unit,
+          quantity: qty,
+          rate: cost,
+        },
+      ];
+      const calcAmount = nextItems.reduce((sum, i) => sum + Number(i.quantity) * Number(i.rate), 0);
+      setPoForm((prev) => ({
+        ...prev,
+        items: nextItems,
+        amount: calcAmount.toFixed(2),
+      }));
+      setQuickItem({
+        name: '',
+        size: '',
+        category: 'Fasteners',
+        unit: 'PCS',
+        cost_price: '',
+        selling_price: '',
+        order_qty: '10',
+      });
+      setShowQuickItemForm(false);
+      await loadData();
+      window.dispatchEvent(new CustomEvent('stock-updated'));
+      showToast(`Created "${name}" (#${res.id}) in Catalog & added to PO.`);
+    }
+  };
+
   const removeLineFromPo = (idx) => {
     const nextItems = poForm.items.filter((_, i) => i !== idx);
-    const calcAmount = nextItems.reduce((sum, i) => sum + i.quantity * i.rate, 0);
+    const calcAmount = nextItems.reduce((sum, i) => sum + Number(i.quantity) * Number(i.rate), 0);
     setPoForm((prev) => ({
       ...prev,
       items: nextItems,
@@ -121,13 +316,30 @@ export default function Procurement() {
       });
       return;
     }
+
+    const nextStatus = poForm.status === 'Received' ? 'Received' : 'Request';
+    const payload = {
+      ...poForm,
+      status: nextStatus,
+      amount: parseFloat(poForm.amount) || 0,
+    };
+
+    if (editingPo && window.api && window.api.updatePurchaseOrder) {
+      await window.api.updatePurchaseOrder({ ...payload, id: editingPo.id });
+      setShowNewPoModal(false);
+      setEditingPo(null);
+      showToast(
+        nextStatus === 'Received'
+          ? `${editingPo.po_number} updated & inventory synced.`
+          : `${editingPo.po_number} updated.`
+      );
+      await loadData();
+      window.dispatchEvent(new CustomEvent('stock-updated'));
+      return;
+    }
+
     if (window.api && window.api.createPurchaseOrder) {
-      const createdStatus = poForm.status === 'Received' ? 'Received' : 'Request';
-      await window.api.createPurchaseOrder({
-        ...poForm,
-        status: createdStatus,
-        amount: parseFloat(poForm.amount) || 0,
-      });
+      await window.api.createPurchaseOrder(payload);
       setShowNewPoModal(false);
       setPoForm({
         po_number: '',
@@ -138,12 +350,12 @@ export default function Procurement() {
         items: [],
       });
       showToast(
-        createdStatus === 'Received' && poForm.items.length > 0
+        nextStatus === 'Received' && poForm.items.length > 0
           ? 'Purchase Order created & stock synced.'
           : 'Purchase Order created.'
       );
       await loadData();
-      if (createdStatus === 'Received') {
+      if (nextStatus === 'Received') {
         window.dispatchEvent(new CustomEvent('stock-updated'));
       }
     }
@@ -336,12 +548,7 @@ export default function Procurement() {
             <span>{t('vend_add_vendor')}</span>
           </button>
           <button
-            onClick={() => {
-              if (vendors.length > 0 && !poForm.vendor_name) {
-                setPoForm((prev) => ({ ...prev, vendor_name: vendors[0].name }));
-              }
-              setShowNewPoModal(true);
-            }}
+            onClick={openCreatePoModal}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 rounded-lg text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -458,6 +665,13 @@ export default function Procurement() {
                             Receive
                           </button>
                         )}
+                        <button
+                          onClick={() => openEditPoModal(po)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded"
+                          title="Edit PO & Update Items"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => setSelectedPo(po)}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded"
@@ -584,13 +798,23 @@ export default function Procurement() {
         </div>
       )}
 
-      {/* New PO Modal (with Dynamic Vendors + Itemized Restock Lines) */}
+      {/* Create / Edit PO Modal (Dynamic Vendors + Synced Product IDs + Inline Catalog Creator) */}
       {showNewPoModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden p-5 space-y-4">
+          <div className="animate-modal bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-xl max-h-[92vh] overflow-y-auto p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Create Purchase Order</h3>
-              <button onClick={() => setShowNewPoModal(false)} className="p-1 text-slate-400 hover:text-slate-600">
+              <h3 className="text-sm font-bold text-slate-900">
+                {editingPo ? `Edit Purchase Order · ${editingPo.po_number}` : 'Create Purchase Order'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewPoModal(false);
+                  setEditingPo(null);
+                  setShowQuickItemForm(false);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -625,62 +849,174 @@ export default function Procurement() {
                 </div>
               </div>
 
-              {/* Optional Itemized Restock Builder */}
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
-                <p className="text-[11px] font-bold text-slate-700">Order Items (auto-restocked on GRN Receive)</p>
-                <div className="grid grid-cols-12 gap-2">
-                  <select
-                    value={lineSku}
-                    onChange={(e) => {
-                      const sku = e.target.value;
-                      setLineSku(sku);
-                      const p = catalogItems.find((i) => i.sku === sku);
-                      if (p) setLineRate(String(p.cost_price || p.selling_price || 0));
-                    }}
-                    className="col-span-6 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800"
+              {/* Itemized Restock Builder */}
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-bold text-slate-700">Order Items</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickItemForm((prev) => !prev)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 text-[11px] font-semibold flex-shrink-0 transition-colors"
                   >
-                    <option value="">Select product...</option>
-                    {catalogItems.map((i) => (
-                      <option key={i.id} value={i.sku}>
-                        {i.name} ({i.sku})
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="Qty"
-                    value={lineQty}
-                    onChange={(e) => setLineQty(e.target.value)}
-                    className="col-span-2 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Rate"
-                    value={lineRate}
-                    onChange={(e) => setLineRate(e.target.value)}
-                    className="col-span-2 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800"
-                  />
+                    {showQuickItemForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                    <span>{showQuickItemForm ? 'Close' : 'New Product'}</span>
+                  </button>
+                </div>
+
+                {/* Inline New Product Creator */}
+                {showQuickItemForm && (
+                  <div className="bg-white p-3 rounded-lg border border-blue-200/80 space-y-2.5">
+                    <p className="text-[11px] font-bold text-slate-800">New Product</p>
+                    <div className="grid grid-cols-12 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Product Name *"
+                        value={quickItem.name}
+                        onChange={(e) => setQuickItem({ ...quickItem, name: e.target.value })}
+                        className="col-span-6 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Size (optional)"
+                        value={quickItem.size}
+                        onChange={(e) => setQuickItem({ ...quickItem, size: e.target.value })}
+                        className="col-span-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                      />
+                      <select
+                        value={quickItem.unit}
+                        onChange={(e) => setQuickItem({ ...quickItem, unit: e.target.value })}
+                        className="col-span-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                      >
+                        {UNIT_OPTIONS.map((grp) => (
+                          <optgroup key={grp.group} label={grp.group}>
+                            {grp.units.map((u) => (
+                              <option key={u.value} value={u.value}>
+                                {u.value}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-12 gap-2">
+                      <select
+                        value={quickItem.category}
+                        onChange={(e) => setQuickItem({ ...quickItem, category: e.target.value })}
+                        className="col-span-4 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                      >
+                        <option value="Fasteners">Fasteners</option>
+                        <option value="Tools">Tools</option>
+                        <option value="Electrical">Electrical</option>
+                        <option value="Plumbing">Plumbing</option>
+                        <option value="Paints & Adhesives">Paints & Adhesives</option>
+                        <option value="Others">Others</option>
+                      </select>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Cost Rate (₹) *"
+                        value={quickItem.cost_price}
+                        onChange={(e) => setQuickItem({ ...quickItem, cost_price: e.target.value })}
+                        className="col-span-3 no-spinner bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Sell Price (₹) *"
+                        value={quickItem.selling_price}
+                        onChange={(e) => setQuickItem({ ...quickItem, selling_price: e.target.value })}
+                        className="col-span-3 no-spinner bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                      />
+                      <input
+                        type="number"
+                        step="any"
+                        min="0.01"
+                        placeholder="Qty *"
+                        value={quickItem.order_qty}
+                        onChange={(e) => setQuickItem({ ...quickItem, order_qty: e.target.value })}
+                        className="col-span-2 no-spinner bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleQuickCreateCatalogItem}
+                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors"
+                      >
+                        Create Product
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-6">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">
+                      Product
+                    </label>
+                    <select
+                      value={lineProductId}
+                      onChange={(e) => {
+                        const pid = e.target.value;
+                        setLineProductId(pid);
+                        const p = catalogItems.find((i) => String(i.id) === String(pid));
+                        if (p) setLineRate(String(p.cost_price || p.selling_price || 0));
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                    >
+                      <option value="">Select product...</option>
+                      {catalogItems.map((i) => (
+                        <option key={i.id} value={String(i.id)}>
+                          #{i.id} · {i.name} ({i.sku}) — Stock: {formatQty(i.quantity)} {normalizeUnit(i.unit || 'PCS')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Qty</label>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      placeholder="Qty"
+                      value={lineQty}
+                      onChange={(e) => setLineQty(e.target.value)}
+                      className="no-spinner w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Cost Rate (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="₹/unit"
+                      value={lineRate}
+                      onChange={(e) => setLineRate(e.target.value)}
+                      className="no-spinner w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={addLineToPo}
-                    className="col-span-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
+                    className="col-span-2 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
                   >
                     Add
                   </button>
                 </div>
 
                 {poForm.items.length > 0 && (
-                  <div className="divide-y divide-slate-200 max-h-32 overflow-y-auto pt-1">
+                  <div className="divide-y divide-slate-200 max-h-36 overflow-y-auto pt-1">
                     {poForm.items.map((l, idx) => (
                       <div key={idx} className="py-1.5 flex items-center justify-between text-[11px]">
                         <span className="font-medium text-slate-700">
-                          {l.name} ({l.quantity} × ₹{l.rate})
+                          {l.product_id ? <span className="font-mono text-slate-400 mr-1">#{l.product_id}</span> : null}
+                          {l.name} ({formatQty(l.quantity)} {normalizeUnit(l.unit || 'PCS')} × ₹{l.rate})
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">₹ {(l.quantity * l.rate).toFixed(2)}</span>
-                          <button type="button" onClick={() => removeLineFromPo(idx)} className="text-rose-500">
+                          <span className="font-bold text-slate-900">
+                            ₹ {(Number(l.quantity) * Number(l.rate)).toFixed(2)}
+                          </span>
+                          <button type="button" onClick={() => removeLineFromPo(idx)} className="text-rose-500 hover:text-rose-700">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -716,16 +1052,15 @@ export default function Procurement() {
                   </select>
                 </div>
               </div>
-              {poForm.status === 'Received' && (
-                <p className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 rounded-lg px-3 py-1.5">
-                  Any ordered items listed above will be restocked into your catalog immediately upon generating this PO.
-                </p>
-              )}
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowNewPoModal(false)}
+                  onClick={() => {
+                    setShowNewPoModal(false);
+                    setEditingPo(null);
+                    setShowQuickItemForm(false);
+                  }}
                   className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
@@ -734,7 +1069,7 @@ export default function Procurement() {
                   type="submit"
                   className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold shadow-sm hover:bg-blue-700"
                 >
-                  Generate PO
+                  {editingPo ? 'Save PO Changes' : 'Generate PO'}
                 </button>
               </div>
             </form>
