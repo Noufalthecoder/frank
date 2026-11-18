@@ -403,7 +403,7 @@ export default function Settings() {
               <div className="divide-y divide-slate-100 text-xs">
                 <div className="py-3 flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-slate-800">A. Adithya (You)</p>
+                    <p className="font-bold text-slate-800">Franklin (You)</p>
                     <p className="text-slate-400">{profile.email || 'tspenterprises@gmail.com'}</p>
                   </div>
                   <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold rounded-full border border-blue-200">
