@@ -40,7 +40,7 @@ const generateQuickSku = (name, size) => {
 };
 
 export default function Procurement() {
-  const { t, tName } = useLanguage();
+  const { t, tName, tCategory } = useLanguage();
   const { showAlert, showConfirm } = useAppDialog();
   const [activeTab, setActiveTab] = useState('Purchase Orders');
   const [orders, setOrders] = useState([]);
@@ -53,6 +53,8 @@ export default function Procurement() {
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
   const [selectedPo, setSelectedPo] = useState(null);
   const [toast, setToast] = useState('');
+  const [receivingPo, setReceivingPo] = useState(null);
+  const [receiveQtys, setReceiveQtys] = useState({});
 
   const [poForm, setPoForm] = useState({
     po_number: '',
@@ -239,15 +241,15 @@ export default function Procurement() {
     const sell = parseFloat(quickItem.selling_price);
     const qty = parseFloat(quickItem.order_qty);
     if (!name) {
-      await showAlert({ title: 'Product Name Required', message: 'Enter a product name to add to Catalog.', tone: 'warning' });
+      await showAlert({ title: t('pr_name_req_t'), message: t('pr_name_req_m'), tone: 'warning' });
       return;
     }
     if (isNaN(cost) || cost < 0 || isNaN(sell) || sell <= 0) {
-      await showAlert({ title: 'Price Required', message: 'Enter valid Cost Rate and Selling Price.', tone: 'warning' });
+      await showAlert({ title: t('pr_price_req_t'), message: t('pr_price_req_m'), tone: 'warning' });
       return;
     }
     if (isNaN(qty) || qty <= 0) {
-      await showAlert({ title: 'Quantity Required', message: 'Enter a valid order quantity greater than 0.', tone: 'warning' });
+      await showAlert({ title: t('pr_qty_req_t'), message: t('pr_qty_req_m'), tone: 'warning' });
       return;
     }
 
@@ -269,14 +271,14 @@ export default function Procurement() {
         cost_price: cost,
         quantity: 0, // Stock is added automatically when this PO is marked Received
         reorder_level: 10,
-        bin_id: 'R01-L1-S1',
+        bin_id: '', // unassigned — place it from Settings → Racks & Bins
         image_url: '',
         status: 'Available',
       });
       if (!res || res.success === false) {
         await showAlert({
-          title: 'Could Not Create Product',
-          message: res?.error || 'Failed to add product to Catalog.',
+          title: t('pr_create_fail_t'),
+          message: res?.error || t('pr_create_fail_m'),
           tone: 'danger',
         });
         return;
@@ -311,7 +313,7 @@ export default function Procurement() {
       setShowQuickItemForm(false);
       await loadData();
       window.dispatchEvent(new CustomEvent('stock-updated'));
-      showToast(`Created "${name}" (#${res.id}) in Catalog & added to PO.`);
+      showToast(t('pr_toast_created', { name, id: res.id }));
     }
   };
 
@@ -329,16 +331,16 @@ export default function Procurement() {
     e.preventDefault();
     if (!poForm.vendor_name) {
       await showAlert({
-        title: 'Vendor Required',
-        message: 'Please select or add a vendor first.',
+        title: t('pr_vendor_req_t'),
+        message: t('pr_vendor_req_m'),
         tone: 'warning',
       });
       return;
     }
     if (!poForm.amount) {
       await showAlert({
-        title: 'Amount Required',
-        message: 'Please enter total amount or add line items.',
+        title: t('pr_amount_req_t'),
+        message: t('pr_amount_req_m'),
         tone: 'warning',
       });
       return;
@@ -357,8 +359,8 @@ export default function Procurement() {
       setEditingPo(null);
       showToast(
         nextStatus === 'Received'
-          ? `${editingPo.po_number} updated & inventory synced.`
-          : `${editingPo.po_number} updated.`
+          ? t('pr_toast_po_updated_sync', { po: editingPo.po_number })
+          : t('pr_toast_po_updated', { po: editingPo.po_number })
       );
       await loadData();
       window.dispatchEvent(new CustomEvent('stock-updated'));
@@ -378,8 +380,8 @@ export default function Procurement() {
       });
       showToast(
         nextStatus === 'Received' && poForm.items.length > 0
-          ? 'Purchase Order created & stock synced.'
-          : 'Purchase Order created.'
+          ? t('pr_toast_po_created_sync')
+          : t('pr_toast_po_created')
       );
       await loadData();
       if (nextStatus === 'Received') {
@@ -391,37 +393,60 @@ export default function Procurement() {
   const handleStatusChange = async (po, newStatus) => {
     if (newStatus === 'Received') {
       const lines = parsePoItems(po);
-      const confirmMsg =
-        lines.length > 0
-          ? `Mark ${po.po_number} as Received?\n\nThis will automatically add ${lines.length} product line(s) into your catalog stock.`
-          : `Mark ${po.po_number} as Received?`;
+      if (lines.length > 0) {
+        // Open receive dialog so the actually-received quantity can be confirmed/edited per line
+        const init = {};
+        lines.forEach((l) => { init[l.sku] = l.quantity; });
+        setReceiveQtys(init);
+        setReceivingPo(po);
+        return;
+      }
       const ok = await showConfirm({
-        title: 'Confirm Goods Receipt',
-        message: confirmMsg,
-        confirmLabel: 'Receive & Restock',
+        title: t('pr_confirm_grn_t'),
+        message: t('pr_confirm_recv', { po: po.po_number }),
+        confirmLabel: t('pr_receive_restock'),
         tone: 'success',
       });
       if (!ok) return;
     }
-    if (window.api && window.api.updatePurchaseOrderStatus) {
-      await window.api.updatePurchaseOrderStatus(po.id, newStatus);
-      showToast(`${po.po_number} updated to ${newStatus}${newStatus === 'Received' ? ' & stock synced' : ''}.`);
-      await loadData();
-      window.dispatchEvent(new CustomEvent('stock-updated'));
+    await applyStatus(po, newStatus);
+  };
+
+  const applyStatus = async (po, newStatus, received) => {
+    if (!(window.api && window.api.updatePurchaseOrderStatus)) return;
+    const res = await window.api.updatePurchaseOrderStatus(po.id, newStatus, received);
+    if (res && res.success === false) {
+      showToast(t('pr_toast_failed', { error: res.error || t('pr_toast_failed_default') }));
+      return;
     }
+    if (newStatus === 'Received') {
+      const n = res && res.updates ? res.updates.length : 0;
+      const warn = res && res.missing && res.missing.length ? t('pr_toast_not_in_catalog', { items: res.missing.join(', ') }) : '';
+      showToast(t('pr_toast_recv_items', { po: po.po_number, n, warn }));
+    } else {
+      showToast(t('pr_toast_status', { po: po.po_number, status: statusLabel(newStatus) }));
+    }
+    await loadData();
+    window.dispatchEvent(new CustomEvent('stock-updated'));
+  };
+
+  const confirmReceive = async () => {
+    const po = receivingPo;
+    setReceivingPo(null);
+    await applyStatus(po, 'Received', receiveQtys);
   };
 
   const handleDeletePo = async (po) => {
     const ok = await showConfirm({
-      title: 'Delete Purchase Order',
-      message: `Delete Purchase Order ${po.po_number}?`,
-      confirmLabel: 'Delete',
+      title: t('pr_del_po_t'),
+      message: t('pr_del_po_m', { po: po.po_number }),
+      confirmLabel: t('pr_delete'),
       tone: 'danger',
     });
     if (!ok) return;
     if (window.api && window.api.deletePurchaseOrder) {
       await window.api.deletePurchaseOrder(po.id);
-      showToast(`${po.po_number} deleted.`);
+      showToast(t('pr_toast_deleted', { po: po.po_number }));
       loadData();
     }
   };
@@ -430,8 +455,8 @@ export default function Procurement() {
     e.preventDefault();
     if (!vendorForm.name.trim()) {
       await showAlert({
-        title: 'Vendor Name Required',
-        message: 'Please enter a vendor or company name.',
+        title: t('pr_vname_req_t'),
+        message: t('pr_vname_req_m'),
         tone: 'warning',
       });
       return;
@@ -446,22 +471,22 @@ export default function Procurement() {
       });
       setShowAddVendorModal(false);
       setVendorForm({ name: '', contact_person: '', phone: '', email: '', city: '' });
-      showToast('Vendor added to directory.');
+      showToast(t('pr_toast_vendor_added'));
       loadData();
     }
   };
 
   const handleDeleteVendor = async (v) => {
     const ok = await showConfirm({
-      title: 'Remove Vendor',
-      message: `Remove vendor "${v.name}" from your directory?`,
-      confirmLabel: 'Remove',
+      title: t('pr_rm_vendor_t'),
+      message: t('pr_rm_vendor_m', { name: v.name }),
+      confirmLabel: t('pr_remove'),
       tone: 'danger',
     });
     if (!ok) return;
     if (window.api && window.api.deleteVendor) {
       await window.api.deleteVendor(v.id);
-      showToast(`Vendor "${v.name}" removed.`);
+      showToast(t('pr_toast_vendor_removed', { name: v.name }));
       loadData();
     }
   };
@@ -480,6 +505,8 @@ export default function Procurement() {
     if (status === 'Received' || status === 'Closed') return 'Received';
     return 'Request';
   };
+
+  const statusLabel = (s) => (s === 'Received' ? t('pr_st_received') : t('pr_st_request'));
 
   const statusFilteredOrders = orders.filter((o) => {
     const normalized = normalizePoStatus(o.status);
@@ -505,19 +532,19 @@ export default function Procurement() {
     const today = new Date().toISOString().split('T')[0];
     if (activeTab === 'Vendors') {
       return {
-        title: 'Vendors',
+        title: t('pr_x_vendors'),
         filename: `vendors_${today}`,
-        headers: ['Vendor Name', 'Contact Person', 'Phone', 'Email', 'City'],
+        headers: [t('pr_h_vendor_name'), t('pr_h_contact'), t('pr_h_phone'), t('pr_h_email'), t('pr_h_city')],
         rows: vendors.map((v) => [v.name || '', v.contact_person || '', v.phone || '', v.email || '', v.city || '']),
       };
     }
     const source = activeTab === 'Goods Receipt (GRN)' ? openOrders : filteredOrders;
     return {
-      title: 'Purchase Orders',
+      title: t('pr_x_po'),
       filename: `purchase_orders_${today}`,
-      headers: ['PO Number', 'Vendor', 'Order Date', 'Status', 'Amount'],
+      headers: [t('pr_h_po_number'), t('pr_h_vendor'), t('pr_h_order_date'), t('pr_h_status'), t('pr_h_amount')],
       rows: source.map((o) => [
-        o.po_number || '', o.vendor_name || '', o.order_date || '', normalizePoStatus(o.status), Number(o.amount || 0),
+        o.po_number || '', o.vendor_name || '', o.order_date || '', statusLabel(normalizePoStatus(o.status)), Number(o.amount || 0),
       ]),
     };
   };
@@ -598,7 +625,7 @@ export default function Procurement() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search by vendor or product..."
+                placeholder={t('pr_search_ph')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
@@ -610,9 +637,9 @@ export default function Procurement() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="All">Status: All</option>
-              <option value="Request">Request</option>
-              <option value="Received">Received</option>
+              <option value="All">{t('pr_status_all')}</option>
+              <option value="Request">{t('pr_st_request')}</option>
+              <option value="Received">{t('pr_st_received')}</option>
             </select>
           </div>
 
@@ -621,11 +648,11 @@ export default function Procurement() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3 px-4">Vendor</th>
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Amount</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4">{t('pr_h_vendor')}</th>
+                  <th className="py-3 px-4">{t('pr_h_date')}</th>
+                  <th className="py-3 px-4">{t('pr_h_amount')}</th>
+                  <th className="py-3 px-4">{t('pr_h_status')}</th>
+                  <th className="py-3 px-4 text-right">{t('pr_h_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -649,7 +676,7 @@ export default function Procurement() {
                                 : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             }`}
                           >
-                            {poStatus}
+                            {statusLabel(poStatus)}
                           </span>
                         );
                       })()}
@@ -660,29 +687,29 @@ export default function Procurement() {
                           <button
                             onClick={() => handleStatusChange(po, 'Received')}
                             className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[11px] font-semibold hover:bg-emerald-100 transition-colors"
-                            title="Receive Goods & Auto-Restock"
+                            title={t('pr_title_receive')}
                           >
-                            Receive
+                            {t('pr_receive')}
                           </button>
                         )}
                         <button
                           onClick={() => openEditPoModal(po)}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded"
-                          title="Edit PO & Update Items"
+                          title={t('pr_title_edit_po')}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setSelectedPo(po)}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded"
-                          title="View PO Details"
+                          title={t('pr_title_view_po')}
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDeletePo(po)}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded"
-                          title="Delete PO"
+                          title={t('pr_title_del_po')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -693,7 +720,7 @@ export default function Procurement() {
                 {filteredOrders.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-10 text-center text-slate-400">
-                      No purchase orders found.
+                      {t('pr_no_po')}
                     </td>
                   </tr>
                 )}
@@ -708,9 +735,9 @@ export default function Procurement() {
           {openOrders.length === 0 ? (
             <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-xs text-slate-500 space-y-2">
               <PackageCheck className="w-8 h-8 text-emerald-400 mx-auto" />
-              <p className="font-semibold text-slate-700">All Incoming Deliveries Received</p>
+              <p className="font-semibold text-slate-700">{t('pr_grn_all_t')}</p>
               <p className="text-slate-400 max-w-sm mx-auto">
-                There are no requested purchase orders awaiting goods receipt. Create a New PO to order stock from vendors.
+                {t('pr_grn_all_m')}
               </p>
             </div>
           ) : (
@@ -722,7 +749,7 @@ export default function Procurement() {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-sm font-bold text-slate-900">{po.vendor_name}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Ordered: {po.order_date}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{t('pr_ordered', { date: po.order_date })}</p>
                       </div>
                       <span className="text-sm font-black text-slate-900">
                         ₹ {Number(po.amount).toLocaleString('en-IN')}
@@ -747,7 +774,7 @@ export default function Procurement() {
                       className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                     >
                       <PackageCheck className="w-4 h-4" />
-                      <span>Receive Goods & Update Stock</span>
+                      <span>{t('pr_receive_update')}</span>
                     </button>
                   </div>
                 );
@@ -762,11 +789,11 @@ export default function Procurement() {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase">
-                <th className="py-3 px-4">Vendor Name</th>
-                <th className="py-3 px-4">Contact Person</th>
-                <th className="py-3 px-4">Phone</th>
-                <th className="py-3 px-4">City</th>
-                <th className="py-3 px-4 text-right">Action</th>
+                <th className="py-3 px-4">{t('pr_h_vendor_name')}</th>
+                <th className="py-3 px-4">{t('pr_h_contact')}</th>
+                <th className="py-3 px-4">{t('pr_h_phone')}</th>
+                <th className="py-3 px-4">{t('pr_h_city')}</th>
+                <th className="py-3 px-4 text-right">{t('pr_h_action')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -780,7 +807,7 @@ export default function Procurement() {
                     <button
                       onClick={() => handleDeleteVendor(v)}
                       className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                      title="Delete Vendor"
+                      title={t('pr_title_del_vendor')}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -790,7 +817,7 @@ export default function Procurement() {
               {vendors.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-10 text-center text-slate-400">
-                    No vendors yet. Click "Add Vendor" to register a supplier.
+                    {t('pr_no_vendors')}
                   </td>
                 </tr>
               )}
@@ -800,12 +827,62 @@ export default function Procurement() {
       )}
 
       {/* Create / Edit PO Modal (Dynamic Vendors + Searchable 10-Item Product Picker + Inline Catalog Creator) */}
+      {receivingPo && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-slate-900">{t('pr_receive_title', { po: receivingPo.po_number })}</h3>
+              <button onClick={() => setReceivingPo(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 mb-3">
+              {t('pr_receive_hint')}
+            </p>
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {parsePoItems(receivingPo).map((l) => {
+                const cur = catalogItems.find((i) => i.sku === l.sku);
+                const qty = Number(receiveQtys[l.sku]) || 0;
+                return (
+                  <div key={l.sku} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-xs">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-800 truncate">{l.name} ({l.sku})</p>
+                      <p className="text-[11px] text-slate-500">
+                        {t('pr_ordered_qty', { qty: l.quantity })}
+                        {cur ? t('pr_stock_change', { from: Number(cur.quantity) }) : t('pr_not_in_catalog_inline')}
+                        {cur && <span className="font-bold text-emerald-700">{Number((Number(cur.quantity) + qty).toFixed(6))}</span>}
+                      </p>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={receiveQtys[l.sku] ?? ''}
+                      onChange={(e) => setReceiveQtys({ ...receiveQtys, [l.sku]: e.target.value })}
+                      className="w-24 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-right"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setReceivingPo(null)} className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
+                {t('pr_cancel')}
+              </button>
+              <button onClick={confirmReceive} className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg">
+                {t('pr_confirm_received_update')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showNewPoModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="animate-modal bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-xl max-h-[92vh] overflow-visible p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">
-                {editingPo ? 'Edit Purchase Order' : 'Create Purchase Order'}
+                {editingPo ? t('pr_edit_po') : t('pr_create_po')}
               </h3>
               <button
                 type="button"
@@ -823,14 +900,14 @@ export default function Procurement() {
             <form onSubmit={handleCreatePo} className="space-y-3.5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Vendor *</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_vendor_req_lbl')}</label>
                   <select
                     required
                     value={poForm.vendor_name}
                     onChange={(e) => setPoForm({ ...poForm, vendor_name: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800"
                   >
-                    {vendors.length === 0 && <option value="">Add a vendor first</option>}
+                    {vendors.length === 0 && <option value="">{t('pr_add_vendor_first')}</option>}
                     {vendors.map((v) => (
                       <option key={v.id} value={v.name}>
                         {v.name}
@@ -840,7 +917,7 @@ export default function Procurement() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Order Date</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_order_date')}</label>
                   <input
                     type="date"
                     value={poForm.order_date}
@@ -853,32 +930,32 @@ export default function Procurement() {
               {/* Itemized Restock Builder */}
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-bold text-slate-700">Order Items</p>
+                  <p className="text-[11px] font-bold text-slate-700">{t('pr_order_items')}</p>
                   <button
                     type="button"
                     onClick={() => setShowQuickItemForm((prev) => !prev)}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 text-[11px] font-semibold flex-shrink-0 transition-colors"
                   >
                     {showQuickItemForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                    <span>{showQuickItemForm ? 'Close' : 'New Product'}</span>
+                    <span>{showQuickItemForm ? t('pr_close') : t('pr_new_product')}</span>
                   </button>
                 </div>
 
                 {/* Inline New Product Creator */}
                 {showQuickItemForm && (
                   <div className="bg-white p-3 rounded-lg border border-blue-200/80 space-y-2.5">
-                    <p className="text-[11px] font-bold text-slate-800">New Product</p>
+                    <p className="text-[11px] font-bold text-slate-800">{t('pr_new_product')}</p>
                     <div className="grid grid-cols-12 gap-2">
                       <input
                         type="text"
-                        placeholder="Product Name *"
+                        placeholder={t('pr_ph_pname')}
                         value={quickItem.name}
                         onChange={(e) => setQuickItem({ ...quickItem, name: e.target.value })}
                         className="col-span-6 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
                       />
                       <input
                         type="text"
-                        placeholder="Size (optional)"
+                        placeholder={t('pr_ph_size')}
                         value={quickItem.size}
                         onChange={(e) => setQuickItem({ ...quickItem, size: e.target.value })}
                         className="col-span-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
@@ -905,17 +982,17 @@ export default function Procurement() {
                         onChange={(e) => setQuickItem({ ...quickItem, category: e.target.value })}
                         className="col-span-4 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
                       >
-                        <option value="Fasteners">Fasteners</option>
-                        <option value="Tools">Tools</option>
-                        <option value="Electrical">Electrical</option>
-                        <option value="Plumbing">Plumbing</option>
-                        <option value="Paints & Adhesives">Paints & Adhesives</option>
-                        <option value="Others">Others</option>
+                        <option value="Fasteners">{tCategory('Fasteners')}</option>
+                        <option value="Tools">{tCategory('Tools')}</option>
+                        <option value="Electrical">{tCategory('Electrical')}</option>
+                        <option value="Plumbing">{tCategory('Plumbing')}</option>
+                        <option value="Paints & Adhesives">{tCategory('Paints & Adhesives')}</option>
+                        <option value="Others">{tCategory('Others')}</option>
                       </select>
                       <input
                         type="number"
                         step="0.01"
-                        placeholder="Cost Rate (₹) *"
+                        placeholder={t('pr_ph_cost')}
                         value={quickItem.cost_price}
                         onChange={(e) => setQuickItem({ ...quickItem, cost_price: e.target.value })}
                         className="col-span-3 no-spinner bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
@@ -923,7 +1000,7 @@ export default function Procurement() {
                       <input
                         type="number"
                         step="0.01"
-                        placeholder="Sell Price (₹) *"
+                        placeholder={t('pr_ph_sell')}
                         value={quickItem.selling_price}
                         onChange={(e) => setQuickItem({ ...quickItem, selling_price: e.target.value })}
                         className="col-span-3 no-spinner bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
@@ -932,7 +1009,7 @@ export default function Procurement() {
                         type="number"
                         step="any"
                         min="0.01"
-                        placeholder="Qty *"
+                        placeholder={t('pr_ph_qty_req')}
                         value={quickItem.order_qty}
                         onChange={(e) => setQuickItem({ ...quickItem, order_qty: e.target.value })}
                         className="col-span-2 no-spinner bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
@@ -944,7 +1021,7 @@ export default function Procurement() {
                         onClick={handleQuickCreateCatalogItem}
                         className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors"
                       >
-                        Create Product
+                        {t('pr_create_product')}
                       </button>
                     </div>
                   </div>
@@ -953,7 +1030,7 @@ export default function Procurement() {
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-6 relative" ref={productPickerRef}>
                     <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">
-                      Product
+                      {t('pr_product')}
                     </label>
                     <button
                       type="button"
@@ -963,7 +1040,7 @@ export default function Procurement() {
                       <span className={`truncate ${selectedPickerProduct ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
                         {selectedPickerProduct
                           ? `${tName(selectedPickerProduct.name)}${selectedPickerProduct.size ? ` (${selectedPickerProduct.size})` : ''}`
-                          : 'Select product...'}
+                          : t('pr_select_product')}
                       </span>
                       <ChevronDown
                         className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform ${
@@ -981,7 +1058,7 @@ export default function Procurement() {
                             <input
                               ref={productPickerSearchRef}
                               type="text"
-                              placeholder="Search product..."
+                              placeholder={t('pr_search_product')}
                               value={productPickerQuery}
                               onChange={(e) => setProductPickerQuery(e.target.value)}
                               className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500"
@@ -991,7 +1068,7 @@ export default function Procurement() {
                                 type="button"
                                 onClick={() => setProductPickerQuery('')}
                                 className="absolute right-2 text-slate-400 hover:text-slate-600"
-                                title="Clear search"
+                                title={t('pr_clear_search')}
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -1003,7 +1080,7 @@ export default function Procurement() {
                         <div className="max-h-60 overflow-y-auto divide-y divide-slate-100">
                           {pickerVisibleItems.length === 0 ? (
                             <div className="py-5 px-3 text-center text-[11px] text-slate-400">
-                              No matching products found.
+                              {t('pr_no_match')}
                             </div>
                           ) : (
                             pickerVisibleItems.map((i) => {
@@ -1027,7 +1104,7 @@ export default function Procurement() {
                                     <p className="text-xs font-semibold truncate">{tName(i.name)}</p>
                                     <p className="text-[10px] text-slate-400 truncate">
                                       {i.size ? `${tName(i.size)} · ` : ''}
-                                      {i.category || 'Hardware'}
+                                      {tCategory(i.category || 'Hardware')}
                                     </p>
                                   </div>
                                   <div className="text-right flex-shrink-0">
@@ -1039,7 +1116,7 @@ export default function Procurement() {
                                         Number(i.quantity) <= 0 ? 'text-rose-600' : 'text-emerald-600'
                                       }`}
                                     >
-                                      Stock: {formatQty(i.quantity)} {u}
+                                      {t('pr_stock', { qty: formatQty(i.quantity), unit: u })}
                                     </p>
                                   </div>
                                 </button>
@@ -1050,30 +1127,30 @@ export default function Procurement() {
 
                         {pickerTotalMatches.length > 10 && (
                           <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-400 text-center font-medium">
-                            Showing top 10 of {pickerTotalMatches.length} items — search to filter
+                            {t('pr_showing_top', { n: pickerTotalMatches.length })}
                           </div>
                         )}
                       </div>
                     )}
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Qty</label>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">{t('pr_qty')}</label>
                     <input
                       type="number"
                       step="any"
                       min="0.01"
-                      placeholder="Qty"
+                      placeholder={t('pr_qty')}
                       value={lineQty}
                       onChange={(e) => setLineQty(e.target.value)}
                       className="no-spinner w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Cost Rate (₹)</label>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">{t('pr_cost_rate')}</label>
                     <input
                       type="number"
                       step="0.01"
-                      placeholder="₹/unit"
+                      placeholder={t('pr_ph_rate')}
                       value={lineRate}
                       onChange={(e) => setLineRate(e.target.value)}
                       className="no-spinner w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
@@ -1084,7 +1161,7 @@ export default function Procurement() {
                     onClick={addLineToPo}
                     className="col-span-2 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
                   >
-                    Add
+                    {t('pr_add')}
                   </button>
                 </div>
 
@@ -1111,12 +1188,12 @@ export default function Procurement() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Total Amount (₹) *</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_total_amount_req')}</label>
                   <input
                     type="number"
                     step="0.01"
                     required
-                    placeholder="e.g. 48500"
+                    placeholder={t('pr_ph_amount')}
                     value={poForm.amount}
                     onChange={(e) => setPoForm({ ...poForm, amount: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 no-spinner"
@@ -1124,14 +1201,14 @@ export default function Procurement() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Status *</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_status_req')}</label>
                   <select
                     value={poForm.status}
                     onChange={(e) => setPoForm({ ...poForm, status: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="Request">Request</option>
-                    <option value="Received">Received</option>
+                    <option value="Request">{t('pr_st_request')}</option>
+                    <option value="Received">{t('pr_st_received')}</option>
                   </select>
                 </div>
               </div>
@@ -1146,13 +1223,13 @@ export default function Procurement() {
                   }}
                   className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                  Cancel
+                  {t('pr_cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold shadow-sm hover:bg-blue-700"
                 >
-                  {editingPo ? 'Save PO Changes' : 'Generate PO'}
+                  {editingPo ? t('pr_save_po') : t('pr_generate_po')}
                 </button>
               </div>
             </form>
@@ -1165,7 +1242,7 @@ export default function Procurement() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Add New Vendor</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('pr_add_new_vendor')}</h3>
               <button onClick={() => setShowAddVendorModal(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
               </button>
@@ -1173,11 +1250,11 @@ export default function Procurement() {
 
             <form onSubmit={handleAddVendor} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Vendor / Company Name *</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_vendor_company')}</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Sri Murugan Hardware Traders"
+                  placeholder={t('pr_ph_vendor')}
                   value={vendorForm.name}
                   onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800"
@@ -1185,17 +1262,17 @@ export default function Procurement() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Contact Person</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_contact')}</label>
                   <input
                     type="text"
-                    placeholder="e.g. S. Karthik"
+                    placeholder={t('pr_ph_contact')}
                     value={vendorForm.contact_person}
                     onChange={(e) => setVendorForm({ ...vendorForm, contact_person: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Phone</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_phone')}</label>
                   <input
                     type="text"
                     placeholder="+91 98765 43210"
@@ -1207,7 +1284,7 @@ export default function Procurement() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Email</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_email')}</label>
                   <input
                     type="email"
                     placeholder="vendor@example.com"
@@ -1217,10 +1294,10 @@ export default function Procurement() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">City</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('pr_h_city')}</label>
                   <input
                     type="text"
-                    placeholder="e.g. Thoothukudi"
+                    placeholder={t('pr_ph_city')}
                     value={vendorForm.city}
                     onChange={(e) => setVendorForm({ ...vendorForm, city: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800"
@@ -1233,13 +1310,13 @@ export default function Procurement() {
                   onClick={() => setShowAddVendorModal(false)}
                   className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                  Cancel
+                  {t('pr_cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold shadow-sm hover:bg-blue-700"
                 >
-                  Save Vendor
+                  {t('pr_save_vendor')}
                 </button>
               </div>
             </form>
@@ -1254,7 +1331,7 @@ export default function Procurement() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">{selectedPo.vendor_name}</h3>
-                <p className="text-xs text-slate-500">Order Date: {selectedPo.order_date}</p>
+                <p className="text-xs text-slate-500">{t('pr_order_date_colon', { date: selectedPo.order_date })}</p>
               </div>
               <button onClick={() => setSelectedPo(null)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
@@ -1262,16 +1339,16 @@ export default function Procurement() {
             </div>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-500">Status:</span>
-                <span className="font-bold text-slate-800">{normalizePoStatus(selectedPo.status)}</span>
+                <span className="text-slate-500">{t('pr_status_colon')}</span>
+                <span className="font-bold text-slate-800">{statusLabel(normalizePoStatus(selectedPo.status))}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Total Amount:</span>
+                <span className="text-slate-500">{t('pr_total_colon')}</span>
                 <span className="font-black text-blue-600">₹ {Number(selectedPo.amount).toLocaleString('en-IN')}</span>
               </div>
               {parsePoItems(selectedPo).length > 0 && (
                 <div className="pt-2 border-t border-slate-100 space-y-1">
-                  <p className="font-bold text-slate-700 text-[11px] uppercase">Ordered Items</p>
+                  <p className="font-bold text-slate-700 text-[11px] uppercase">{t('pr_ordered_items')}</p>
                   {parsePoItems(selectedPo).map((l, idx) => (
                     <div key={idx} className="flex justify-between bg-slate-50 p-2 rounded">
                       <span>{l.name}</span>
@@ -1287,7 +1364,7 @@ export default function Procurement() {
               onClick={() => setSelectedPo(null)}
               className="w-full py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg"
             >
-              Close
+              {t('pr_close')}
             </button>
           </div>
         </div>

@@ -35,6 +35,10 @@ function getCleanInitialData() {
   };
 }
 
+const normBin = (v) => String(v || '').trim().toUpperCase();
+const binExistsIn = (db, code) => (db.racks || []).some((r) => (r.bins || []).some((b) => b.bin_code.toUpperCase() === code));
+const binError = (code) => `Bin "${code}" does not exist. Pick a bin from Racks & Bins or leave it unassigned.`;
+
 function readDb() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -88,21 +92,25 @@ export function initBrowserApiFallback() {
       const db = readDb();
       const normalizedSku = String(item.sku || '').trim().toUpperCase();
       if (!normalizedSku) return { success: false, error: 'SKU is required.' };
+      const bin = normBin(item.bin_id);
+      if (bin && !binExistsIn(db, bin)) return { success: false, error: binError(bin) };
       if (db.items.some((i) => i.sku.toUpperCase() === normalizedSku)) {
         return { success: false, error: `SKU "${normalizedSku}" already exists. Use a unique SKU or edit the existing product.` };
       }
       const id = db.items.reduce((max, i) => Math.max(max, i.id || 0), 0) + 1;
-      db.items.push({ ...item, id, sku: normalizedSku, status: item.status || 'Available' });
+      db.items.push({ ...item, id, sku: normalizedSku, bin_id: bin, status: item.status || 'Available' });
       writeDb(db);
       return { success: true, id };
     },
     updateItem: async (item) => {
       const db = readDb();
       const normalizedSku = String(item.sku || '').trim().toUpperCase();
+      const bin = normBin(item.bin_id);
+      if (bin && !binExistsIn(db, bin)) return { success: false, error: binError(bin) };
       if (db.items.some((i) => i.id !== item.id && i.sku.toUpperCase() === normalizedSku)) {
         return { success: false, error: `Another product already uses SKU "${normalizedSku}".` };
       }
-      db.items = db.items.map((i) => (i.id === item.id ? { ...i, ...item, sku: normalizedSku } : i));
+      db.items = db.items.map((i) => (i.id === item.id ? { ...i, ...item, sku: normalizedSku, bin_id: bin } : i));
       writeDb(db);
       return { success: true };
     },
@@ -115,6 +123,7 @@ export function initBrowserApiFallback() {
     bulkImportItems: async (itemsList) => {
       const db = readDb();
       let count = 0;
+      const invalidBins = new Set();
       (itemsList || []).forEach((row) => {
         const sku = String(row.sku || '').trim().toUpperCase();
         const name = String(row.name || '').trim();
@@ -131,7 +140,11 @@ export function initBrowserApiFallback() {
           cost_price: parseFloat(row.cost_price) || 0,
           quantity: parseFloat(row.quantity) || 0,
           reorder_level: parseFloat(row.reorder_level) || 10,
-          bin_id: String(row.bin_id || '').trim().toUpperCase(),
+          bin_id: (() => {
+            const b = normBin(row.bin_id);
+            if (b && !binExistsIn(db, b)) { invalidBins.add(b); return ''; }
+            return b;
+          })(),
           image_url: String(row.image_url || '').trim(),
           status: 'Active',
         };
@@ -144,7 +157,7 @@ export function initBrowserApiFallback() {
         count++;
       });
       writeDb(db);
-      return { success: true, count };
+      return { success: true, count, invalidBins: Array.from(invalidBins) };
     },
 
     getRacks: async () => {
@@ -201,7 +214,50 @@ export function initBrowserApiFallback() {
     },
     deleteRack: async (code) => {
       const db = readDb();
-      db.racks = db.racks.filter((r) => r.code !== code);
+      const rackCode = normBin(code);
+      const rack = db.racks.find((r) => r.code === rackCode);
+      const codes = new Set((rack?.bins || []).map((b) => b.bin_code.toUpperCase()));
+      const used = db.items.filter((i) => codes.has(normBin(i.bin_id))).length;
+      if (used > 0) {
+        return { success: false, error: `Rack ${rackCode} still holds ${used} product(s). Move them to another bin first.` };
+      }
+      db.racks = db.racks.filter((r) => r.code !== rackCode);
+      writeDb(db);
+      return { success: true };
+    },
+    updateRack: async (rack) => {
+      const db = readDb();
+      const code = normBin(rack.code);
+      const existing = db.racks.find((r) => r.code === code);
+      if (!existing) return { success: false, error: `Rack ${code} not found.` };
+      const name = String(rack.name || '').trim();
+      if (!name) return { success: false, error: 'Rack name is required.' };
+      const levels = Math.min(10, Math.max(1, parseInt(rack.levels) || existing.levels));
+      const slots = Math.min(10, Math.max(1, parseInt(rack.slots_per_level) || existing.slots_per_level));
+      const doomed = (existing.bins || []).filter((b) => b.level_no > levels || b.slot_no > slots).map((b) => b.bin_code.toUpperCase());
+      const used = db.items.filter((i) => doomed.includes(normBin(i.bin_id))).length;
+      if (used > 0) {
+        return { success: false, error: `Cannot shrink: ${used} product(s) are stored in bins that would be removed. Move them first.` };
+      }
+      const bins = (existing.bins || []).filter((b) => b.level_no <= levels && b.slot_no <= slots);
+      for (let l = 1; l <= levels; l++) {
+        for (let s = 1; s <= slots; s++) {
+          const bc = `${code}-L${l}-S${s}`;
+          if (!bins.some((b) => b.bin_code === bc)) bins.push({ bin_code: bc, rack_code: code, level_no: l, slot_no: s, quantity: 0 });
+        }
+      }
+      bins.sort((a, b) => a.level_no - b.level_no || a.slot_no - b.slot_no);
+      Object.assign(existing, { name, zone: String(rack.zone || existing.zone || 'General').trim(), levels, slots_per_level: slots, bins });
+      writeDb(db);
+      return { success: true };
+    },
+    moveItemToBin: async (itemId, binCode) => {
+      const db = readDb();
+      const bin = normBin(binCode);
+      if (bin && !binExistsIn(db, bin)) return { success: false, error: binError(bin) };
+      const item = db.items.find((i) => i.id === itemId);
+      if (!item) return { success: false, error: 'Product not found.' };
+      item.bin_id = bin;
       writeDb(db);
       return { success: true };
     },
@@ -350,37 +406,55 @@ export function initBrowserApiFallback() {
       writeDb(db);
       return { success: true };
     },
-    updatePurchaseOrderStatus: async (id, status) => {
+    updatePurchaseOrderStatus: async (id, status, received) => {
       const db = readDb();
       const po = db.purchase_orders.find((p) => p.id === id);
       if (!po) return { success: false, error: 'PO not found.' };
       const prevStatus = po.status === 'Received' || po.status === 'Closed' ? 'Received' : 'Request';
       const nextStatus = status === 'Received' ? 'Received' : 'Request';
       const items = JSON.parse(po.items_json || '[]');
-      const factor =
-        prevStatus !== 'Received' && nextStatus === 'Received'
-          ? 1
-          : prevStatus === 'Received' && nextStatus !== 'Received'
-          ? -1
-          : 0;
-      if (factor !== 0) {
+      const updates = [];
+      const missing = [];
+      const findTarget = (line) => {
+        const pid = Number(line.product_id) || 0;
+        const sku = String(line.sku || '').trim().toUpperCase();
+        return (
+          (pid > 0 ? db.items.find((x) => x.id === pid) : null) ||
+          db.items.find((x) => String(x.sku || '').trim().toUpperCase() === sku)
+        );
+      };
+      const bump = (target, delta) => {
+        target.quantity = Number(Math.max(0, Number(target.quantity || 0) + delta).toFixed(6));
+        if (target.quantity > 0 && (target.status === 'Unavailable' || target.status === 'Inactive')) {
+          target.status = 'Available';
+        }
+      };
+      if (prevStatus !== 'Received' && nextStatus === 'Received') {
         items.forEach((line) => {
-          const pid = Number(line.product_id) || 0;
-          const sku = String(line.sku || '').trim().toUpperCase();
-          const target =
-            (pid > 0 ? db.items.find((x) => x.id === pid) : null) ||
-            db.items.find((x) => String(x.sku || '').trim().toUpperCase() === sku);
-          if (target) {
-            target.quantity = Number(Math.max(0, Number(target.quantity || 0) + factor * Number(line.quantity || 0)).toFixed(6));
-            if (target.quantity > 0 && (target.status === 'Unavailable' || target.status === 'Inactive')) {
-              target.status = 'Available';
-            }
-          }
+          const override = received && received[line.sku] !== undefined ? Number(received[line.sku]) : NaN;
+          const qty = Number.isFinite(override) && override >= 0 ? override : Number(line.quantity) || 0;
+          line.received_quantity = qty;
+          if (qty <= 0) return;
+          const target = findTarget(line);
+          if (!target) { missing.push(line.sku || line.name || '?'); return; }
+          const before = Number(target.quantity || 0);
+          bump(target, qty);
+          updates.push({ sku: line.sku, name: line.name, added: qty, before, after: target.quantity });
+        });
+      } else if (prevStatus === 'Received' && nextStatus !== 'Received') {
+        items.forEach((line) => {
+          const stocked = line.received_quantity !== undefined && line.received_quantity !== null
+            ? Number(line.received_quantity) || 0
+            : Number(line.quantity) || 0;
+          const target = findTarget(line);
+          if (target) bump(target, -stocked);
+          delete line.received_quantity;
         });
       }
+      po.items_json = JSON.stringify(items);
       po.status = nextStatus;
       writeDb(db);
-      return { success: true };
+      return { success: true, updates, missing };
     },
     deletePurchaseOrder: async (id) => {
       const db = readDb();

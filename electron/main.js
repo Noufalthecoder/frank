@@ -228,10 +228,17 @@ ipcMain.handle('searchItems', (event, query) => {
   `).all(q, q, q, q);
 });
 
+// Rack / bin helpers: an item's bin must be '' (unassigned) or an existing rack bin
+const normBin = (v) => String(v || '').trim().toUpperCase();
+const binExists = (code) => !!db.prepare('SELECT 1 FROM rack_bins WHERE bin_code = ?').get(code);
+const binError = (code) => `Bin "${code}" does not exist. Pick a bin from Racks & Bins or leave it unassigned.`;
+
 ipcMain.handle('addItem', (event, item) => {
   try {
     const normalizedSku = String(item.sku || '').trim().toUpperCase();
     if (!normalizedSku) return { success: false, error: 'SKU is required.' };
+    const bin = normBin(item.bin_id);
+    if (bin && !binExists(bin)) return { success: false, error: binError(bin) };
     const stmt = db.prepare(`
       INSERT INTO items (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id, image_url, status)
       VALUES (@sku, @name, @size, @unit, @category, @brand, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @image_url, @status)
@@ -240,7 +247,7 @@ ipcMain.handle('addItem', (event, item) => {
       ...item,
       sku: normalizedSku,
       name: String(item.name || '').trim(),
-      bin_id: String(item.bin_id || '').trim().toUpperCase(),
+      bin_id: bin,
       image_url: String(item.image_url || '').trim(),
       status: item.status || 'Available',
     });
@@ -256,6 +263,8 @@ ipcMain.handle('addItem', (event, item) => {
 ipcMain.handle('updateItem', (event, item) => {
   try {
     const normalizedSku = String(item.sku || '').trim().toUpperCase();
+    const bin = normBin(item.bin_id);
+    if (bin && !binExists(bin)) return { success: false, error: binError(bin) };
     const stmt = db.prepare(`
       UPDATE items 
       SET sku = @sku, name = @name, size = @size, unit = @unit, category = @category, brand = @brand,
@@ -267,7 +276,7 @@ ipcMain.handle('updateItem', (event, item) => {
       ...item,
       sku: normalizedSku,
       name: String(item.name || '').trim(),
-      bin_id: String(item.bin_id || '').trim().toUpperCase(),
+      bin_id: bin,
       image_url: String(item.image_url || '').trim(),
     });
     return { success: true };
@@ -332,9 +341,70 @@ ipcMain.handle('addRack', (event, rack) => {
 });
 
 ipcMain.handle('deleteRack', (event, code) => {
-  db.prepare('DELETE FROM rack_bins WHERE rack_code = ?').run(code);
-  db.prepare('DELETE FROM racks WHERE code = ?').run(code);
+  const rackCode = normBin(code);
+  const used = db.prepare(
+    'SELECT COUNT(*) AS c FROM items WHERE UPPER(bin_id) IN (SELECT bin_code FROM rack_bins WHERE rack_code = ?)'
+  ).get(rackCode).c;
+  if (used > 0) {
+    return { success: false, error: `Rack ${rackCode} still holds ${used} product(s). Move them to another bin first.` };
+  }
+  db.transaction(() => {
+    db.prepare('DELETE FROM rack_bins WHERE rack_code = ?').run(rackCode);
+    db.prepare('DELETE FROM racks WHERE code = ?').run(rackCode);
+  })();
   return { success: true };
+});
+
+ipcMain.handle('updateRack', (event, rack) => {
+  try {
+    const code = normBin(rack.code);
+    const existing = db.prepare('SELECT * FROM racks WHERE code = ?').get(code);
+    if (!existing) return { success: false, error: `Rack ${code} not found.` };
+    const name = String(rack.name || '').trim();
+    if (!name) return { success: false, error: 'Rack name is required.' };
+    const levels = Math.min(10, Math.max(1, parseInt(rack.levels) || existing.levels));
+    const slots = Math.min(10, Math.max(1, parseInt(rack.slots_per_level) || existing.slots_per_level));
+
+    // Bins that would disappear when shrinking must be empty
+    const doomed = db.prepare(
+      'SELECT bin_code FROM rack_bins WHERE rack_code = ? AND (level_no > ? OR slot_no > ?)'
+    ).all(code, levels, slots).map((b) => b.bin_code);
+    if (doomed.length) {
+      const placeholders = doomed.map(() => '?').join(',');
+      const used = db.prepare(`SELECT COUNT(*) AS c FROM items WHERE UPPER(bin_id) IN (${placeholders})`).get(...doomed).c;
+      if (used > 0) {
+        return { success: false, error: `Cannot shrink: ${used} product(s) are stored in bins that would be removed. Move them first.` };
+      }
+    }
+    db.transaction(() => {
+      db.prepare('UPDATE racks SET name = ?, zone = ?, levels = ?, slots_per_level = ? WHERE code = ?')
+        .run(name, String(rack.zone || existing.zone || 'General').trim(), levels, slots, code);
+      if (doomed.length) {
+        const del = db.prepare('DELETE FROM rack_bins WHERE bin_code = ?');
+        doomed.forEach((b) => del.run(b));
+      }
+      const insertBin = db.prepare('INSERT OR IGNORE INTO rack_bins (bin_code, rack_code, level_no, slot_no, quantity) VALUES (?, ?, ?, ?, 0)');
+      for (let l = 1; l <= levels; l++) {
+        for (let s = 1; s <= slots; s++) insertBin.run(`${code}-L${l}-S${s}`, code, l, s);
+      }
+    })();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message || 'Failed to update rack.' };
+  }
+});
+
+// Assign / move a product to a bin ('' = unassign)
+ipcMain.handle('moveItemToBin', (event, itemId, binCode) => {
+  try {
+    const bin = normBin(binCode);
+    if (bin && !binExists(bin)) return { success: false, error: binError(bin) };
+    const res = db.prepare('UPDATE items SET bin_id = ? WHERE id = ?').run(bin, itemId);
+    if (res.changes === 0) return { success: false, error: 'Product not found.' };
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message || 'Failed to move product.' };
+  }
 });
 
 ipcMain.handle('bulkImportItems', (event, itemsList) => {
@@ -355,6 +425,7 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
         bin_id = excluded.bin_id,
         image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE items.image_url END
     `);
+    const invalidBins = new Set();
     const insertMany = db.transaction((rows) => {
       let imported = 0;
       for (const row of rows) {
@@ -372,7 +443,11 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
           cost_price: parseFloat(row.cost_price) || 0,
           quantity: parseFloat(row.quantity) || 0,
           reorder_level: parseFloat(row.reorder_level) || 10,
-          bin_id: String(row.bin_id || '').trim().toUpperCase(),
+          bin_id: (() => {
+            const b = normBin(row.bin_id);
+            if (b && !binExists(b)) { invalidBins.add(b); return ''; }
+            return b;
+          })(),
           image_url: String(row.image_url || '').trim(),
         });
         imported++;
@@ -380,7 +455,7 @@ ipcMain.handle('bulkImportItems', (event, itemsList) => {
       return imported;
     });
     const count = insertMany(itemsList || []);
-    return { success: true, count };
+    return { success: true, count, invalidBins: Array.from(invalidBins) };
   } catch (err) {
     return { success: false, error: err.message || 'CSV import failed.' };
   }
@@ -482,7 +557,7 @@ function applyPoStockDelta(line, deltaQty) {
   db.prepare('UPDATE items SET quantity = ?, status = ? WHERE id = ?').run(nextQty, nextStatus, target.id);
 }
 
-function aggregatePoLines(lines) {
+function aggregatePoLines(lines, useReceived = false) {
   const map = new Map();
   (Array.isArray(lines) ? lines : []).forEach((l) => {
     const pid = Number(l.product_id) || 0;
@@ -490,7 +565,8 @@ function aggregatePoLines(lines) {
     const key = pid > 0 ? `id:${pid}` : sku ? `sku:${sku}` : '';
     if (!key) return;
     const prev = map.get(key) || { product_id: pid, sku, qty: 0 };
-    prev.qty = Number((prev.qty + (Number(l.quantity) || 0)).toFixed(6));
+    const lineQty = useReceived && l.received_quantity !== undefined && l.received_quantity !== null ? Number(l.received_quantity) || 0 : Number(l.quantity) || 0;
+    prev.qty = Number((prev.qty + lineQty).toFixed(6));
     map.set(key, prev);
   });
   return map;
@@ -499,7 +575,9 @@ function aggregatePoLines(lines) {
 ipcMain.handle('createPurchaseOrder', (event, po) => {
   const genNum = `PO-${String(Math.floor(10000 + Math.random() * 90000))}`;
   const poStatus = po.status === 'Received' ? 'Received' : 'Request';
-  const items = Array.isArray(po.items) ? po.items : [];
+  const items = (Array.isArray(po.items) ? po.items : []).map((l) =>
+    poStatus === 'Received' ? { ...l, received_quantity: Number(l.quantity) || 0 } : l
+  );
   const stmt = db.prepare(`
     INSERT INTO purchase_orders (po_number, vendor_name, order_date, amount, status, items_json)
     VALUES (?, ?, ?, ?, ?, ?)
@@ -521,7 +599,9 @@ ipcMain.handle('updatePurchaseOrder', (event, po) => {
     const prevStatus = existing.status === 'Received' || existing.status === 'Closed' ? 'Received' : 'Request';
     const nextStatus = po.status === 'Received' ? 'Received' : 'Request';
     const prevItems = JSON.parse(existing.items_json || '[]');
-    const nextItems = Array.isArray(po.items) ? po.items : prevItems;
+    const nextItems = (Array.isArray(po.items) ? po.items : prevItems).map((l) =>
+      nextStatus === 'Received' ? { ...l, received_quantity: Number(l.quantity) || 0 } : l
+    );
 
     const tx = db.transaction(() => {
       db.prepare(`
@@ -538,7 +618,7 @@ ipcMain.handle('updatePurchaseOrder', (event, po) => {
       );
 
       // Compute exact per-product delta so inventory updates cleanly without double-counting
-      const prevMap = prevStatus === 'Received' ? aggregatePoLines(prevItems) : new Map();
+      const prevMap = prevStatus === 'Received' ? aggregatePoLines(prevItems, true) : new Map();
       const nextMap = nextStatus === 'Received' ? aggregatePoLines(nextItems) : new Map();
       const allKeys = new Set([...prevMap.keys(), ...nextMap.keys()]);
       allKeys.forEach((key) => {
@@ -557,24 +637,48 @@ ipcMain.handle('updatePurchaseOrder', (event, po) => {
   }
 });
 
-ipcMain.handle('updatePurchaseOrderStatus', (event, { id, status }) => {
+ipcMain.handle('updatePurchaseOrderStatus', (event, { id, status, received }) => {
   try {
     const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id);
     if (!po) return { success: false, error: 'PO not found.' };
     const prevStatus = po.status === 'Received' || po.status === 'Closed' ? 'Received' : 'Request';
     const nextStatus = status === 'Received' ? 'Received' : 'Request';
+    const updates = [];
+    const missing = [];
 
     const tx = db.transaction(() => {
-      db.prepare('UPDATE purchase_orders SET status = ? WHERE id = ?').run(nextStatus, id);
       const items = JSON.parse(po.items_json || '[]');
       if (prevStatus !== 'Received' && nextStatus === 'Received') {
-        items.forEach((line) => applyPoStockDelta(line, Number(line.quantity) || 0));
+        // Add the RECEIVED quantity (defaults to ordered qty) to existing stock
+        items.forEach((line) => {
+          const override = received && received[line.sku] !== undefined ? Number(received[line.sku]) : NaN;
+          const qty = Number.isFinite(override) && override >= 0 ? override : Number(line.quantity) || 0;
+          line.received_quantity = qty;
+          if (qty <= 0) return;
+          const pid = Number(line.product_id) || 0;
+          const sku = String(line.sku || '').trim().toUpperCase();
+          const target = (pid > 0 ? db.prepare('SELECT id, quantity FROM items WHERE id = ?').get(pid) : null)
+            || (sku ? db.prepare('SELECT id, quantity FROM items WHERE UPPER(sku) = ?').get(sku) : null);
+          if (!target) { missing.push(line.sku || line.name || '?'); return; }
+          applyPoStockDelta(line, qty);
+          const after = db.prepare('SELECT quantity FROM items WHERE id = ?').get(target.id).quantity;
+          updates.push({ sku: line.sku, name: line.name, added: qty, before: target.quantity, after });
+        });
       } else if (prevStatus === 'Received' && nextStatus !== 'Received') {
-        items.forEach((line) => applyPoStockDelta(line, -(Number(line.quantity) || 0)));
+        // Reverse exactly what was added when it was received
+        items.forEach((line) => {
+          const stocked = line.received_quantity !== undefined && line.received_quantity !== null
+            ? Number(line.received_quantity) || 0
+            : Number(line.quantity) || 0;
+          applyPoStockDelta(line, -stocked);
+          delete line.received_quantity;
+        });
       }
+      db.prepare('UPDATE purchase_orders SET status = ?, items_json = ? WHERE id = ?')
+        .run(nextStatus, JSON.stringify(items), id);
     });
     tx();
-    return { success: true };
+    return { success: true, updates, missing };
   } catch (err) {
     return { success: false, error: err.message };
   }

@@ -95,13 +95,13 @@ export default function Layout({ children }) {
   }, []);
 
   const navItems = [
-    { name: t('nav_pos'), path: '/pos', icon: ShoppingCart },
-    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard },
-    { name: t('nav_catalog'), path: '/catalog', icon: Boxes },
-    { name: t('nav_history'), path: '/history', icon: Receipt },
-    { name: t('nav_vendors'), path: '/vendors', icon: Truck },
-    { name: t('nav_finance'), path: '/finance', icon: Wallet },
-    { name: t('nav_settings'), path: '/settings', icon: Settings },
+    { name: t('nav_pos'), path: '/pos', icon: ShoppingCart, emoji: '🛒' },
+    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard, emoji: '📊' },
+    { name: t('nav_catalog'), path: '/catalog', icon: Boxes, emoji: '📦' },
+    { name: t('nav_history'), path: '/history', icon: Receipt, emoji: '🧾' },
+    { name: t('nav_vendors'), path: '/vendors', icon: Truck, emoji: '🚚' },
+    { name: t('nav_finance'), path: '/finance', icon: Wallet, emoji: '💰' },
+    { name: t('nav_settings'), path: '/settings', icon: Settings, emoji: '⚙️' },
   ];
 
   const handleSearchSubmit = (e) => {
@@ -117,45 +117,47 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#f6f8fb] text-slate-800">
-      {/* Sidebar */}
-      <aside className="w-[248px] flex-shrink-0 bg-white border-r border-slate-200/80 flex flex-col justify-between">
-        <div>
-          {/* Brand Logo Header */}
-          <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-100">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-600/20 ring-1 ring-blue-700/20 flex-shrink-0">
-              <Layers className="w-4.5 h-4.5" />
+      {/* Sidebar (ZenoHosp style) */}
+      <aside className="w-[260px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between">
+        <div className="flex flex-col min-h-0">
+          {/* Brand header */}
+          <NavLink to="/" title={t('nav_home')} className="flex items-center gap-3 px-5 min-h-[56px] border-b border-slate-200 hover:bg-slate-50 transition-colors">
+            <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center flex-shrink-0">
+              <Layers className="w-4 h-4" />
             </div>
-            <div className="min-w-0">
-              <h1 className="text-[13.5px] font-extrabold text-slate-900 tracking-[-0.015em] leading-snug truncate">
+            <div className="min-w-0 py-2">
+              <h1 className="text-[17px] font-extrabold text-slate-950 tracking-[-0.03em] leading-tight truncate">
                 {shopProfile.shop_name || 'T. S. P Enterprises'}
               </h1>
-              <p className="text-[11px] font-medium text-slate-400 truncate">
+              <p className="text-[12px] text-slate-600 truncate mt-0.5">
                 {shopProfile.address_line1 || 'Beach Road'} · {shopProfile.address_line2 || 'Tharuvaikulam'}
               </p>
             </div>
-          </div>
+          </NavLink>
 
-          {/* Navigation Links */}
-          <nav className="p-3 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
+          {/* Navigation: POS Billing first, then a gap, then the rest */}
+          <nav className="py-4 flex flex-col gap-1 overflow-y-auto">
+            {navItems.map((item, idx) => {
               const isActive = location.pathname === item.path;
               return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-150 ${
-                    isActive
-                      ? 'bg-blue-50/90 text-blue-700 font-semibold ring-1 ring-blue-600/15 shadow-2xs'
-                      : 'text-slate-600 font-medium hover:bg-slate-100/80 hover:text-slate-900'
-                  }`}
-                >
-                  {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-blue-600" />
-                  )}
-                  <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-                  <span className="truncate">{item.name}</span>
-                </NavLink>
+                <React.Fragment key={item.path}>
+                  <NavLink
+                    to={item.path}
+                    className={`flex items-center gap-3 ml-3 w-[calc(100%-1.5rem)] px-4 py-[9px] rounded-lg text-[13px] font-medium text-slate-950 transition-colors ${
+                      isActive ? 'bg-[#e6eaf1]' : 'hover:bg-slate-100 hover:text-blue-600'
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="w-[18px] text-center text-[16px] leading-none flex-shrink-0"
+                      style={{ fontFamily: '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif' }}
+                    >
+                      {item.emoji}
+                    </span>
+                    <span className="truncate">{item.name}</span>
+                  </NavLink>
+                  {idx === 0 && <div className="h-3" aria-hidden="true" />}
+                </React.Fragment>
               );
             })}
           </nav>
@@ -218,7 +220,7 @@ export default function Layout({ children }) {
             <div
               className="flex items-center bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/80"
               role="group"
-              aria-label="Language switcher"
+              aria-label={t('fi_lang_switcher')}
             >
               <button
                 type="button"
@@ -310,7 +312,7 @@ export default function Layout({ children }) {
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                              SKU: <span className="font-mono font-medium text-slate-700">{item.sku}</span> · Rack: <span className="font-medium text-slate-700">{item.bin_id || 'Unassigned'}</span>
+                              {t('cat_col_sku')}: <span className="font-mono font-medium text-slate-700">{item.sku}</span> · {t('fi_rack')}: <span className="font-medium text-slate-700">{item.bin_id || t('fi_unassigned')}</span>
                             </p>
                             <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 mt-1.5 group-hover:translate-x-0.5 transition-transform">
                               <span>{t('update_stock_catalog')}</span>

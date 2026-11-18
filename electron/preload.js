@@ -39,6 +39,8 @@ contextBridge.exposeInMainWorld('api', {
   getRacks: () => ipcRenderer.invoke('getRacks'),
   addRack: (rack) => ipcRenderer.invoke('addRack', rack),
   deleteRack: (code) => ipcRenderer.invoke('deleteRack', code),
+  updateRack: (rack) => ipcRenderer.invoke('updateRack', rack),
+  moveItemToBin: (itemId, binCode) => ipcRenderer.invoke('moveItemToBin', itemId, binCode),
 
   // Invoices & POS
   getInvoices: () => ipcRenderer.invoke('getInvoices'),
@@ -49,7 +51,7 @@ contextBridge.exposeInMainWorld('api', {
   getPurchaseOrders: () => ipcRenderer.invoke('getPurchaseOrders'),
   createPurchaseOrder: (po) => ipcRenderer.invoke('createPurchaseOrder', po),
   updatePurchaseOrder: (po) => ipcRenderer.invoke('updatePurchaseOrder', po),
-  updatePurchaseOrderStatus: (id, status) => ipcRenderer.invoke('updatePurchaseOrderStatus', { id, status }),
+  updatePurchaseOrderStatus: (id, status, received) => ipcRenderer.invoke('updatePurchaseOrderStatus', { id, status, received }),
   deletePurchaseOrder: (id) => ipcRenderer.invoke('deletePurchaseOrder', id),
   getVendors: () => ipcRenderer.invoke('getVendors'),
   addVendor: (v) => ipcRenderer.invoke('addVendor', v),

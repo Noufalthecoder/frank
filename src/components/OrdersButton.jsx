@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { ClipboardList, X, ChevronDown, ChevronRight, Search, Truck } from 'lucide-react';
 
 const normStatus = (s) => (s === 'Received' || s === 'Closed' ? 'Received' : 'Request');
@@ -14,7 +15,8 @@ const parseItems = (po) => {
 };
 
 /** "Orders" button: opens a panel listing purchase orders, newest (last placed) first. */
-export default function OrdersButton({ label = 'Orders', className = '' }) {
+export default function OrdersButton({ label, className = '' }) {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [orders, setOrders] = useState([]);
@@ -65,7 +67,7 @@ export default function OrdersButton({ label = 'Orders', className = '' }) {
         }
       >
         <ClipboardList className="w-3.5 h-3.5 text-slate-500" />
-        <span>{label}</span>
+        <span>{label || t('cat_orders')}</span>
       </button>
 
       {open && (
@@ -78,9 +80,9 @@ export default function OrdersButton({ label = 'Orders', className = '' }) {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Purchase Orders</h3>
+                <h3 className="text-sm font-bold text-slate-900">{t('ct_po_title')}</h3>
                 <p className="text-[11px] text-slate-500">
-                  {orders.length} total{pending ? `, ${pending} pending delivery` : ''} - latest first
+                  {t('ct_po_summary', { total: orders.length, pending: pending ? t('ct_po_pending_part', { n: pending }) : '' })}
                 </p>
               </div>
               <button onClick={() => setOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
@@ -94,7 +96,7 @@ export default function OrdersButton({ label = 'Orders', className = '' }) {
                 <input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search PO, vendor or product"
+                  placeholder={t('ct_po_search')}
                   className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
                 />
               </div>
@@ -108,16 +110,16 @@ export default function OrdersButton({ label = 'Orders', className = '' }) {
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
-                  {f}
+                  {f === 'All' ? t('cat_all') : f === 'Pending' ? t('ct_pending') : t('ct_received')}
                 </button>
               ))}
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 pb-3 space-y-2">
-              {loading && <p className="text-xs text-slate-400 py-6 text-center">Loading orders...</p>}
+              {loading && <p className="text-xs text-slate-400 py-6 text-center">{t('ct_po_loading')}</p>}
               {!loading && visible.length === 0 && (
                 <p className="text-xs text-slate-400 py-8 text-center">
-                  {orders.length === 0 ? 'No purchase orders yet.' : 'No orders match.'}
+                  {orders.length === 0 ? t('ct_po_none') : t('ct_po_no_match')}
                 </p>
               )}
               {visible.map((o) => {
@@ -152,12 +154,12 @@ export default function OrdersButton({ label = 'Orders', className = '' }) {
                             : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         }`}
                       >
-                        {st === 'Request' ? 'Pending' : 'Received'}
+                        {st === 'Request' ? t('ct_pending') : t('ct_received')}
                       </span>
                     </button>
                     {isOpen && (
                       <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 space-y-1">
-                        {lines.length === 0 && <p className="text-[11px] text-slate-400">No product lines.</p>}
+                        {lines.length === 0 && <p className="text-[11px] text-slate-400">{t('ct_po_no_lines')}</p>}
                         {lines.map((l, i) => (
                           <div key={i} className="flex justify-between text-[11px]">
                             <span className="text-slate-700">
@@ -184,7 +186,7 @@ export default function OrdersButton({ label = 'Orders', className = '' }) {
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50"
               >
-                <Truck className="w-3.5 h-3.5" /> Manage in Vendors
+                <Truck className="w-3.5 h-3.5" /> {t('ct_po_manage')}
               </button>
             </div>
           </div>

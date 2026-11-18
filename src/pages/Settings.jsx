@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Racks from './Racks.jsx';
 import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
+import { InvoiceDocument } from '../components/PrintableReceipt.jsx';
 import {
   PAPER_SIZES,
   getPrintPreferences,
@@ -26,6 +27,8 @@ import { useAppDialog } from '../components/AppDialogContext.jsx';
 
 export default function Settings() {
   const { lang, setLang, t } = useLanguage();
+  const paperLabel = (p) => (p.thermal ? t('st_thermal_receipt', { size: p.id }) : p.label);
+  const statusText = (s) => (!s || s === 'Connected' ? t('st_connected') : s === 'Paper Out' ? t('st_paper_out') : s);
   const { showAlert, showConfirm } = useAppDialog();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -121,7 +124,7 @@ export default function Settings() {
   const handleSavePrinterSettings = () => {
     const saved = savePrintPreferences(printPrefs);
     setPrintPrefs(saved);
-    showToast('Printer settings saved.');
+    showToast(t('st_printer_saved'));
   };
 
   const sampleTestInvoice = {
@@ -144,28 +147,28 @@ export default function Settings() {
     if (window.api && window.api.backupDatabase) {
       const res = await window.api.backupDatabase();
       if (res && res.success) {
-        setDbStatusMsg(`Backup saved to: ${res.path}`);
+        setDbStatusMsg(t('st_backup_saved', { path: res.path }));
       }
     }
   };
 
   const handleRestore = async () => {
     const ok = await showConfirm({
-      title: 'Restore Database Backup',
-      message: 'Restore database from a .db backup file?\n\nYour current database will be backed up automatically before replacing.',
-      confirmLabel: 'Choose Backup File',
+      title: t('st_restore_title'),
+      message: t('st_restore_msg'),
+      confirmLabel: t('st_choose_backup'),
       tone: 'warning',
     });
     if (!ok) return;
     if (window.api && window.api.restoreDatabase) {
       const res = await window.api.restoreDatabase();
       if (res && res.success) {
-        setDbStatusMsg(`Restored successfully from: ${res.path}`);
+        setDbStatusMsg(t('st_restored_from', { path: res.path }));
         window.dispatchEvent(new CustomEvent('stock-updated'));
         loadProfile();
       } else if (res && res.error) {
         await showAlert({
-          title: 'Restore Failed',
+          title: t('st_restore_failed'),
           message: res.error,
           tone: 'danger',
         });
@@ -175,15 +178,15 @@ export default function Settings() {
 
   const handleResetDatabase = async () => {
     const ok = await showConfirm({
-      title: 'Reset Database',
-      message: 'WARNING: This will permanently erase all items, racks, bills, vendors, and expenses (keeping your Shop Profile). Continue?',
-      confirmLabel: 'Erase All Data',
+      title: t('st_reset_title'),
+      message: t('st_reset_msg'),
+      confirmLabel: t('st_erase_all'),
       tone: 'danger',
     });
     if (!ok) return;
     if (window.api && window.api.resetDatabase) {
       await window.api.resetDatabase();
-      setDbStatusMsg('Database cleared cleanly. Ready for fresh store setup.');
+      setDbStatusMsg(t('st_db_cleared'));
       window.dispatchEvent(new CustomEvent('stock-updated'));
     }
   };
@@ -244,13 +247,13 @@ export default function Settings() {
             <form onSubmit={handleSave} className="space-y-6">
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900">Shop Profile</h2>
-                  <p className="text-xs text-slate-400">Basic information used in invoices and reports</p>
+                  <h2 className="text-sm font-bold text-slate-900">{t('st_profile_title')}</h2>
+                  <p className="text-xs text-slate-400">{t('st_profile_sub')}</p>
                 </div>
                 {savedSuccess && (
                   <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Saved!
+                    {t('st_saved')}
                   </span>
                 )}
               </div>
@@ -261,7 +264,7 @@ export default function Settings() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Shop Name *
+                        {t('st_shop_name')}
                       </label>
                       <input
                         type="text"
@@ -272,7 +275,7 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Tagline</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_tagline')}</label>
                       <input
                         type="text"
                         value={profile.tagline || ''}
@@ -284,7 +287,7 @@ export default function Settings() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Phone *</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_phone')}</label>
                       <input
                         type="text"
                         required
@@ -294,7 +297,7 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Email</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_email')}</label>
                       <input
                         type="email"
                         value={profile.email || ''}
@@ -306,7 +309,7 @@ export default function Settings() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Address Line 1</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_addr1')}</label>
                       <input
                         type="text"
                         value={profile.address_line1 || ''}
@@ -315,7 +318,7 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Address Line 2</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_addr2')}</label>
                       <input
                         type="text"
                         value={profile.address_line2 || ''}
@@ -327,7 +330,7 @@ export default function Settings() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">City</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_city')}</label>
                       <input
                         type="text"
                         value={profile.city || ''}
@@ -336,7 +339,7 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pincode</label>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_pincode')}</label>
                       <input
                         type="text"
                         value={profile.pincode || ''}
@@ -348,11 +351,11 @@ export default function Settings() {
 
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      GST Number / GSTIN <span className="text-slate-400 font-normal">(Optional — shown on bill only if entered)</span>
+                      {t('st_gstin')} <span className="text-slate-400 font-normal">{t('st_gstin_opt')}</span>
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. 33ABCDE1234F1Z5"
+                      placeholder={t('st_gstin_ph')}
                       value={profile.gstin || ''}
                       onChange={(e) => setProfile({ ...profile, gstin: e.target.value.toUpperCase() })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
@@ -360,7 +363,7 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">Invoice Footer Note</label>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_footer_note')}</label>
                     <textarea
                       rows={2}
                       value={profile.invoice_footer || ''}
@@ -372,7 +375,7 @@ export default function Settings() {
 
                 {/* Right: Shop Logo Card */}
                 <div className="space-y-3">
-                  <label className="block text-[11px] font-semibold text-slate-700">Shop Header Preview</label>
+                  <label className="block text-[11px] font-semibold text-slate-700">{t('st_header_preview')}</label>
                   <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center space-y-2 bg-slate-50/50">
                     <div className="w-14 h-14 rounded-xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-sm shadow-blue-200">
                       <Layers className="w-7 h-7" />
@@ -392,7 +395,7 @@ export default function Settings() {
                   type="submit"
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm shadow-blue-200 transition-colors"
                 >
-                  Save Changes
+                  {t('st_save_changes')}
                 </button>
               </div>
             </form>
@@ -404,24 +407,24 @@ export default function Settings() {
 
           {activeTab === 'Users & Roles' && (
             <div className="space-y-3">
-              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">Users & Access Control</h2>
+              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">{t('st_users_title')}</h2>
               <div className="divide-y divide-slate-100 text-xs">
                 <div className="py-3 flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-slate-800">Franklin (You)</p>
+                    <p className="font-bold text-slate-800">Franklin {t('st_you')}</p>
                     <p className="text-slate-400">{profile.email || 'tspenterprises@gmail.com'}</p>
                   </div>
                   <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold rounded-full border border-blue-200">
-                    ADMIN
+                    {t('st_role_admin')}
                   </span>
                 </div>
                 <div className="py-3 flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-slate-800">Counter Staff 1</p>
-                    <p className="text-slate-400">POS Billing & Catalog View</p>
+                    <p className="font-bold text-slate-800">{t('st_counter_staff')}</p>
+                    <p className="text-slate-400">{t('st_staff_access')}</p>
                   </div>
                   <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 font-semibold rounded-full border border-slate-200">
-                    STAFF
+                    {t('st_role_staff')}
                   </span>
                 </div>
               </div>
@@ -429,12 +432,13 @@ export default function Settings() {
           )}
 
           {activeTab === 'Billing & Print' && (
-            <div className="space-y-5">
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+            <div className="xl:col-span-3 space-y-5 min-w-0">
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900">Printer Configuration</h2>
+                  <h2 className="text-sm font-bold text-slate-900">{t('st_printer_config')}</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Configure default printer, paper size (80mm / 58mm Thermal & A1–A6), and automatic or manual print workflow
+                    {t('st_printer_config_sub')}
                   </p>
                 </div>
                 <button
@@ -444,17 +448,17 @@ export default function Settings() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 transition-colors"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${loadingPrinters ? 'animate-spin' : ''}`} />
-                  <span>Refresh Printers</span>
+                  <span>{t('st_refresh_printers')}</span>
                 </button>
               </div>
 
               {/* Available Printers */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">Available printers</label>
+                <label className="block text-xs font-bold text-slate-700">{t('st_available_printers_lc')}</label>
                 <div className="space-y-2">
                   {printers.length === 0 ? (
                     <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs text-slate-500">
-                      No printers detected. Connect a USB or Network printer and click <strong>Refresh Printers</strong>.
+                      {t('st_no_printers_settings').split(/\{b\}|\{\/b\}/).map((part, i) => (i === 1 ? <strong key={i}>{part}</strong> : <React.Fragment key={i}>{part}</React.Fragment>))}
                     </div>
                   ) : (
                     printers.map((p) => {
@@ -499,14 +503,14 @@ export default function Settings() {
                                 </p>
                                 {p.isDefault && (
                                   <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-semibold">
-                                    Windows Default
+                                    {t('st_windows_default')}
                                   </span>
                                 )}
                               </div>
                               <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                                {p.connectionType || 'Local'} · Installed
+                                {p.connectionType || t('st_local')} · {t('st_installed')}
                                 {p.portName ? ` · ${p.portName}` : ''}
-                                {p.isSimulated ? ' (Browser Preview)' : ''}
+                                {p.isSimulated ? ` ${t('st_browser_preview')}` : ''}
                               </p>
                             </div>
                           </div>
@@ -515,7 +519,7 @@ export default function Settings() {
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border flex-shrink-0 ${statusCls}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${dotCls}`} />
-                            {p.statusLabel || 'Connected'}
+                            {statusText(p.statusLabel)}
                           </span>
                         </button>
                       );
@@ -527,23 +531,23 @@ export default function Settings() {
               {/* Format, Orientation & After-Payment Behavior */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">Default invoice format</label>
+                  <label className="block font-bold text-slate-700 mb-1.5">{t('st_default_format')}</label>
                   <select
                     value={printPrefs.format}
                     onChange={(e) => handlePrintPrefsChange({ format: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <optgroup label="Thermal Roll">
+                    <optgroup label={t('st_thermal_roll')}>
                       {PAPER_SIZES.filter((p) => p.thermal).map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.label}
+                          {paperLabel(p)}
                         </option>
                       ))}
                     </optgroup>
-                    <optgroup label="ISO Paper Sizes (A1 – A6)">
+                    <optgroup label={t('st_iso_sizes')}>
                       {PAPER_SIZES.filter((p) => !p.thermal).map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.label}
+                          {paperLabel(p)}
                         </option>
                       ))}
                     </optgroup>
@@ -551,27 +555,27 @@ export default function Settings() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">Default orientation</label>
+                  <label className="block font-bold text-slate-700 mb-1.5">{t('st_default_orientation')}</label>
                   <select
                     value={printPrefs.orientation || 'portrait'}
                     onChange={(e) => handlePrintPrefsChange({ orientation: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="portrait">Portrait</option>
-                    <option value="landscape">Landscape</option>
+                    <option value="portrait">{t('st_portrait')}</option>
+                    <option value="landscape">{t('st_landscape')}</option>
                   </select>
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1.5">After successful payment</label>
+                  <label className="block font-bold text-slate-700 mb-1.5">{t('st_after_payment')}</label>
                   <select
                     value={printPrefs.afterPayment || (printPrefs.autoPrint ? 'auto' : 'preview')}
                     onChange={(e) => handlePrintPrefsChange({ afterPayment: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="auto">Automatically print (direct to default printer, ready for next customer)</option>
-                    <option value="preview">Open print preview (choose A1–A6 / thermal, printer, or system dialog)</option>
-                    <option value="none">Do not print automatically (save invoice only)</option>
+                    <option value="auto">{t('st_opt_auto')}</option>
+                    <option value="preview">{t('st_opt_preview')}</option>
+                    <option value="none">{t('st_opt_none')}</option>
                   </select>
                 </div>
               </div>
@@ -585,7 +589,7 @@ export default function Settings() {
                     onChange={(e) => handlePrintPrefsChange({ autoPrint: e.target.checked })}
                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-slate-700 font-medium">Print automatically after successful payment</span>
+                  <span className="text-slate-700 font-medium">{t('st_chk_auto')}</span>
                 </label>
 
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -595,7 +599,7 @@ export default function Settings() {
                     onChange={(e) => handlePrintPrefsChange({ openPreviewOnManual: e.target.checked })}
                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-slate-700 font-medium">Open print preview when manually requested</span>
+                  <span className="text-slate-700 font-medium">{t('st_chk_preview_manual')}</span>
                 </label>
 
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -605,7 +609,7 @@ export default function Settings() {
                     onChange={(e) => handlePrintPrefsChange({ allowHistoryReprint: e.target.checked })}
                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-slate-700 font-medium">Allow reprinting invoices from Sales History</span>
+                  <span className="text-slate-700 font-medium">{t('st_chk_reprint')}</span>
                 </label>
 
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -615,7 +619,7 @@ export default function Settings() {
                     onChange={(e) => handlePrintPrefsChange({ enablePdfExport: e.target.checked })}
                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-slate-700 font-medium">Enable A1–A6 PDF export</span>
+                  <span className="text-slate-700 font-medium">{t('st_chk_pdf')}</span>
                 </label>
               </div>
 
@@ -630,7 +634,7 @@ export default function Settings() {
                   className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 flex items-center justify-center gap-2 transition-colors"
                 >
                   <Printer className="w-4 h-4 text-slate-600" />
-                  <span>Print Test Page</span>
+                  <span>{t('st_print_test')}</span>
                 </button>
 
                 <button
@@ -638,9 +642,39 @@ export default function Settings() {
                   onClick={handleSavePrinterSettings}
                   className="w-full py-2.5 px-4 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-600/20 active:scale-[0.99] transition-all"
                 >
-                  Save Printer Settings
+                  {t('st_save_printer')}
                 </button>
               </div>
+            </div>
+
+            {/* Live bill preview (updates as you change format / orientation) */}
+            <div className="xl:col-span-2 xl:sticky xl:top-2 min-w-0">
+              {(() => {
+                const fmt = printPrefs.format;
+                const landscape = (printPrefs.orientation || 'portrait') === 'landscape';
+                const widthClass =
+                  fmt === '58mm' ? 'max-w-[260px]'
+                  : fmt === '80mm' ? 'max-w-[330px]'
+                  : fmt === 'A6' ? 'max-w-[400px]'
+                  : landscape ? 'max-w-[460px]' : 'max-w-[400px]';
+                return (
+                  <div className="rounded-xl border border-slate-200 bg-slate-100/90 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-slate-800">{t('st_bill_preview')}</p>
+                      <span className="text-[11px] font-medium text-slate-500">
+                        {fmt} · {landscape ? t('st_landscape') : t('st_portrait')}
+                      </span>
+                    </div>
+                    <div className="max-h-[calc(100vh-190px)] overflow-y-auto flex justify-center">
+                      <div className={`w-full ${widthClass} bg-white rounded-lg shadow-lg border border-slate-200/90 overflow-hidden`}>
+                        <InvoiceDocument invoice={sampleTestInvoice} profile={profile} format={fmt} inlinePreview={true} />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-400 text-center mt-2.5">{t('st_sample_bill')}</p>
+                  </div>
+                );
+              })()}
+            </div>
             </div>
           )}
 
@@ -700,14 +734,14 @@ export default function Settings() {
 
           {activeTab === 'Database' && (
             <div className="space-y-5">
-              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">Database Maintenance & Backup</h2>
+              <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">{t('st_db_title')}</h2>
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs space-y-2">
-                <p className="text-slate-500 font-medium">Local SQLite Database Storage:</p>
+                <p className="text-slate-500 font-medium">{t('st_db_storage')}</p>
                 <p className="font-mono bg-white p-2 rounded border border-slate-200 text-slate-800 break-all select-all">
                   {dbPath}
                 </p>
                 <p className="text-slate-400 text-[11px]">
-                  All inventory, bills, racks, vendors, and expenses are stored offline in this single SQLite file.
+                  {t('st_db_note')}
                 </p>
               </div>
 
@@ -724,7 +758,7 @@ export default function Settings() {
                   className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Backup Database (.db)</span>
+                  <span>{t('st_backup_btn')}</span>
                 </button>
 
                 <button
@@ -732,19 +766,19 @@ export default function Settings() {
                   className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-800 rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors"
                 >
                   <Upload className="w-4 h-4 text-slate-600" />
-                  <span>Restore From Backup (.db)</span>
+                  <span>{t('st_restore_btn')}</span>
                 </button>
               </div>
 
               <div className="pt-4 border-t border-slate-100 space-y-2.5">
-                <p className="text-xs font-bold text-slate-700">Danger Zone</p>
+                <p className="text-xs font-bold text-slate-700">{t('st_danger_zone')}</p>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={handleResetDatabase}
                     className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Clear All Data (Start Fresh)</span>
+                    <span>{t('st_clear_all')}</span>
                   </button>
                 </div>
               </div>
@@ -758,7 +792,7 @@ export default function Settings() {
         <PrintPreviewModal
           invoice={sampleTestInvoice}
           profile={profile}
-          primaryCloseLabel="Close Preview"
+          primaryCloseLabel={t('st_close_preview')}
           onClose={() => setShowTestPreview(false)}
         />
       )}

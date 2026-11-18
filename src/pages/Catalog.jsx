@@ -1,3 +1,4 @@
+import BinPicker from '../components/BinPicker.jsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -37,6 +38,7 @@ import { fuzzyFilter } from '../lib/fuzzySearch.js';
 import { getBilingualSearchFields } from '../i18n/productTamil.js';
 import ExportMenu from '../components/ExportMenu.jsx';
 import OrdersButton from '../components/OrdersButton.jsx';
+import BinLocation, { LocateButton, LocationModal } from '../components/BinLocation.jsx';
 
 const VIEW_MODES = [
   { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12 },
@@ -57,7 +59,7 @@ const EMPTY_FORM = {
   cost_price: '',
   quantity: '',
   reorder_level: '20',
-  bin_id: 'R01-L1-S1',
+  bin_id: '',
   image_url: '',
   status: 'Available',
 };
@@ -71,6 +73,8 @@ export default function Catalog() {
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [availableBins, setAvailableBins] = useState([]);
+  const [racks, setRacks] = useState([]);
+  const [locateItem, setLocateItem] = useState(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [brandFilter, setBrandFilter] = useState('All');
@@ -187,9 +191,10 @@ export default function Catalog() {
 
   const loadRackBins = async () => {
     if (window.api && window.api.getRacks) {
-      const racks = await window.api.getRacks();
+      const rackList = await window.api.getRacks();
+      setRacks(rackList || []);
       const bins = [];
-      (racks || []).forEach((r) => {
+      (rackList || []).forEach((r) => {
         (r.bins || []).forEach((b) => {
           bins.push({ code: b.bin_code, label: `${b.bin_code} (${r.name})` });
         });
@@ -229,9 +234,9 @@ export default function Catalog() {
 
   const handleDelete = async (id) => {
     const ok = await showConfirm({
-      title: 'Delete Product',
-      message: 'Are you sure you want to delete this item from your catalog?',
-      confirmLabel: 'Delete',
+      title: t('ct_delete_title'),
+      message: t('ct_delete_msg'),
+      confirmLabel: t('ct_delete'),
       tone: 'danger',
     });
     if (ok) {
@@ -278,12 +283,12 @@ export default function Catalog() {
     e.preventDefault();
     setFormError('');
     if (!form.name.trim() || form.selling_price === '') {
-      setFormError('Please fill Item Name and Selling Price.');
+      setFormError(t('ct_err_required'));
       return;
     }
 
     if (!window.api) {
-      setFormError('Database API unavailable. Please reload the app.');
+      setFormError(t('ct_err_api'));
       return;
     }
 
@@ -313,7 +318,7 @@ export default function Catalog() {
         : await window.api.addItem(payload);
 
       if (res && res.success === false) {
-        setFormError(res.error || 'Could not save product.');
+        setFormError(res.error || t('ct_err_save'));
         return;
       }
 
@@ -322,9 +327,9 @@ export default function Catalog() {
       setForm(EMPTY_FORM);
       await loadItems();
       window.dispatchEvent(new CustomEvent('stock-updated'));
-      showToast(editingItem ? 'Product updated.' : `Added "${payload.name}" (${resolvedSku}).`);
+      showToast(editingItem ? t('ct_toast_updated') : t('ct_toast_added', { name: payload.name, sku: resolvedSku }));
     } catch (err) {
-      setFormError(err.message || 'Failed to save product.');
+      setFormError(err.message || t('ct_err_save_failed'));
     }
   };
 
@@ -334,7 +339,7 @@ export default function Catalog() {
     setModalMode('library');
     setForm({
       ...EMPTY_FORM,
-      bin_id: availableBins[0]?.code || 'R01-L1-S1',
+      bin_id: availableBins[0]?.code || '',
     });
     loadRackBins();
     setShowAddModal(true);
@@ -355,7 +360,7 @@ export default function Catalog() {
       cost_price: item.cost_price,
       quantity: item.quantity,
       reorder_level: item.reorder_level,
-      bin_id: item.bin_id || 'R01-L1-S1',
+      bin_id: item.bin_id || '',
       image_url: item.image_url || '',
       status: item.status === 'Unavailable' || item.status === 'Inactive' ? 'Unavailable' : 'Available',
     });
@@ -371,12 +376,15 @@ export default function Catalog() {
       await loadItems();
       window.dispatchEvent(new CustomEvent('stock-updated'));
       showToast(
-        `Saved ${res.count} size${res.count === 1 ? '' : 's'}${totalUnits ? ` (+${totalUnits} units)` : ''} to catalog.`
+        t(res.count === 1 ? 'ct_toast_saved_one' : 'ct_toast_saved_many', {
+          count: res.count,
+          units: totalUnits ? t('ct_units_suffix', { units: totalUnits }) : '',
+        })
       );
     } else {
       await showAlert({
-        title: 'Could Not Add Tools',
-        message: res?.error || 'Failed to add selected tools.',
+        title: t('ct_add_tools_fail_title'),
+        message: res?.error || t('ct_add_tools_fail_msg'),
         tone: 'danger',
       });
     }
@@ -396,7 +404,7 @@ export default function Catalog() {
       cost_price: String(itemPayload.cost_price ?? ''),
       quantity: String(itemPayload.quantity ?? '10'),
       reorder_level: String(itemPayload.reorder_level ?? '10'),
-      bin_id: itemPayload.bin_id || availableBins[0]?.code || 'R01-L1-S1',
+      bin_id: itemPayload.bin_id || availableBins[0]?.code || '',
       image_url: itemPayload.image_url || '',
     });
     setModalMode('manual');
@@ -451,8 +459,8 @@ export default function Catalog() {
       const lines = text.split(/\r?\n/).filter((l) => l.trim());
       if (lines.length < 2) {
         await showAlert({
-          title: 'Invalid CSV File',
-          message: 'CSV file must have a header row and at least one product row.',
+          title: t('ct_csv_invalid_title'),
+          message: t('ct_csv_invalid_msg'),
           tone: 'warning',
         });
         return;
@@ -482,21 +490,28 @@ export default function Catalog() {
       if (window.api && window.api.bulkImportItems) {
         const res = await window.api.bulkImportItems(parsedItems);
         if (res && res.success) {
-          showToast(`Imported / updated ${res.count} products from CSV.`);
+          showToast(t('ct_csv_imported', { count: res.count }));
+          if (res.invalidBins && res.invalidBins.length) {
+            await showAlert({
+              title: t('ct_csv_bins_title'),
+              message: t('ct_csv_bins_msg', { bins: res.invalidBins.join(', ') }),
+              tone: 'warning',
+            });
+          }
           await loadItems();
           window.dispatchEvent(new CustomEvent('stock-updated'));
         } else {
           await showAlert({
-            title: 'CSV Import Failed',
-            message: res?.error || 'CSV import failed.',
+            title: t('ct_csv_failed_title'),
+            message: res?.error || t('ct_csv_failed_msg'),
             tone: 'danger',
           });
         }
       }
     } catch (err) {
       await showAlert({
-        title: 'CSV Read Error',
-        message: `Failed to read CSV: ${err.message}`,
+        title: t('ct_csv_read_title'),
+        message: t('ct_csv_read_msg', { error: err.message }),
         tone: 'danger',
       });
     } finally {
@@ -564,7 +579,7 @@ export default function Catalog() {
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all"
-            title="Import products from CSV (sku, name, size, unit, category, brand, selling_price, cost_price, quantity, reorder_level, bin_id)"
+            title={t('ct_csv_import_title')}
           >
             <Upload className="w-3.5 h-3.5 text-slate-500" />
             <span>{t('cat_import_csv')}</span>
@@ -740,7 +755,7 @@ export default function Catalog() {
                         <div className="font-semibold text-slate-900">{tName(item.name)}</div>
                         <div className="text-[11px] text-slate-400">
                           {tCategory(item.category)} {item.brand ? `· ${item.brand}` : ''} · {t('dash_shelf')}:{' '}
-                          <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
+                          <BinLocation bin={item.bin_id} racks={racks} className="text-blue-600 font-medium" />
                         </div>
                       </div>
                     </div>
@@ -778,17 +793,18 @@ export default function Catalog() {
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-2 text-slate-400">
+                      <LocateButton item={item} onLocate={setLocateItem} size="sm" />
                       <button
                         onClick={() => openEdit(item)}
                         className="p-1 hover:text-blue-600 hover:bg-slate-100 rounded transition-colors"
-                        title="Edit Item"
+                        title={t('ct_edit_item')}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
                         className="p-1 hover:text-rose-600 hover:bg-slate-100 rounded transition-colors"
-                        title="Delete Item"
+                        title={t('ct_delete_item')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -842,7 +858,7 @@ export default function Catalog() {
                       )}
                       <p className="text-[11px] text-slate-400 truncate mt-0.5">
                         {tCategory(item.category)}{item.brand ? ` · ${item.brand}` : ''} ·{' '}
-                        <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
+                        <BinLocation bin={item.bin_id} racks={racks} className="text-blue-600 font-medium" />
                       </p>
                     </div>
 
@@ -854,17 +870,18 @@ export default function Catalog() {
                         )}
                       </span>
                       <div className="flex items-center gap-1 text-slate-400">
+                        <LocateButton item={item} onLocate={setLocateItem} size="lg" />
                         <button
                           onClick={() => openEdit(item)}
                           className="p-1.5 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit Item"
+                          title={t('ct_edit_item')}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(item.id)}
                           className="p-1.5 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Delete Item"
+                          title={t('ct_delete_item')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -919,17 +936,18 @@ export default function Catalog() {
                         )}
                       </span>
                       <div className="flex items-center gap-0.5 text-slate-400 flex-shrink-0">
+                        <LocateButton item={item} onLocate={setLocateItem} size="sm" />
                         <button
                           onClick={() => openEdit(item)}
                           className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Edit Item"
+                          title={t('ct_edit_item')}
                         >
                           <Edit2 className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => handleDelete(item.id)}
                           className="p-1 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                          title="Delete Item"
+                          title={t('ct_delete_item')}
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -958,7 +976,7 @@ export default function Catalog() {
                       e.stopPropagation();
                       handleDelete(item.id);
                     }}
-                    title="Delete Item"
+                    title={t('ct_delete_item')}
                     className="opacity-0 group-hover:opacity-100 absolute top-1.5 right-1.5 p-1 rounded bg-white/90 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -995,8 +1013,11 @@ export default function Catalog() {
         {/* Footer with Real Pagination */}
         <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-medium">
           <span>
-            Showing {filteredItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} –{' '}
-            {Math.min(currentPage * pageSize, filteredItems.length)} of {filteredItems.length} items
+            {t('ct_showing_range', {
+              from: filteredItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1,
+              to: Math.min(currentPage * pageSize, filteredItems.length),
+              total: filteredItems.length,
+            })}
           </span>
 
           <div className="flex items-center gap-1">
@@ -1005,7 +1026,7 @@ export default function Catalog() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Prev
+              {t('ct_prev')}
             </button>
             <span className="px-2.5 py-1 bg-blue-600 text-white rounded font-bold shadow-sm">
               {currentPage} / {totalPages}
@@ -1015,13 +1036,15 @@ export default function Catalog() {
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               className="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Next
+              {t('ct_next')}
             </button>
           </div>
         </div>
       </div>
 
       {/* Add / Edit Modal */}
+      {locateItem && <LocationModal item={locateItem} racks={racks} onClose={() => setLocateItem(null)} />}
+
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className={`animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-3xl' : 'max-w-lg'}`}>
@@ -1032,7 +1055,7 @@ export default function Catalog() {
                   <button
                     type="button"
                     onClick={() => setModalMode('library')}
-                    title="Back to Tool Library"
+                    title={t('ct_back_to_library')}
                     className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   >
                     <ArrowLeft className="w-4 h-4" />
@@ -1055,7 +1078,7 @@ export default function Catalog() {
                       setFormError('');
                       setForm({
                         ...EMPTY_FORM,
-                        bin_id: availableBins[0]?.code || 'R01-L1-S1',
+                        bin_id: availableBins[0]?.code || '',
                       });
                       setModalMode('manual');
                     }}
@@ -1107,13 +1130,13 @@ export default function Catalog() {
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  title="Upload product image from folder"
+                  title={t('ct_upload_photo_title')}
                   className="relative w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-500 flex items-center justify-center flex-shrink-0 transition-all group cursor-pointer"
                 >
                   {form.image_url ? (
                     <img
                       src={form.image_url}
-                      alt={form.name || 'Product'}
+                      alt={form.name || t('ct_product_alt')}
                       className="w-full h-full object-contain rounded-xl p-1 bg-white"
                     />
                   ) : (
@@ -1124,9 +1147,9 @@ export default function Catalog() {
                   </span>
                 </button>
                 <div className="text-xs">
-                  <p className="font-semibold text-slate-800">Product Photo</p>
+                  <p className="font-semibold text-slate-800">{t('ct_product_photo')}</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Click the camera icon to upload from your computer
+                    {t('ct_photo_hint')}
                   </p>
                   {form.image_url && (
                     <button
@@ -1134,7 +1157,7 @@ export default function Catalog() {
                       onClick={() => setForm({ ...form, image_url: '' })}
                       className="text-[11px] font-semibold text-rose-600 hover:underline mt-1"
                     >
-                      Remove photo
+                      {t('ct_remove_photo')}
                     </button>
                   )}
                 </div>
@@ -1142,10 +1165,10 @@ export default function Catalog() {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[11px] font-semibold text-slate-700">Item Name *</label>
+                  <label className="block text-[11px] font-semibold text-slate-700">{t('ct_item_name')}</label>
                   {form.name.trim() && (
                     <span className="text-[10px] font-mono text-slate-400">
-                      Code:{' '}
+                      {t('ct_code')}{' '}
                       <strong className="text-slate-600">
                         {editingItem
                           ? form.sku
@@ -1159,7 +1182,7 @@ export default function Catalog() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Hex Bolt, Ball Peen Hammer, PVC Pipe..."
+                  placeholder={t('ct_name_ph')}
                   value={form.name}
                   onChange={(e) => {
                     setFormError('');
@@ -1171,21 +1194,21 @@ export default function Catalog() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Size / Dimension</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('ct_size_dim')}</label>
                   <input
                     type="text"
-                    placeholder="e.g. M8 x 40"
+                    placeholder={t('ct_size_ph')}
                     value={form.size}
                     onChange={(e) => setForm({ ...form, size: e.target.value, sku: editingItem ? form.sku : '' })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Brand</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('ct_brand')}</label>
                   <input
                     type="text"
                     list="brand-suggestions"
-                    placeholder="e.g. Unbrako, Bosch, Taparia"
+                    placeholder={t('ct_brand_ph')}
                     value={form.brand}
                     onChange={(e) => setForm({ ...form, brand: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
@@ -1205,23 +1228,20 @@ export default function Catalog() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Category</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('ct_category')}</label>
                   <select
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="Fasteners">Fasteners</option>
-                    <option value="Tools">Tools</option>
-                    <option value="Electrical">Electrical</option>
-                    <option value="Plumbing">Plumbing</option>
-                    <option value="Paints & Adhesives">Paints & Adhesives</option>
-                    <option value="Others">Others</option>
+                    {['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'].map((c) => (
+                      <option key={c} value={c}>{tCategory(c)}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Measurement / Unit
+                    {t('ct_unit_label')}
                   </label>
                   <select
                     value={normalizeUnit(form.unit)}
@@ -1229,10 +1249,10 @@ export default function Catalog() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500"
                   >
                     {UNIT_OPTIONS.map((grp) => (
-                      <optgroup key={grp.group} label={grp.group}>
+                      <optgroup key={grp.group} label={t(`ct_unit_group_${grp.group}`)}>
                         {grp.units.map((u) => (
                           <option key={u.value} value={u.value}>
-                            {u.label}
+                            {t(`ct_unit_${u.value}`)}
                           </option>
                         ))}
                       </optgroup>
@@ -1244,7 +1264,7 @@ export default function Catalog() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Selling Price (₹ / {normalizeUnit(form.unit)}) *
+                    {t('ct_selling_price', { unit: normalizeUnit(form.unit) })}
                   </label>
                   <input
                     type="number"
@@ -1259,7 +1279,7 @@ export default function Catalog() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Cost Price (₹ / {normalizeUnit(form.unit)})
+                    {t('ct_cost_price', { unit: normalizeUnit(form.unit) })}
                   </label>
                   <input
                     type="number"
@@ -1273,7 +1293,7 @@ export default function Catalog() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    {editingItem ? `Stock (${normalizeUnit(form.unit)})` : `Initial Stock (${normalizeUnit(form.unit)})`}
+                    {t(editingItem ? 'ct_stock_unit' : 'ct_initial_stock_unit', { unit: normalizeUnit(form.unit) })}
                   </label>
                   <input
                     type="number"
@@ -1288,7 +1308,7 @@ export default function Catalog() {
 
                 {parseFloat(form.selling_price) > 0 && form.cost_price !== '' && (
                   <div className="col-span-3 bg-blue-50/70 border border-blue-100 rounded-lg p-2.5 flex items-center justify-between text-xs">
-                    <span className="text-slate-600 font-medium">Estimated Margin:</span>
+                    <span className="text-slate-600 font-medium">{t('ct_est_margin')}</span>
                     <span className="font-bold text-emerald-700">
                       ₹ {(parseFloat(form.selling_price) - (parseFloat(form.cost_price) || 0)).toFixed(2)} (
                       {(
@@ -1304,26 +1324,12 @@ export default function Catalog() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack / Shelf Bin</label>
-                  <input
-                    type="text"
-                    list="rack-bins-list"
-                    placeholder="e.g. R01-L1-S1"
-                    value={form.bin_id}
-                    onChange={(e) => setForm({ ...form, bin_id: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  />
-                  <datalist id="rack-bins-list">
-                    {availableBins.map((b) => (
-                      <option key={b.code} value={b.code}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </datalist>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('ct_rack_bin')}</label>
+                  <BinPicker value={form.bin_id} onChange={(code) => setForm({ ...form, bin_id: code })} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Reorder Level ({normalizeUnit(form.unit)})
+                    {t('ct_reorder_unit', { unit: normalizeUnit(form.unit) })}
                   </label>
                   <input
                     type="number"
@@ -1356,13 +1362,13 @@ export default function Catalog() {
                   onClick={() => setShowAddModal(false)}
                   className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                  Cancel
+                  {t('cat_cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold shadow-sm hover:bg-blue-700"
                 >
-                  {editingItem ? 'Save Changes' : 'Create Product'}
+                  {editingItem ? t('ct_save_changes') : t('ct_create_product')}
                 </button>
               </div>
             </form>

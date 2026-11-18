@@ -37,9 +37,16 @@ export function LanguageProvider({ children }) {
     setLangState((prev) => (prev === 'en' ? 'ta' : 'en'));
   };
 
-  const t = (key) => {
+  // t('key') or t('key', { n: 3 }) — replaces {n} placeholders in the translated text
+  const t = (key, params) => {
     const dict = translations[lang] || translations.en;
-    return dict[key] ?? translations.en[key] ?? key;
+    let text = dict[key] ?? translations.en[key] ?? key;
+    if (params) {
+      Object.keys(params).forEach((p) => {
+        text = text.split(`{${p}}`).join(String(params[p]));
+      });
+    }
+    return text;
   };
 
   const tName = (name) => translateProductName(name, lang);

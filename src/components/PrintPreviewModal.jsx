@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import PrintableReceipt, { InvoiceDocument } from './PrintableReceipt.jsx';
 import PrintErrorBanner from './PrintErrorBanner.jsx';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import {
   PAPER_SIZES,
   getPrintPreferences,
@@ -22,9 +23,12 @@ export default function PrintPreviewModal({
   invoice,
   profile,
   onClose,
-  primaryCloseLabel = 'Next Customer',
+  primaryCloseLabel,
   zeroStockAlerts = [],
 }) {
+  const { t } = useLanguage();
+  const paperLabel = (p) => (p.thermal ? t('st_thermal_receipt', { size: p.id }) : p.label);
+  const statusText = (s) => (!s || s === 'Connected' ? t('st_connected') : s === 'Paper Out' ? t('st_paper_out') : s);
   const initialPrefs = getPrintPreferences();
   const [format, setFormat] = useState(initialPrefs.format || '80mm');
   const [orientation, setOrientation] = useState(initialPrefs.orientation || 'portrait');
@@ -69,8 +73,8 @@ export default function PrintPreviewModal({
         if (chosen && chosen.connectionState && chosen.connectionState !== 'connected') {
           setPrintError(
             chosen.statusLabel === 'Paper Out'
-              ? 'The printer is out of paper. Load paper and retry.'
-              : 'The printer is unavailable or disconnected.'
+              ? t('st_printer_no_paper')
+              : t('st_printer_unavailable')
           );
           return;
         }
@@ -84,12 +88,12 @@ export default function PrintPreviewModal({
       });
       if (res && res.success) {
         setPrintError('');
-        setStatusMsg(useSystemDialog ? 'Print dialog opened.' : `Sent to ${selectedPrinter || 'default printer'} (${spec.id}).`);
+        setStatusMsg(useSystemDialog ? t('st_print_dialog_opened') : t('st_sent_to', { printer: selectedPrinter || t('st_default_printer'), size: spec.id }));
       } else {
-        setPrintError(res?.error || 'The printer is unavailable or disconnected.');
+        setPrintError(res?.error || t('st_printer_unavailable'));
       }
     } catch (err) {
-      setPrintError(err.message || 'The printer is unavailable or disconnected.');
+      setPrintError(err.message || t('st_printer_unavailable'));
     } finally {
       setPrinting(false);
     }
@@ -106,7 +110,7 @@ export default function PrintPreviewModal({
       });
       if (res && res.success) {
         setPrintError('');
-        setStatusMsg(res.path ? `Saved PDF: ${res.path}` : `Opened PDF export (${spec.id}).`);
+        setStatusMsg(res.path ? t('st_saved_pdf', { path: res.path }) : t('st_opened_pdf', { size: spec.id }));
       }
     } finally {
       setPrinting(false);
@@ -135,10 +139,10 @@ export default function PrintPreviewModal({
             </div>
             <div>
               <h3 className="text-sm font-extrabold text-slate-900 tracking-tight">
-                Print Preview · <span className="font-mono text-blue-600">#{invoice.invoice_number}</span>
+                {t('st_print_preview')} · <span className="font-mono text-blue-600">#{invoice.invoice_number}</span>
               </h3>
               <p className="text-[11px] text-slate-500 font-medium">
-                {spec.label} · {orientation === 'landscape' ? 'Landscape' : 'Portrait'} · Compatible with A1–A6 & Thermal
+                {paperLabel(spec)} · {orientation === 'landscape' ? t('st_landscape') : t('st_portrait')} · {t('st_compat_line')}
               </p>
             </div>
           </div>
@@ -146,6 +150,8 @@ export default function PrintPreviewModal({
           <button
             type="button"
             onClick={onClose}
+            title={t('st_close')}
+            aria-label={t('st_close')}
             className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors"
           >
             <X className="w-4 h-4" />
@@ -176,7 +182,7 @@ export default function PrintPreviewModal({
                 <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 space-y-1">
                   <div className="flex items-center gap-1.5 font-bold text-rose-900">
                     <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                    <span>Stock Exhausted (0 Remaining):</span>
+                    <span>{t('st_stock_exhausted')}</span>
                   </div>
                   <ul className="list-disc list-inside text-[11px] text-rose-700 font-medium">
                     {zeroStockAlerts.map((i) => (
@@ -192,7 +198,7 @@ export default function PrintPreviewModal({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                    Available Printers
+                    {t('st_available_printers')}
                   </label>
                   <button
                     type="button"
@@ -201,14 +207,14 @@ export default function PrintPreviewModal({
                     className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700"
                   >
                     <RefreshCw className={`w-3 h-3 ${loadingPrinters ? 'animate-spin' : ''}`} />
-                    <span>Refresh</span>
+                    <span>{t('st_refresh')}</span>
                   </button>
                 </div>
 
                 <div className="space-y-1.5 max-h-40 overflow-y-auto pr-0.5">
                   {printers.length === 0 ? (
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
-                      No printers detected. Use <strong>System Print Dialog</strong> to print.
+                      {t('st_no_printers_modal').split(/\{b\}|\{\/b\}/).map((part, i) => (i === 1 ? <strong key={i}>{part}</strong> : <React.Fragment key={i}>{part}</React.Fragment>))}
                     </div>
                   ) : (
                     printers.map((p) => {
@@ -241,7 +247,7 @@ export default function PrintPreviewModal({
                                 {p.displayName || p.name}
                               </p>
                               <p className="text-[10px] text-slate-500 truncate">
-                                {p.connectionType || 'Local'} · {p.isDefault ? 'Default' : 'Installed'}
+                                {p.connectionType || t('st_local')} · {p.isDefault ? t('st_default') : t('st_installed')}
                                 {p.portName ? ` (${p.portName})` : ''}
                               </p>
                             </div>
@@ -249,7 +255,7 @@ export default function PrintPreviewModal({
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex-shrink-0 ${badgeCls}`}
                           >
-                            {p.statusLabel || 'Connected'}
+                            {statusText(p.statusLabel)}
                           </span>
                         </button>
                       );
@@ -262,24 +268,24 @@ export default function PrintPreviewModal({
               <div className="grid grid-cols-3 gap-2.5">
                 <div className="col-span-2">
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Paper Size (A1–A6 / Thermal)
+                    {t('st_paper_size_label')}
                   </label>
                   <select
                     value={format}
                     onChange={(e) => setFormat(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <optgroup label="Thermal Roll">
+                    <optgroup label={t('st_thermal_roll')}>
                       {PAPER_SIZES.filter((p) => p.thermal).map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.label}
+                          {paperLabel(p)}
                         </option>
                       ))}
                     </optgroup>
-                    <optgroup label="Standard Paper (A1 – A6)">
+                    <optgroup label={t('st_standard_paper')}>
                       {PAPER_SIZES.filter((p) => !p.thermal).map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.label}
+                          {paperLabel(p)}
                         </option>
                       ))}
                     </optgroup>
@@ -288,7 +294,7 @@ export default function PrintPreviewModal({
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Orientation
+                    {t('st_orientation')}
                   </label>
                   <select
                     value={orientation}
@@ -296,8 +302,8 @@ export default function PrintPreviewModal({
                     onChange={(e) => setOrientation(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
-                    <option value="portrait">Portrait</option>
-                    <option value="landscape">Landscape</option>
+                    <option value="portrait">{t('st_portrait')}</option>
+                    <option value="landscape">{t('st_landscape')}</option>
                   </select>
                 </div>
               </div>
@@ -333,7 +339,7 @@ export default function PrintPreviewModal({
                 className="w-full py-2.5 px-4 bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-600/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-60"
               >
                 <Printer className="w-4 h-4" />
-                <span>Print Now ({spec.id})</span>
+                <span>{t('st_print_now', { size: spec.id })}</span>
               </button>
 
               <div className="grid grid-cols-2 gap-2">
@@ -344,7 +350,7 @@ export default function PrintPreviewModal({
                   className="py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
-                  <span>System Dialog</span>
+                  <span>{t('st_system_dialog')}</span>
                 </button>
 
                 {initialPrefs.enablePdfExport !== false && (
@@ -355,7 +361,7 @@ export default function PrintPreviewModal({
                     className="py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <FileDown className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Export PDF</span>
+                    <span>{t('st_export_pdf')}</span>
                   </button>
                 )}
               </div>
@@ -365,7 +371,7 @@ export default function PrintPreviewModal({
                 onClick={onClose}
                 className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
               >
-                {primaryCloseLabel}
+                {primaryCloseLabel || t('st_next_customer')}
               </button>
             </div>
           </div>

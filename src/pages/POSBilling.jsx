@@ -52,6 +52,7 @@ const getBaseQty = (cartItem) => {
   return convertUnit(numericQty, billingUnit, baseUnit);
 };
 
+const PAY_LABEL = { Cash: 'pos_cash', Card: 'pos_card', UPI: 'pos_upi' };
 const DRAFT_BILLS_KEY = 'tsp_pos_draft_bills_v1';
 
 const createEmptyBill = (id = `bill-${Date.now()}`) => ({
@@ -293,7 +294,7 @@ export default function POSBilling() {
           size: item.size || '',
           brand: item.brand || 'Generic',
           category: item.category || 'Hardware',
-          bin: item.bin_id || 'R01-L1-S1',
+          bin: item.bin_id || '',
           baseUnit,
           billingUnit: baseUnit,
           qty: 1,
@@ -388,9 +389,9 @@ export default function POSBilling() {
   const clearCart = async () => {
     if (activeBill.cart.length === 0) return;
     const ok = await showConfirm({
-      title: 'Clear Cart',
-      message: 'Clear all items from this bill?',
-      confirmLabel: 'Clear Cart',
+      title: t('po_clear_cart_title'),
+      message: t('po_clear_cart_msg'),
+      confirmLabel: t('pos_clear_cart'),
       tone: 'danger',
     });
     if (ok) {
@@ -402,8 +403,8 @@ export default function POSBilling() {
   const addNewBill = () => {
     if (bills.length >= 10) {
       showAlert({
-        title: 'Bill Limit Reached',
-        message: 'Maximum 10 concurrent bills allowed.',
+        title: t('po_limit_title'),
+        message: t('po_limit_msg'),
         tone: 'warning',
       });
       return;
@@ -431,9 +432,9 @@ export default function POSBilling() {
     const target = bills.find((b) => b.id === billId);
     if (target && target.cart.length > 0) {
       const ok = await showConfirm({
-        title: 'Close Bill Tab',
-        message: `Close bill for ${target.customerName}? Items in this bill will be discarded.`,
-        confirmLabel: 'Discard & Close',
+        title: t('po_close_tab_title'),
+        message: t('po_close_tab_msg', { name: target.customerName === 'Walk-in Customer' ? t('po_walkin') : target.customerName }),
+        confirmLabel: t('po_discard_close'),
         tone: 'danger',
       });
       if (!ok) return;
@@ -469,8 +470,8 @@ export default function POSBilling() {
   const handleGenerateBill = async () => {
     if (activeBill.cart.length === 0) {
       await showAlert({
-        title: 'Cart is Empty',
-        message: 'Please add at least one item to checkout.',
+        title: t('po_empty_title'),
+        message: t('po_empty_msg'),
         tone: 'warning',
       });
       return;
@@ -479,8 +480,8 @@ export default function POSBilling() {
     const invalidQty = activeBill.cart.find((i) => (parseFloat(i.qty) || 0) <= 0);
     if (invalidQty) {
       await showAlert({
-        title: 'Invalid Quantity',
-        message: `Please enter a valid quantity greater than 0 for "${invalidQty.name}".`,
+        title: t('po_invalid_qty_title'),
+        message: t('po_invalid_qty_msg', { name: tName(invalidQty.name) }),
         tone: 'warning',
       });
       return;
@@ -494,14 +495,14 @@ export default function POSBilling() {
           const baseU = normalizeUnit(i.baseUnit || 'PCS');
           const billU = normalizeUnit(i.billingUnit || baseU);
           const avail = getLiveAvailableStock(i);
-          return `• ${i.name} (billing ${formatQty(i.qty)} ${billU} = ${formatQty(getBaseQty(i))} ${baseU}, stock ${formatQty(avail)} ${baseU})`;
+          return `• ${tName(i.name)} (${t('po_billing_word')} ${formatQty(i.qty)} ${billU} = ${formatQty(getBaseQty(i))} ${baseU}, ${t('cat_stock')} ${formatQty(avail)} ${baseU})`;
         })
         .join('\n');
       const ok = await showConfirm({
-        title: 'Insufficient Stock Warning',
-        message: `Stock is lower than the billed quantity for:\n${list}\n\nProceed anyway (stock will be set to 0)?`,
-        confirmLabel: 'Proceed Anyway',
-        cancelLabel: 'Go Back & Adjust',
+        title: t('po_insuff_title'),
+        message: t('po_insuff_msg', { list }),
+        confirmLabel: t('po_proceed'),
+        cancelLabel: t('po_go_back'),
         tone: 'danger',
       });
       if (!ok) {
@@ -582,15 +583,15 @@ export default function POSBilling() {
           });
           if (printRes && printRes.success) {
             setPrintFailure(null);
-            showPosToast(`Invoice #${res.invoice_number} sent to ${prefs.printerName || 'default printer'} (${prefs.format})`);
+            showPosToast(t('po_toast_sent', { no: res.invoice_number, printer: prefs.printerName || t('po_default_printer'), format: prefs.format }));
           } else {
             setPrintFailure({
               invoice: completedInvoice,
-              reason: printRes?.error || 'The printer is unavailable or disconnected.',
+              reason: printRes?.error || t('po_printer_unavail'),
             });
           }
         } else if (prefs.afterPayment === 'none') {
-          showPosToast(`Invoice #${res.invoice_number} saved.`);
+          showPosToast(t('po_toast_saved', { no: res.invoice_number }));
         } else {
           // Flow C: Auto-print disabled -> open Print Preview modal (A1-A6 + Thermal + Printer picker)
           setShowReceiptModal(true);
@@ -636,11 +637,11 @@ export default function POSBilling() {
               if (retryRes && retryRes.success) {
                 const invNo = printFailure.invoice?.invoice_number;
                 setPrintFailure(null);
-                showPosToast(`Invoice #${invNo} printed.`);
+                showPosToast(t('po_toast_printed', { no: invNo }));
               } else {
                 setPrintFailure((prev) =>
                   prev
-                    ? { ...prev, reason: retryRes?.error || 'The printer is unavailable or disconnected.' }
+                    ? { ...prev, reason: retryRes?.error || t('po_printer_unavail') }
                     : null
                 );
               }
@@ -656,7 +657,7 @@ export default function POSBilling() {
               setRetryingPrint(false);
               if (pdfRes && pdfRes.success) {
                 setPrintFailure(null);
-                showPosToast(pdfRes.path ? 'Invoice PDF saved.' : 'Opened PDF export.');
+                showPosToast(pdfRes.path ? t('po_pdf_saved') : t('po_pdf_opened'));
               }
             }}
             onDismiss={() => setPrintFailure(null)}
@@ -693,15 +694,15 @@ export default function POSBilling() {
                   <p className="truncate max-w-[110px] font-bold leading-tight">
                     {bill.customerName && bill.customerName !== 'Walk-in Customer'
                       ? bill.customerName
-                      : `Bill #${index + 1}`}
+                      : `${t('po_bill_n')}${index + 1}`}
                   </p>
                   <p className="text-[10px] text-slate-400 font-normal">
-                    {bill.cart.length} item{bill.cart.length === 1 ? '' : 's'} · ₹{Math.round(billTotal)}
+                    {t('po_items_n', { n: bill.cart.length })} · ₹{Math.round(billTotal)}
                   </p>
                 </div>
                 <button
                   onClick={(e) => closeBill(bill.id, e)}
-                  title="Close Bill"
+                  title={t('po_close_bill')}
                   className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors ml-1"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -772,13 +773,13 @@ export default function POSBilling() {
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                        <th className="py-2.5 px-4">Product</th>
-                        <th className="py-2.5 px-3">Rack</th>
-                        <th className="py-2.5 px-3">Stock Here</th>
+                        <th className="py-2.5 px-4">{t('pos_col_product')}</th>
+                        <th className="py-2.5 px-3">{t('po_col_rack')}</th>
+                        <th className="py-2.5 px-3">{t('po_col_stock_here')}</th>
                         <th className="py-2.5 px-3 text-right">MRP</th>
-                        <th className="py-2.5 px-3 text-right">Price</th>
-                        <th className="py-2.5 px-3">Specs / Brand</th>
-                        <th className="py-2.5 px-3 text-center">Action</th>
+                        <th className="py-2.5 px-3 text-right">{t('po_col_price')}</th>
+                        <th className="py-2.5 px-3">{t('po_col_specs')}</th>
+                        <th className="py-2.5 px-3 text-center">{t('cat_col_actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -858,7 +859,7 @@ export default function POSBilling() {
                                 }}
                                 className="px-2.5 py-1 bg-blue-600 text-white rounded-md text-[10px] font-bold hover:bg-blue-700 transition-colors shadow-2xs"
                               >
-                                + Add
+                                + {t('rk_add')}
                               </button>
                             ) : (
                               <span className="inline-block px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-md text-[10px] font-bold">
@@ -930,7 +931,7 @@ export default function POSBilling() {
                                   <span>·</span>
                                 </>
                               )}
-                              <span>{t('dash_shelf')}: {item.bin || 'R01-L1-S1'}</span>
+                              <span>{t('dash_shelf')}: {item.bin || t('rk_unassigned')}</span>
                               <span>·</span>
                               <span className={exceedsStock ? 'text-rose-600 font-bold' : 'text-emerald-600 font-medium'}>
                                 {t('cat_stock')}: {formatQty(availableStock)} {baseUnit}
@@ -965,7 +966,7 @@ export default function POSBilling() {
                                   <select
                                     value={billingUnit}
                                     onChange={(e) => updateBillingUnit(index, e.target.value)}
-                                    aria-label="Billing unit"
+                                    aria-label={t('po_billing_unit')}
                                     className="bg-blue-50 border border-blue-200 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                                   >
                                     {compatibleUnits.map((u) => (
@@ -990,7 +991,7 @@ export default function POSBilling() {
                               {exceedsStock && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 whitespace-nowrap">
                                   <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                                  Only {formatQty(availableStock)} {baseUnit} in stock
+                                  {t('po_only_in_stock', { qty: formatQty(availableStock), unit: baseUnit })}
                                 </span>
                               )}
                             </div>
@@ -1012,7 +1013,7 @@ export default function POSBilling() {
                             </div>
                             {measurable && (
                               <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                per {baseUnit}
+                                {t('po_per_unit', { unit: baseUnit })}
                               </div>
                             )}
                           </td>
@@ -1041,7 +1042,7 @@ export default function POSBilling() {
                             <button
                               onClick={() => removeFromCart(index)}
                               className="p-1 rounded-md text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                              title="Delete Item"
+                              title={t('po_delete_item')}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1058,13 +1059,13 @@ export default function POSBilling() {
             {activeBill.cart.length > 0 && (
               <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500">
-                  {activeBill.cart.length} item{activeBill.cart.length === 1 ? '' : 's'} in cart
+                  {t('po_in_cart_n', { n: activeBill.cart.length })}
                 </span>
                 <button
                   onClick={clearCart}
                   className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-3 py-1 hover:bg-rose-50 rounded-lg transition-colors"
                 >
-                  Clear Cart
+                  {t('pos_clear_cart')}
                 </button>
               </div>
             )}
@@ -1079,7 +1080,7 @@ export default function POSBilling() {
               <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-700 shadow-2xs">
                 F2
               </kbd>
-              <span>Find product</span>
+              <span>{t('pos_find_product')}</span>
             </button>
 
             <button
@@ -1089,7 +1090,7 @@ export default function POSBilling() {
               <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-700 shadow-2xs">
                 F4
               </kbd>
-              <span>Customer</span>
+              <span>{t('pos_customer')}</span>
             </button>
 
             <button
@@ -1099,7 +1100,7 @@ export default function POSBilling() {
               <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-700 shadow-2xs">
                 F6
               </kbd>
-              <span>Bill discount %</span>
+              <span>{t('pos_bill_discount')}</span>
             </button>
 
             <button
@@ -1109,7 +1110,7 @@ export default function POSBilling() {
               <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-700 shadow-2xs">
                 F8
               </kbd>
-              <span>Payment mode</span>
+              <span>{t('pos_payment_mode')}</span>
             </button>
 
             <button
@@ -1119,7 +1120,7 @@ export default function POSBilling() {
               <kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-[10px] font-bold text-blue-700 shadow-2xs">
                 F9
               </kbd>
-              <span>Complete sale</span>
+              <span>{t('pos_complete_sale')}</span>
             </button>
 
             <button
@@ -1129,14 +1130,14 @@ export default function POSBilling() {
               <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-600 shadow-2xs">
                 Alt+N
               </kbd>
-              <span>New bill</span>
+              <span>{t('po_new_bill_short')}</span>
             </button>
 
             <span className="flex items-center gap-1 px-2 py-1 text-slate-400 text-[10px]">
               <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded font-mono">
                 Alt+1-9
               </kbd>
-              <span>Switch</span>
+              <span>{t('pos_switch')}</span>
             </span>
           </div>
         </div>
@@ -1244,7 +1245,7 @@ export default function POSBilling() {
                 <input
                   ref={customerInputRef}
                   type="text"
-                  placeholder="e.g. Raj Builders"
+                  placeholder={t('po_ph_customer')}
                   value={activeBill.customerName}
                   onChange={(e) => updateActiveBill({ customerName: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
@@ -1254,7 +1255,7 @@ export default function POSBilling() {
 
             <div className="space-y-1">
               <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                Customer Phone (Optional)
+                {t('pos_phone')}
               </label>
               <div className="relative">
                 <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1270,8 +1271,8 @@ export default function POSBilling() {
 
             {/* Cashier / Attendant tag */}
             <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="text-slate-400">Cashier:</span>
-              <span className="font-semibold text-slate-700">Franklin (Admin)</span>
+              <span className="text-slate-400">{t('po_cashier')}</span>
+              <span className="font-semibold text-slate-700">Franklin ({t('admin')})</span>
             </div>
           </div>
 
@@ -1314,7 +1315,7 @@ export default function POSBilling() {
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <History className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base font-bold text-slate-900">Recent Bill History</h3>
+                <h3 className="text-base font-bold text-slate-900">{t('po_recent_history')}</h3>
               </div>
               <button
                 onClick={() => setShowHistoryModal(false)}
@@ -1326,7 +1327,7 @@ export default function POSBilling() {
 
             <div className="p-6 overflow-y-auto space-y-3">
               {recentInvoices.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-8">No recent invoices recorded.</p>
+                <p className="text-xs text-slate-400 text-center py-8">{t('po_no_recent')}</p>
               ) : (
                 recentInvoices.map((inv) => (
                   <div
@@ -1339,14 +1340,14 @@ export default function POSBilling() {
                           {inv.invoice_number}
                         </span>
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
-                          {inv.payment_mode || 'Cash'}
+                          {PAY_LABEL[inv.payment_mode || 'Cash'] ? t(PAY_LABEL[inv.payment_mode || 'Cash']) : inv.payment_mode}
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                        {inv.customer_name || 'Walk-in Customer'}
+                        {!inv.customer_name || inv.customer_name === 'Walk-in Customer' ? t('po_walkin') : inv.customer_name}
                       </p>
                       <p className="text-[11px] text-slate-400">
-                        {inv.date_time || 'Recent'} · {inv.items_count || 1} items
+                        {inv.date_time || t('po_recent')} · {t('po_items_n', { n: inv.items_count || 1 })}
                       </p>
                     </div>
 
@@ -1361,7 +1362,7 @@ export default function POSBilling() {
                         }}
                         className="text-xs text-blue-600 hover:text-blue-700 font-semibold px-2 py-1 bg-white border border-blue-200 rounded-lg"
                       >
-                        Details
+                        {t('po_details')}
                       </button>
                     </div>
                   </div>
@@ -1377,13 +1378,13 @@ export default function POSBilling() {
                 }}
                 className="text-xs font-semibold text-blue-600 hover:underline"
               >
-                Open Full Sales History →
+                {t('po_open_history')}
               </button>
               <button
                 onClick={() => setShowHistoryModal(false)}
                 className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-xs font-semibold text-slate-700 transition-colors"
               >
-                Close
+                {t('hist_close')}
               </button>
             </div>
           </div>
