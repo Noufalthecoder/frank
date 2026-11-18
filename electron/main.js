@@ -153,6 +153,11 @@ function initSchema() {
   } catch (_) {
     // Column already exists
   }
+  try {
+    db.exec(`ALTER TABLE shop_profile ADD COLUMN gstin TEXT DEFAULT ''`);
+  } catch (_) {
+    // Column already exists
+  }
 
   // Ensure shop profile row exists with T. S. P Enterprises
   const profile = db.prepare('SELECT id FROM shop_profile WHERE id = 1').get();
@@ -381,11 +386,11 @@ ipcMain.handle('updateShopProfile', (event, profile) => {
   const stmt = db.prepare(`
     UPDATE shop_profile
     SET shop_name = @shop_name, tagline = @tagline, phone = @phone, email = @email,
-        address_line1 = @address_line1, address_line2 = @address_line2, city = @city, pincode = @pincode,
+        gstin = @gstin, address_line1 = @address_line1, address_line2 = @address_line2, city = @city, pincode = @pincode,
         invoice_footer = @invoice_footer, updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
   `);
-  stmt.run(profile);
+  stmt.run({ ...profile, gstin: String(profile.gstin || '').trim().toUpperCase() });
   return { success: true };
 });
 

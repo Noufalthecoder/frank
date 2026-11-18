@@ -73,6 +73,7 @@ export default function Settings() {
     tagline: 'Hardware, Tools & Fasteners',
     phone: '+91 98765 43210',
     email: 'tspenterprises@gmail.com',
+    gstin: '',
     address_line1: 'Beach Road',
     address_line2: 'Tharuvaikulam',
     city: 'Thoothukudi',
@@ -338,6 +339,19 @@ export default function Settings() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      GST Number / GSTIN <span className="text-slate-400 font-normal">(Optional — shown on bill only if entered)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 33ABCDE1234F1Z5"
+                      value={profile.gstin || ''}
+                      onChange={(e) => setProfile({ ...profile, gstin: e.target.value.toUpperCase() })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    />
                   </div>
 
                   <div>

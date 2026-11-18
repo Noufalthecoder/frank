@@ -35,6 +35,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
     profile?.pincode || '628105',
   ].filter(Boolean);
   const phone = profile?.phone || '+91 98765 43210';
+  const gstin = String(profile?.gstin || '').trim();
   const termsText =
     profile?.invoice_footer || 'Goods once sold will not be taken back.';
 
@@ -90,6 +91,11 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
             <div style={{ fontSize: `${Math.max(8, baseFontPx - 1)}px` }}>
               Phone: {phone}
             </div>
+            {gstin && (
+              <div style={{ fontSize: `${Math.max(8, baseFontPx - 1)}px`, fontWeight: 600 }}>
+                GSTIN: {gstin}
+              </div>
+            )}
             <div
               style={{
                 marginTop: '6px',
@@ -111,7 +117,10 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
                 {shopName.toUpperCase()}
               </div>
               <div style={{ marginTop: '2px' }}>{addressParts.join(', ')}</div>
-              <div>Phone: {phone}</div>
+              <div>
+                Phone: {phone}
+                {gstin ? ` | GSTIN: ${gstin}` : ''}
+              </div>
             </div>
             <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
               <div style={{ fontSize: `${Math.round(baseFontPx * 1.15)}px`, fontWeight: 800, letterSpacing: '0.8px' }}>
@@ -339,26 +348,15 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
         <div>Terms: {termsText}</div>
       </div>
 
-      {/* Signatory & Bottom Double Rule */}
+      {/* Footer & Bottom Double Rule */}
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          gap: '12px',
           paddingBottom: isNarrow ? '6px' : '10px',
           borderBottom: '3px double #0f172a',
-          flexWrap: isNarrow ? 'wrap' : 'nowrap',
+          textAlign: isNarrow ? 'center' : 'left',
         }}
       >
         <div style={{ fontWeight: 600 }}>Thank you for your business!</div>
-        {!isThermal && (
-          <div style={{ textAlign: 'center', minWidth: '160px' }}>
-            <div style={{ borderTop: '1px solid #0f172a', paddingTop: '4px', fontWeight: 600 }}>
-              Authorized Signatory
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

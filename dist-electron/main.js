@@ -6,12 +6,12 @@ import S from "node:path";
 import g from "node:fs";
 const q = M(import.meta.url), O = S.dirname(F(import.meta.url));
 process.env.APP_ROOT = S.join(O, "..");
-const h = process.env.VITE_DEV_SERVER_URL, Y = S.join(process.env.APP_ROOT, "dist-electron"), I = S.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = h ? S.join(process.env.APP_ROOT, "public") : I;
+const h = process.env.VITE_DEV_SERVER_URL, Y = S.join(process.env.APP_ROOT, "dist-electron"), A = S.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = h ? S.join(process.env.APP_ROOT, "public") : A;
 let p;
 const _ = q("better-sqlite3"), R = S.join(L.getPath("userData"), "billing.db");
 let r = new _(R);
-function A() {
+function I() {
   r.exec(`
     CREATE TABLE IF NOT EXISTS shop_profile (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -137,6 +137,10 @@ function A() {
   }
   try {
     r.exec("ALTER TABLE items ADD COLUMN image_url TEXT DEFAULT ''");
+  } catch {
+  }
+  try {
+    r.exec("ALTER TABLE shop_profile ADD COLUMN gstin TEXT DEFAULT ''");
   } catch {
   }
   r.prepare("SELECT id FROM shop_profile WHERE id = 1").get() ? r.prepare(`
@@ -340,15 +344,15 @@ function x() {
     a.forEach((d) => m.run(d.cat, d.desc, d.amount, d.date, d.mode));
   }
 }
-A();
+I();
 c.handle("getShopProfile", () => r.prepare("SELECT * FROM shop_profile WHERE id = 1").get());
 c.handle("updateShopProfile", (n, e) => (r.prepare(`
     UPDATE shop_profile
     SET shop_name = @shop_name, tagline = @tagline, phone = @phone, email = @email,
-        address_line1 = @address_line1, address_line2 = @address_line2, city = @city, pincode = @pincode,
+        gstin = @gstin, address_line1 = @address_line1, address_line2 = @address_line2, city = @city, pincode = @pincode,
         invoice_footer = @invoice_footer, updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
-  `).run(e), { success: !0 }));
+  `).run({ ...e, gstin: String(e.gstin || "").trim().toUpperCase() }), { success: !0 }));
 c.handle("getItems", () => r.prepare("SELECT * FROM items ORDER BY id DESC").all());
 c.handle("searchItems", (n, e) => {
   const t = `%${e}%`;
@@ -582,7 +586,7 @@ c.handle("restoreDatabase", async () => {
       g.copyFileSync(R, s);
     } catch {
     }
-    return r.close(), g.copyFileSync(t, R), r = new _(R), A(), { success: !0, path: t };
+    return r.close(), g.copyFileSync(t, R), r = new _(R), I(), { success: !0, path: t };
   } catch (t) {
     try {
       r = new _(R);
@@ -764,7 +768,7 @@ function U() {
       nodeIntegration: !1,
       contextIsolation: !0
     }
-  }), h ? p.loadURL(h) : p.loadFile(S.join(I, "index.html"));
+  }), h ? p.loadURL(h) : p.loadFile(S.join(A, "index.html"));
 }
 L.on("window-all-closed", () => {
   process.platform !== "darwin" && (L.quit(), p = null);
@@ -775,6 +779,6 @@ L.on("activate", () => {
 L.whenReady().then(U);
 export {
   Y as MAIN_DIST,
-  I as RENDERER_DIST,
+  A as RENDERER_DIST,
   h as VITE_DEV_SERVER_URL
 };
