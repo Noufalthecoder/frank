@@ -1216,7 +1216,7 @@ export default function POSBilling() {
             {/* Cashier / Attendant tag */}
             <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between text-[11px]">
               <span className="text-slate-400">Cashier:</span>
-              <span className="font-semibold text-slate-700">A. Adithya (Admin)</span>
+              <span className="font-semibold text-slate-700">Franklin (Admin)</span>
             </div>
           </div>
 

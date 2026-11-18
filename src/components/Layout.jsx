@@ -169,11 +169,11 @@ export default function Layout({ children }) {
             className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/70 transition-all text-left group"
           >
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-blue-100 flex-shrink-0">
-              AA
+              FR
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-slate-900 leading-tight truncate group-hover:text-blue-700 transition-colors">
-                A. Adithya
+                Franklin
               </p>
               <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">{t('admin')}</p>
             </div>
