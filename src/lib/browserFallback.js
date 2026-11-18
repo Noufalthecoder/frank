@@ -315,6 +315,7 @@ export function initBrowserApiFallback() {
         payment_mode: inv.payment_mode || 'Cash',
         items_count: (inv.items || []).length,
         items_json: JSON.stringify(inv.items || []),
+        cashier: String(inv.cashier || '').slice(0, 60),
         status: 'Completed',
       });
 
@@ -529,6 +530,37 @@ export function initBrowserApiFallback() {
       db.purchase_orders = db.purchase_orders.filter((p) => p.id !== id);
       writeDb(db);
       return { success: true };
+    },
+    getUsers: async () => {
+      const db = readDb();
+      if (!db.users || db.users.length === 0) { db.users = [{ id: 1, name: 'Franklin', role: 'Admin', active: true }]; writeDb(db); }
+      return [...db.users].sort((a, b) => Number(b.active) - Number(a.active) || a.role.localeCompare(b.role) || a.name.localeCompare(b.name));
+    },
+    addUser: async (u = {}) => {
+      const db = readDb(); db.users = db.users || [{ id: 1, name: 'Franklin', role: 'Admin', active: true }];
+      const name = String(u.name || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+      if (!name) return { success: false, error: 'Name is required.' };
+      if (db.users.some((x) => x.name.toLowerCase() === name.toLowerCase())) return { success: false, error: 'A user with this name already exists.' };
+      const id = db.users.reduce((m, x) => Math.max(m, x.id), 0) + 1;
+      db.users.push({ id, name, role: u.role === 'Admin' ? 'Admin' : 'Staff', active: true });
+      writeDb(db); return { success: true, id };
+    },
+    updateUser: async (u = {}) => {
+      const db = readDb(); db.users = db.users || [];
+      const cur = db.users.find((x) => x.id === u.id);
+      if (!cur) return { success: false, error: 'User not found.' };
+      const role = u.role === undefined ? cur.role : (u.role === 'Admin' ? 'Admin' : 'Staff');
+      const active = u.active === undefined ? cur.active : Boolean(u.active);
+      const adminsLeft = db.users.filter((x) => x.id !== u.id && x.role === 'Admin' && x.active).length;
+      if (adminsLeft === 0 && !(role === 'Admin' && active)) return { success: false, error: 'At least one active Admin is required.' };
+      cur.role = role; cur.active = active; writeDb(db); return { success: true };
+    },
+    deleteUser: async (id) => {
+      const db = readDb(); db.users = db.users || [];
+      const adminsLeft = db.users.filter((x) => x.id !== id && x.role === 'Admin' && x.active).length;
+      if (!db.users.find((x) => x.id === id)) return { success: false, error: 'User not found.' };
+      if (adminsLeft === 0) return { success: false, error: 'At least one active Admin is required.' };
+      db.users = db.users.filter((x) => x.id !== id); writeDb(db); return { success: true };
     },
     getVendors: async () => [...readDb().vendors].sort((a, b) => a.name.localeCompare(b.name)),
     addVendor: async (v) => {

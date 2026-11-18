@@ -129,9 +129,6 @@ export default function Layout({ children }) {
               <h1 className="text-[19px] font-extrabold text-slate-950 tracking-[-0.03em] leading-tight truncate">
                 {shopProfile.shop_name || 'T. S. P Enterprises'}
               </h1>
-              <p className="text-[14px] text-slate-600 truncate mt-0.5">
-                {shopProfile.address_line1 || 'Beach Road'} · {shopProfile.address_line2 || 'Tharuvaikulam'}
-              </p>
             </div>
           </div>
 
