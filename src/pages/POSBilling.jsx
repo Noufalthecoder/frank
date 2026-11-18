@@ -62,7 +62,7 @@ function loadInitialBills() {
 
 export default function POSBilling() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, tName } = useLanguage();
   const initialDrafts = loadInitialBills();
 
   // Multi-Bill Tabs System (Up to 10 concurrent carts, persisted in localStorage)
@@ -183,6 +183,7 @@ export default function POSBilling() {
     const matches = allItems.filter(
       (item) =>
         item.name.toLowerCase().includes(q) ||
+        tName(item.name).toLowerCase().includes(q) ||
         item.sku.toLowerCase().includes(q) ||
         (item.size && item.size.toLowerCase().includes(q)) ||
         (item.brand && item.brand.toLowerCase().includes(q)) ||
@@ -622,7 +623,7 @@ export default function POSBilling() {
                                 />
                               )}
                               <div>
-                                <p className="font-bold text-slate-900 leading-tight">{item.name}</p>
+                                <p className="font-bold text-slate-900 leading-tight">{tName(item.name)}</p>
                                 <p className="text-[10px] text-slate-400 font-mono mt-0.5">{item.sku}</p>
                               </div>
                             </div>
@@ -716,14 +717,14 @@ export default function POSBilling() {
                         <tr key={`${item.id}-${index}`} className="hover:bg-slate-50/70 transition-colors">
                           {/* Product Details */}
                           <td className="py-3 px-4">
-                            <p className="font-bold text-slate-900 leading-snug">{item.name}</p>
+                            <p className="font-bold text-slate-900 leading-snug">{tName(item.name)}</p>
                             <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
                               <span className="font-mono text-slate-600">{item.sku}</span>
                               <span>·</span>
-                              <span>Shelf: {item.bin || 'R01-L1-S1'}</span>
+                              <span>{t('dash_shelf')}: {item.bin || 'R01-L1-S1'}</span>
                               <span>·</span>
                               <span className="text-emerald-600 font-medium">
-                                Stock: {formatQty(item.maxStock)} {baseUnit}
+                                {t('cat_stock')}: {formatQty(item.maxStock)} {baseUnit}
                               </span>
                             </div>
                           </td>
@@ -1206,7 +1207,7 @@ export default function POSBilling() {
                 <ul className="list-disc list-inside text-[11px] text-rose-700 font-medium">
                   {lastInvoice.zeroStockAlerts.map((i) => (
                     <li key={i.id || i.sku}>
-                      {i.name} ({i.sku})
+                      {tName(i.name)} ({i.sku})
                     </li>
                   ))}
                 </ul>

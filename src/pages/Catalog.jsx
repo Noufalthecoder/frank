@@ -56,7 +56,7 @@ const EMPTY_FORM = {
 };
 
 export default function Catalog() {
-  const { t } = useLanguage();
+  const { t, tName, tCategory } = useLanguage();
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [availableBins, setAvailableBins] = useState([]);
@@ -169,10 +169,12 @@ export default function Catalog() {
   };
 
   const filteredItems = items.filter((i) => {
+    const q = search.toLowerCase();
     const matchSearch =
-      i.name.toLowerCase().includes(search.toLowerCase()) ||
-      i.sku.toLowerCase().includes(search.toLowerCase()) ||
-      (i.size && i.size.toLowerCase().includes(search.toLowerCase()));
+      i.name.toLowerCase().includes(q) ||
+      tName(i.name).toLowerCase().includes(q) ||
+      i.sku.toLowerCase().includes(q) ||
+      (i.size && i.size.toLowerCase().includes(q));
     const matchCat = categoryFilter === 'All' || i.category === categoryFilter;
     const matchBrand = brandFilter === 'All' || i.brand === brandFilter;
     const matchStatus = statusFilter === 'All' || i.status === statusFilter;
@@ -559,7 +561,7 @@ export default function Catalog() {
           >
             <option value="All">{t('cat_category')}: {t('cat_all')}</option>
             {uniqueCategories.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>{tCategory(c)}</option>
             ))}
           </select>
 
@@ -681,15 +683,15 @@ export default function Catalog() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-slate-900">{item.name}</div>
+                        <div className="font-semibold text-slate-900">{tName(item.name)}</div>
                         <div className="text-[11px] text-slate-400">
-                          {item.category} {item.brand ? `· ${item.brand}` : ''} · Shelf:{' '}
+                          {tCategory(item.category)} {item.brand ? `· ${item.brand}` : ''} · {t('dash_shelf')}:{' '}
                           <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-slate-600">{item.size || '—'}</td>
+                  <td className="py-3 px-4 text-slate-600">{item.size ? tName(item.size) : '—'}</td>
                   <td className="py-3 px-4">
                     {(() => {
                       const u = normalizeUnit(item.unit);
@@ -777,14 +779,14 @@ export default function Catalog() {
                   <div className="p-3.5 flex-1 flex flex-col justify-between gap-2.5">
                     <div>
                       <p className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">
-                        {item.name}
+                        {tName(item.name)}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-1 truncate">
                         <span className="font-mono text-slate-500">{item.sku}</span>
-                        {item.size ? ` · ${item.size}` : ''}
+                        {item.size ? ` · ${tName(item.size)}` : ''}
                       </p>
                       <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                        {item.category}{item.brand ? ` · ${item.brand}` : ''} ·{' '}
+                        {tCategory(item.category)}{item.brand ? ` · ${item.brand}` : ''} ·{' '}
                         <span className="text-blue-600 font-medium">{item.bin_id || 'Unassigned'}</span>
                       </p>
                     </div>
@@ -847,10 +849,10 @@ export default function Catalog() {
                   <div className="p-2.5 flex-1 flex flex-col justify-between gap-2">
                     <div>
                       <p className="text-xs font-bold text-slate-900 leading-tight line-clamp-2">
-                        {item.name}
+                        {tName(item.name)}
                       </p>
                       <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">
-                        {item.sku}{item.size ? ` · ${item.size}` : ''}
+                        {item.sku}{item.size ? ` · ${tName(item.size)}` : ''}
                       </p>
                     </div>
 
@@ -918,7 +920,7 @@ export default function Catalog() {
                     )}
                   </div>
                   <p className="text-[11px] font-bold text-slate-900 leading-tight line-clamp-2 w-full">
-                    {item.name}
+                    {tName(item.name)}
                   </p>
                   <div className="flex items-center justify-center gap-1.5 flex-wrap mt-auto pt-0.5">
                     <span className="text-[11px] font-bold text-slate-800">

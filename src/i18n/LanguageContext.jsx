@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from './translations.js';
+import { translateProductName, translateCategory } from './productTamil.js';
 
 const LANG_STORAGE_KEY = 'tsp_app_language';
 
@@ -8,6 +9,8 @@ const LanguageContext = createContext({
   setLang: () => {},
   toggleLang: () => {},
   t: (key) => key,
+  tName: (name) => name,
+  tCategory: (cat) => cat,
 });
 
 export function LanguageProvider({ children }) {
@@ -39,8 +42,11 @@ export function LanguageProvider({ children }) {
     return dict[key] ?? translations.en[key] ?? key;
   };
 
+  const tName = (name) => translateProductName(name, lang);
+  const tCategory = (cat) => translateCategory(cat, lang);
+
   return (
-    <LanguageContext.Provider value={{ lang, setLang, toggleLang, t }}>
+    <LanguageContext.Provider value={{ lang, setLang, toggleLang, t, tName, tCategory }}>
       {children}
     </LanguageContext.Provider>
   );

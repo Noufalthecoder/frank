@@ -9,6 +9,7 @@ import {
   Package
 } from 'lucide-react';
 import { TOOL_LIBRARY } from '../data/toolLibrary.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 export default function ToolLibraryPicker({
   existingItemsMap = {},
@@ -16,6 +17,7 @@ export default function ToolLibraryPicker({
   onFillManualForm,
   onBulkAddSizes,
 }) {
+  const { t, tName, tCategory } = useLanguage();
   const [query, setQuery] = useState('');
   const [catFilter, setCatFilter] = useState('All');
   const [selectedTool, setSelectedTool] = useState(null);
@@ -34,6 +36,7 @@ export default function ToolLibraryPicker({
     if (!q) return matchCat;
     const matchTool =
       tool.name.toLowerCase().includes(q) ||
+      tName(tool.name).toLowerCase().includes(q) ||
       tool.brand.toLowerCase().includes(q) ||
       tool.description.toLowerCase().includes(q) ||
       tool.sizes.some((s) => s.size.toLowerCase().includes(q));
@@ -166,10 +169,10 @@ export default function ToolLibraryPicker({
                 <span>All Tools</span>
               </button>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600">
-                {selectedTool.brand} · {selectedTool.category}
+                {selectedTool.brand} · {tCategory(selectedTool.category)}
               </span>
             </div>
-            <h4 className="text-sm font-bold text-slate-900 mt-1">{selectedTool.name}</h4>
+            <h4 className="text-sm font-bold text-slate-900 mt-1">{tName(selectedTool.name)}</h4>
             <p className="text-[11px] text-slate-500 mt-0.5">{selectedTool.description}</p>
 
             {/* Quick Defaults for Newly Selected Sizes */}
@@ -404,7 +407,7 @@ export default function ToolLibraryPicker({
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
-              {cat}
+              {cat === 'All' ? t('cat_all') : tCategory(cat)}
             </button>
           ))}
         </div>
@@ -425,7 +428,7 @@ export default function ToolLibraryPicker({
                 <div className="h-24 w-full bg-white rounded-lg border border-slate-100 p-1.5 flex items-center justify-center overflow-hidden relative">
                   <img
                     src={tool.image}
-                    alt={tool.name}
+                    alt={tName(tool.name)}
                     className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
                   />
                   {addedCount > 0 && (
@@ -436,7 +439,7 @@ export default function ToolLibraryPicker({
                   )}
                 </div>
                 <p className="text-xs font-bold text-slate-900 mt-2 leading-snug group-hover:text-blue-600 line-clamp-2">
-                  {tool.name}
+                  {tName(tool.name)}
                 </p>
                 <p className="text-[10px] text-slate-400 mt-0.5">{tool.brand}</p>
               </div>

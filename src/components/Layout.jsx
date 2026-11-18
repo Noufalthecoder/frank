@@ -22,7 +22,7 @@ import {
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 export default function Layout({ children }) {
-  const { lang, setLang, t } = useLanguage();
+  const { lang, setLang, t, tName } = useLanguage();
   const [globalSearch, setGlobalSearch] = useState('');
   const [outOfStockItems, setOutOfStockItems] = useState([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -264,7 +264,7 @@ export default function Layout({ children }) {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-1">
                               <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                                {item.name}
+                                {tName(item.name)}
                               </p>
                               <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 flex-shrink-0">
                                 0 {item.unit || 'PCS'}

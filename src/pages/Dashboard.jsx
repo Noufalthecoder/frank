@@ -41,7 +41,7 @@ const CATEGORY_COLORS = ['#2563eb', '#38bdf8', '#f59e0b', '#8b5cf6', '#10b981', 
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, tName, tCategory } = useLanguage();
   const [dateRange, setDateRange] = useState('All Time');
   const [items, setItems] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -192,7 +192,7 @@ export default function Dashboard() {
   const totalSkus = items.length || 1;
 
   const categoryData = {
-    labels: categoryEntries.length > 0 ? categoryEntries.map(([c]) => c) : ['Empty'],
+    labels: categoryEntries.length > 0 ? categoryEntries.map(([c]) => tCategory(c)) : ['Empty'],
     datasets: [
       {
         data: categoryEntries.length > 0 ? categoryEntries.map(([, count]) => count) : [1],
@@ -375,7 +375,7 @@ export default function Dashboard() {
                       style={{ backgroundColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }}
                     />
                     <span className="truncate">
-                      {cat} ({Math.round((count / totalSkus) * 100)}%)
+                      {tCategory(cat)} ({Math.round((count / totalSkus) * 100)}%)
                     </span>
                   </div>
                 ))}
@@ -416,10 +416,10 @@ export default function Dashboard() {
                 >
                   <div>
                     <p className="text-xs font-semibold text-slate-800">
-                      {item.name} <span className="text-slate-400 font-normal">({item.sku})</span>
+                      {tName(item.name)} <span className="text-slate-400 font-normal">({item.sku})</span>
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      {t('dash_shelf')} {item.bin_id || 'Unassigned'} · {item.category}
+                      {t('dash_shelf')} {item.bin_id || 'Unassigned'} · {tCategory(item.category)}
                     </p>
                   </div>
                   {Number(item.quantity) <= 0 ? (

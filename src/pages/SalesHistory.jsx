@@ -14,7 +14,7 @@ import { useLanguage } from '../i18n/LanguageContext.jsx';
 const PAGE_SIZE = 12;
 
 export default function SalesHistory() {
-  const { t } = useLanguage();
+  const { t, tName } = useLanguage();
   const [invoices, setInvoices] = useState([]);
   const [shopProfile, setShopProfile] = useState(null);
   const [search, setSearch] = useState('');
@@ -366,7 +366,7 @@ export default function SalesHistory() {
                       return (
                         <tr key={idx}>
                           <td className="py-2 px-3">
-                            <p className="font-semibold text-slate-800">{item.name}</p>
+                            <p className="font-semibold text-slate-800">{tName(item.name)}</p>
                             {item.sku && <p className="text-[10px] font-mono text-slate-400">{item.sku}</p>}
                           </td>
                           <td className="py-2 px-2 text-center font-medium text-slate-700 whitespace-nowrap">
