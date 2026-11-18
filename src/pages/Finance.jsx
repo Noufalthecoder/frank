@@ -375,7 +375,7 @@ export default function Finance() {
                 <TrendingUp className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-400">{t('fi_total_sales')}</p>
+                <p className="text-[13px] font-medium text-slate-400">{t('fi_total_sales')}</p>
                 <p className="text-xl font-bold text-slate-900">
                   ₹ {Math.round(totalSales).toLocaleString('en-IN')}
                 </p>
@@ -387,7 +387,7 @@ export default function Finance() {
                 <CreditCard className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-400">{t('fi_total_expenses')}</p>
+                <p className="text-[13px] font-medium text-slate-400">{t('fi_total_expenses')}</p>
                 <p className="text-xl font-bold text-slate-900">
                   ₹ {Math.round(totalExpenses).toLocaleString('en-IN')}
                 </p>
@@ -399,7 +399,7 @@ export default function Finance() {
                 <Wallet className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-400">{t('fi_net_cash_flow')}</p>
+                <p className="text-[13px] font-medium text-slate-400">{t('fi_net_cash_flow')}</p>
                 <p className={`text-xl font-bold ${netCashFlow >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
                   {netCashFlow < 0 ? '– ' : ''}₹ {Math.abs(Math.round(netCashFlow)).toLocaleString('en-IN')}
                 </p>
@@ -411,7 +411,7 @@ export default function Finance() {
                 <PiggyBank className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-400">{t('fi_gross_margin')}</p>
+                <p className="text-[13px] font-medium text-slate-400">{t('fi_gross_margin')}</p>
                 <p className="text-xl font-bold text-slate-900">
                   ₹ {Math.round(grossProfit).toLocaleString('en-IN')}
                 </p>
@@ -430,7 +430,7 @@ export default function Finance() {
                 <div className="h-64 w-full flex flex-col items-center justify-center text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
                   <Wallet className="w-7 h-7 text-slate-300 mb-2" />
                   <p className="text-xs font-semibold text-slate-600">{t('fi_no_cashflow')}</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{t('fi_no_cashflow_hint')}</p>
+                  <p className="text-[13px] text-slate-400 mt-0.5">{t('fi_no_cashflow_hint')}</p>
                 </div>
               ) : (
                 <div className="h-64 w-full">
@@ -491,7 +491,7 @@ export default function Finance() {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase">
+                <tr className="bg-slate-50 border-b border-slate-200 text-[13px] font-semibold text-slate-500 uppercase">
                   <th className="py-3 px-4">{t('fi_col_category')}</th>
                   <th className="py-3 px-4">{t('fi_col_description')}</th>
                   <th className="py-3 px-4">{t('fi_col_date')}</th>
@@ -609,7 +609,7 @@ export default function Finance() {
               )}
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_closing_notes')}</label>
+                <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('fi_closing_notes')}</label>
                 <textarea
                   rows="2"
                   placeholder={t('fi_closing_notes_ph')}
@@ -645,13 +645,13 @@ export default function Finance() {
                   <div key={dc.id || dc.closing_date} className="py-3 flex items-center justify-between">
                     <div>
                       <p className="font-bold text-slate-900 font-mono">{dc.closing_date}</p>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[13px] text-slate-400">
                         {t('fi_expected_counted', { exp: Number(dc.system_expected_cash).toFixed(0), cnt: Number(dc.counted_cash).toFixed(0) })}
                       </p>
-                      {dc.remarks && <p className="text-[11px] text-slate-500 mt-0.5 italic">"{dc.remarks}"</p>}
+                      {dc.remarks && <p className="text-[13px] text-slate-500 mt-0.5 italic">"{dc.remarks}"</p>}
                     </div>
                     <span
-                      className={`px-2 py-0.5 rounded-full font-bold text-[11px] border ${
+                      className={`px-2 py-0.5 rounded-full font-bold text-[13px] border ${
                         Number(dc.difference) === 0
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -686,7 +686,7 @@ export default function Finance() {
 
             <form onSubmit={handleAddExpense} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_category_req')}</label>
+                <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('fi_category_req')}</label>
                 <select
                   value={newExp.category}
                   onChange={(e) => setNewExp({ ...newExp, category: e.target.value })}
@@ -702,7 +702,7 @@ export default function Finance() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_description')}</label>
+                <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('fi_description')}</label>
                 <input
                   type="text"
                   placeholder={t('fi_desc_placeholder')}
@@ -714,7 +714,7 @@ export default function Finance() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_amount_req')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('fi_amount_req')}</label>
                   <input
                     type="number"
                     required
@@ -726,7 +726,7 @@ export default function Finance() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_date')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('fi_date')}</label>
                   <input
                     type="date"
                     value={newExp.date}
@@ -737,7 +737,7 @@ export default function Finance() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_payment_mode')}</label>
+                <label className="block text-[13px] font-semibold text-slate-600 mb-1">{t('fi_payment_mode')}</label>
                 <select
                   value={newExp.payment_mode}
                   onChange={(e) => setNewExp({ ...newExp, payment_mode: e.target.value })}

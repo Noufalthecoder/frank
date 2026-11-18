@@ -726,7 +726,7 @@ export default function Catalog() {
         ) : viewMode === 'detail' ? (
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            <tr className="bg-slate-50 border-b border-slate-200 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
               <th className="py-3 px-4">{t('cat_col_name')}</th>
               <th className="py-3 px-4">{t('cat_col_size')}</th>
               <th className="py-3 px-4">{t('cat_col_unit')}</th>
@@ -757,7 +757,7 @@ export default function Catalog() {
                       </div>
                       <div className="min-w-0">
                         <div className="font-semibold text-slate-900">{tName(item.name)}</div>
-                        <div className="text-[11px] text-slate-400">
+                        <div className="text-[13px] text-slate-400">
                           {tCategory(item.category)} {item.brand ? `· ${item.brand}` : ''} · {t('dash_shelf')}:{' '}
                           <BinLocation bin={item.bin_id} racks={racks} className="text-blue-600 font-medium" />
                         </div>
@@ -771,7 +771,7 @@ export default function Catalog() {
                       const grp = getUnitGroup(u);
                       return (
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-[13px] font-semibold ${
                             grp === 'length'
                               ? 'bg-sky-50 text-sky-700 border border-sky-200'
                               : grp === 'weight'
@@ -787,11 +787,11 @@ export default function Catalog() {
                   <td className="py-3 px-4 font-bold text-slate-900">
                     ₹ {Number(item.selling_price).toFixed(2)}
                     {isMeasurableUnit(item.unit) && (
-                      <span className="text-[10px] font-medium text-slate-400"> / {normalizeUnit(item.unit)}</span>
+                      <span className="text-[12px] font-medium text-slate-400"> / {normalizeUnit(item.unit)}</span>
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full font-semibold text-[11px] ${getStockBadgeClass(item)}`}>
+                    <span className={`inline-flex px-2 py-0.5 rounded-full font-semibold text-[13px] ${getStockBadgeClass(item)}`}>
                       {getStockBadgeText(item)}
                     </span>
                   </td>
@@ -841,10 +841,10 @@ export default function Catalog() {
                     ) : (
                       <Package className="w-12 h-12 text-slate-300" />
                     )}
-                    <span className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded text-[10px] font-bold ${getUnitBadgeClass(u)}`}>
+                    <span className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded text-[12px] font-bold ${getUnitBadgeClass(u)}`}>
                       {u}
                     </span>
-                    <span className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStockBadgeClass(item)}`}>
+                    <span className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[12px] font-bold ${getStockBadgeClass(item)}`}>
                       {!isItemAvailable(item) ? t('cat_unavailable') : `${formatQty(item.quantity)} ${u}`}
                     </span>
                   </div>
@@ -856,11 +856,11 @@ export default function Catalog() {
                         {tName(item.name)}
                       </p>
                       {item.size && (
-                        <p className="text-[11px] text-slate-500 font-medium mt-1 truncate">
+                        <p className="text-[13px] text-slate-500 font-medium mt-1 truncate">
                           {tName(item.size)}
                         </p>
                       )}
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                      <p className="text-[13px] text-slate-400 truncate mt-0.5">
                         {tCategory(item.category)}{item.brand ? ` · ${item.brand}` : ''} ·{' '}
                         <BinLocation bin={item.bin_id} racks={racks} className="text-blue-600 font-medium" />
                       </p>
@@ -870,7 +870,7 @@ export default function Catalog() {
                       <span className="text-sm font-black text-slate-900">
                         ₹ {Number(item.selling_price).toFixed(2)}
                         {measurable && (
-                          <span className="text-[10px] font-medium text-slate-400"> / {u}</span>
+                          <span className="text-[12px] font-medium text-slate-400"> / {u}</span>
                         )}
                       </span>
                       <div className="flex items-center gap-1 text-slate-400">
@@ -917,7 +917,7 @@ export default function Catalog() {
                     ) : (
                       <Package className="w-9 h-9 text-slate-300" />
                     )}
-                    <span className={`absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${getStockBadgeClass(item)}`}>
+                    <span className={`absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[12px] font-bold ${getStockBadgeClass(item)}`}>
                       {getStockBadgeText(item)}
                     </span>
                   </div>
@@ -927,7 +927,7 @@ export default function Catalog() {
                       <p className="text-xs font-bold text-slate-900 leading-tight line-clamp-2">
                         {tName(item.name)}
                       </p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      <p className="text-[12px] text-slate-400 truncate mt-0.5">
                         {item.size ? tName(item.size) : tCategory(item.category)}
                       </p>
                     </div>
@@ -936,7 +936,7 @@ export default function Catalog() {
                       <span className="text-xs font-black text-slate-900 truncate">
                         ₹ {Number(item.selling_price).toFixed(2)}
                         {measurable && (
-                          <span className="text-[10px] font-medium text-slate-400">/{u}</span>
+                          <span className="text-[12px] font-medium text-slate-400">/{u}</span>
                         )}
                       </span>
                       <div className="flex items-center gap-0.5 text-slate-400 flex-shrink-0">
@@ -996,15 +996,15 @@ export default function Catalog() {
                       <Package className="w-5 h-5 text-slate-300" />
                     )}
                   </div>
-                  <p className="text-[11px] font-bold text-slate-900 leading-tight line-clamp-2 w-full">
+                  <p className="text-[13px] font-bold text-slate-900 leading-tight line-clamp-2 w-full">
                     {tName(item.name)}
                   </p>
                   <div className="flex items-center justify-center gap-1.5 flex-wrap mt-auto pt-0.5">
-                    <span className="text-[11px] font-bold text-slate-800">
+                    <span className="text-[13px] font-bold text-slate-800">
                       ₹{Number(item.selling_price).toFixed(0)}
                       {measurable ? `/${u}` : ''}
                     </span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${getStockBadgeClass(item)}`}>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[11px] font-bold ${getStockBadgeClass(item)}`}>
                       {getStockBadgeText(item, true)}
                     </span>
                   </div>
@@ -1130,14 +1130,14 @@ export default function Catalog() {
                 </button>
                 <div className="text-xs">
                   <p className="font-semibold text-slate-800">{t('ct_product_photo')}</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-[13px] text-slate-400 mt-0.5">
                     {t('ct_photo_hint')}
                   </p>
                   {form.image_url && (
                     <button
                       type="button"
                       onClick={() => setForm({ ...form, image_url: '' })}
-                      className="text-[11px] font-semibold text-rose-600 hover:underline mt-1"
+                      className="text-[13px] font-semibold text-rose-600 hover:underline mt-1"
                     >
                       {t('ct_remove_photo')}
                     </button>
@@ -1147,9 +1147,9 @@ export default function Catalog() {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[11px] font-semibold text-slate-700">{t('ct_item_name')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700">{t('ct_item_name')}</label>
                   {form.name.trim() && (
-                    <span className="text-[10px] font-mono text-slate-400">
+                    <span className="text-[12px] font-mono text-slate-400">
                       {t('ct_code')}{' '}
                       <strong className="text-slate-600">
                         {editingItem
@@ -1176,7 +1176,7 @@ export default function Catalog() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('ct_size_dim')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('ct_size_dim')}</label>
                   <input
                     type="text"
                     placeholder={t('ct_size_ph')}
@@ -1186,7 +1186,7 @@ export default function Catalog() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('ct_brand')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('ct_brand')}</label>
                   <input
                     type="text"
                     list="brand-suggestions"
@@ -1210,7 +1210,7 @@ export default function Catalog() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('ct_category')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('ct_category')}</label>
                   <select
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -1222,7 +1222,7 @@ export default function Catalog() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                     {t('ct_unit_label')}
                   </label>
                   <select
@@ -1245,7 +1245,7 @@ export default function Catalog() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                     {t('ct_selling_price', { unit: normalizeUnit(form.unit) })}
                   </label>
                   <input
@@ -1260,7 +1260,7 @@ export default function Catalog() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                     {t('ct_cost_price', { unit: normalizeUnit(form.unit) })}
                   </label>
                   <input
@@ -1274,7 +1274,7 @@ export default function Catalog() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                     {t(editingItem ? 'ct_stock_unit' : 'ct_initial_stock_unit', { unit: normalizeUnit(form.unit) })}
                   </label>
                   <input
@@ -1306,11 +1306,11 @@ export default function Catalog() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('ct_rack_bin')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('ct_rack_bin')}</label>
                   <BinPicker value={form.bin_id} onChange={(code) => setForm({ ...form, bin_id: code })} />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                     {t('ct_reorder_unit', { unit: normalizeUnit(form.unit) })}
                   </label>
                   <input
@@ -1324,7 +1324,7 @@ export default function Catalog() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                     {t('cat_availability')}
                   </label>
                   <select

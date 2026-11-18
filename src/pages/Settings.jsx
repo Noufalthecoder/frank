@@ -263,7 +263,7 @@ export default function Settings() {
                 <div className="lg:col-span-2 space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                         {t('st_shop_name')}
                       </label>
                       <input
@@ -275,7 +275,7 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_tagline')}</label>
+                      <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_tagline')}</label>
                       <input
                         type="text"
                         value={profile.tagline || ''}
@@ -287,7 +287,7 @@ export default function Settings() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_phone')}</label>
+                      <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_phone')}</label>
                       <input
                         type="text"
                         required
@@ -297,7 +297,7 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_email')}</label>
+                      <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_email')}</label>
                       <input
                         type="email"
                         value={profile.email || ''}
@@ -309,7 +309,7 @@ export default function Settings() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_addr1')}</label>
+                      <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_addr1')}</label>
                       <input
                         type="text"
                         value={profile.address_line1 || ''}
@@ -318,7 +318,7 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_addr2')}</label>
+                      <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_addr2')}</label>
                       <input
                         type="text"
                         value={profile.address_line2 || ''}
@@ -330,7 +330,7 @@ export default function Settings() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_city')}</label>
+                      <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_city')}</label>
                       <input
                         type="text"
                         value={profile.city || ''}
@@ -339,7 +339,7 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_pincode')}</label>
+                      <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_pincode')}</label>
                       <input
                         type="text"
                         value={profile.pincode || ''}
@@ -350,7 +350,7 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                       {t('st_gstin')} <span className="text-slate-400 font-normal">{t('st_gstin_opt')}</span>
                     </label>
                     <input
@@ -363,7 +363,7 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('st_footer_note')}</label>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_footer_note')}</label>
                     <textarea
                       rows={2}
                       value={profile.invoice_footer || ''}
@@ -375,14 +375,14 @@ export default function Settings() {
 
                 {/* Right: Shop Logo Card */}
                 <div className="space-y-3">
-                  <label className="block text-[11px] font-semibold text-slate-700">{t('st_header_preview')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700">{t('st_header_preview')}</label>
                   <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center space-y-2 bg-slate-50/50">
                     <div className="w-14 h-14 rounded-xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-sm shadow-blue-200">
                       <Layers className="w-7 h-7" />
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-800">{profile.shop_name || 'T. S. P Enterprises'}</p>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="text-[12px] text-slate-400">
                         {profile.address_line1 || 'Beach Road'} · {profile.address_line2 || 'Tharuvaikulam'}
                       </p>
                     </div>
@@ -502,12 +502,12 @@ export default function Settings() {
                                   {p.displayName || p.name}
                                 </p>
                                 {p.isDefault && (
-                                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[12px] font-semibold">
                                     {t('st_windows_default')}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                              <p className="text-[13px] text-slate-500 truncate mt-0.5">
                                 {p.connectionType || t('st_local')} · {t('st_installed')}
                                 {p.portName ? ` · ${p.portName}` : ''}
                                 {p.isSimulated ? ` ${t('st_browser_preview')}` : ''}
@@ -516,7 +516,7 @@ export default function Settings() {
                           </div>
 
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border flex-shrink-0 ${statusCls}`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[13px] font-bold border flex-shrink-0 ${statusCls}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${dotCls}`} />
                             {statusText(p.statusLabel)}
@@ -661,7 +661,7 @@ export default function Settings() {
                   <div className="rounded-xl border border-slate-200 bg-slate-100/90 p-4">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-bold text-slate-800">{t('st_bill_preview')}</p>
-                      <span className="text-[11px] font-medium text-slate-500">
+                      <span className="text-[13px] font-medium text-slate-500">
                         {fmt} · {landscape ? t('st_landscape') : t('st_portrait')}
                       </span>
                     </div>
@@ -670,7 +670,7 @@ export default function Settings() {
                         <InvoiceDocument invoice={sampleTestInvoice} profile={profile} format={fmt} inlinePreview={true} />
                       </div>
                     </div>
-                    <p className="text-[11px] text-slate-400 text-center mt-2.5">{t('st_sample_bill')}</p>
+                    <p className="text-[13px] text-slate-400 text-center mt-2.5">{t('st_sample_bill')}</p>
                   </div>
                 );
               })()}
@@ -685,7 +685,7 @@ export default function Settings() {
                 <div className="p-3.5 bg-blue-50/60 rounded-lg border border-blue-100 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-bold text-slate-900">{t('set_lang_title')}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{t('set_lang_desc')}</p>
+                    <p className="text-[13px] text-slate-500 mt-0.5">{t('set_lang_desc')}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -715,16 +715,16 @@ export default function Settings() {
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
                   <div>
                     <p className="font-bold text-slate-800">{t('set_tax_title')}</p>
-                    <p className="text-[11px] text-slate-400">{t('set_tax_desc')}</p>
+                    <p className="text-[13px] text-slate-400">{t('set_tax_desc')}</p>
                   </div>
-                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-full border border-emerald-200 text-[10px]">
+                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-full border border-emerald-200 text-[12px]">
                     {t('set_tax_badge')}
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
                   <div>
                     <p className="font-bold text-slate-800">{t('set_currency_title')}</p>
-                    <p className="text-[11px] text-slate-400">{t('set_currency_desc')}</p>
+                    <p className="text-[13px] text-slate-400">{t('set_currency_desc')}</p>
                   </div>
                   <span className="font-bold text-slate-800">INR (₹)</span>
                 </div>
@@ -740,7 +740,7 @@ export default function Settings() {
                 <p className="font-mono bg-white p-2 rounded border border-slate-200 text-slate-800 break-all select-all">
                   {dbPath}
                 </p>
-                <p className="text-slate-400 text-[11px]">
+                <p className="text-slate-400 text-[13px]">
                   {t('st_db_note')}
                 </p>
               </div>

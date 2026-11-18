@@ -696,7 +696,7 @@ export default function POSBilling() {
                       ? bill.customerName
                       : `${t('po_bill_n')}${index + 1}`}
                   </p>
-                  <p className="text-[10px] text-slate-400 font-normal">
+                  <p className="text-[12px] text-slate-400 font-normal">
                     {t('po_items_n', { n: bill.cart.length })} · ₹{Math.round(billTotal)}
                   </p>
                 </div>
@@ -772,7 +772,7 @@ export default function POSBilling() {
                 <div className="max-h-72 overflow-y-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[13px] font-semibold text-slate-500 uppercase tracking-wide">
                         <th className="py-2.5 px-4">{t('pos_col_product')}</th>
                         <th className="py-2.5 px-3">{t('po_col_rack')}</th>
                         <th className="py-2.5 px-3">{t('po_col_stock_here')}</th>
@@ -809,7 +809,7 @@ export default function POSBilling() {
                                   {tName(item.name)}
                                 </p>
                                 {(item.size || item.category) && (
-                                  <p className="text-[10px] text-slate-400 mt-0.5">
+                                  <p className="text-[12px] text-slate-400 mt-0.5">
                                     {item.size ? tName(item.size) : item.category}
                                   </p>
                                 )}
@@ -821,12 +821,12 @@ export default function POSBilling() {
                           </td>
                           <td className="py-2.5 px-3">
                             {!available ? (
-                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-[12px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                                 {t('cat_unavailable')}
                               </span>
                             ) : (
                               <span
-                                className={`text-[11px] font-bold ${
+                                className={`text-[13px] font-bold ${
                                   item.quantity <= (item.reorder_level || 15)
                                     ? 'text-amber-600'
                                     : 'text-emerald-700'
@@ -842,12 +842,12 @@ export default function POSBilling() {
                           <td className="py-2.5 px-3 text-right font-bold text-slate-900">
                             ₹ {Number(item.selling_price).toFixed(2)}
                             {isMeasurableUnit(item.unit) && (
-                              <span className="text-[10px] font-medium text-slate-400">
+                              <span className="text-[12px] font-medium text-slate-400">
                                 /{normalizeUnit(item.unit)}
                               </span>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-500 text-[11px]">
+                          <td className="py-2.5 px-3 text-slate-500 text-[13px]">
                             {item.size || item.brand || '—'}
                           </td>
                           <td className="py-2.5 px-3 text-center">
@@ -857,12 +857,12 @@ export default function POSBilling() {
                                   e.stopPropagation();
                                   handleAddToCart(item);
                                 }}
-                                className="px-2.5 py-1 bg-blue-600 text-white rounded-md text-[10px] font-bold hover:bg-blue-700 transition-colors shadow-2xs"
+                                className="px-2.5 py-1 bg-blue-600 text-white rounded-md text-[12px] font-bold hover:bg-blue-700 transition-colors shadow-2xs"
                               >
                                 + {t('rk_add')}
                               </button>
                             ) : (
-                              <span className="inline-block px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-md text-[10px] font-bold">
+                              <span className="inline-block px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-md text-[12px] font-bold">
                                 {t('cat_unavailable')}
                               </span>
                             )}
@@ -882,7 +882,7 @@ export default function POSBilling() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[13px] font-semibold text-slate-500 uppercase tracking-wide">
                     <th className="py-3 px-4">{t('pos_col_product')}</th>
                     <th className="py-3 px-3 text-center w-44">{t('pos_col_qty')}</th>
                     <th className="py-3 px-3 text-right w-28">{t('pos_col_rate')}</th>
@@ -897,7 +897,7 @@ export default function POSBilling() {
                       <td colSpan="6" className="py-16 text-center text-slate-400">
                         <Receipt className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                         <p className="text-xs font-semibold text-slate-600">{t('pos_empty_cart')}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
+                        <p className="text-[13px] text-slate-400 mt-0.5">
                           {t('pos_empty_cart_hint')}
                         </p>
                       </td>
@@ -924,7 +924,7 @@ export default function POSBilling() {
                           {/* Product Details */}
                           <td className="py-3 px-4">
                             <p className="font-bold text-slate-900 leading-snug">{tName(item.name)}</p>
-                            <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                            <div className="flex items-center gap-2 text-[12px] text-slate-400 mt-0.5">
                               {item.size && (
                                 <>
                                   <span className="text-slate-600 font-medium">{tName(item.size)}</span>
@@ -967,7 +967,7 @@ export default function POSBilling() {
                                     value={billingUnit}
                                     onChange={(e) => updateBillingUnit(index, e.target.value)}
                                     aria-label={t('po_billing_unit')}
-                                    className="bg-blue-50 border border-blue-200 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                                    className="bg-blue-50 border border-blue-200 rounded-md px-1.5 py-0.5 text-[13px] font-bold text-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                                   >
                                     {compatibleUnits.map((u) => (
                                       <option key={u} value={u}>
@@ -984,12 +984,12 @@ export default function POSBilling() {
                                 </button>
                               </div>
                               {measurable && billingUnit !== baseUnit && (
-                                <span className={`text-[10px] font-medium ${exceedsStock ? 'text-rose-600' : 'text-blue-600'}`}>
+                                <span className={`text-[12px] font-medium ${exceedsStock ? 'text-rose-600' : 'text-blue-600'}`}>
                                   = {formatQty(baseQty)} {baseUnit}
                                 </span>
                               )}
                               {exceedsStock && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1 text-[12px] font-bold text-rose-600 whitespace-nowrap">
                                   <AlertTriangle className="w-3 h-3 flex-shrink-0" />
                                   {t('po_only_in_stock', { qty: formatQty(availableStock), unit: baseUnit })}
                                 </span>
@@ -1000,7 +1000,7 @@ export default function POSBilling() {
                           {/* Editable Rate Column (Negotiated Counter Price) */}
                           <td className="py-3 px-3 text-right">
                             <div className="relative inline-block w-24">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-[12px]">
                                 ₹
                               </span>
                               <input
@@ -1012,7 +1012,7 @@ export default function POSBilling() {
                               />
                             </div>
                             {measurable && (
-                              <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                              <div className="text-[12px] text-slate-400 font-medium mt-0.5">
                                 {t('po_per_unit', { unit: baseUnit })}
                               </div>
                             )}
@@ -1072,12 +1072,12 @@ export default function POSBilling() {
           </div>
 
           {/* Keyboard Hotkey Bar */}
-          <div className="surface-card rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+          <div className="surface-card rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-2 text-[13px] text-slate-600">
             <button
               onClick={() => searchInputRef.current?.focus()}
               className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded-md border border-slate-200 transition-colors"
             >
-              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-700 shadow-2xs">
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[12px] font-bold text-slate-700 shadow-2xs">
                 F2
               </kbd>
               <span>{t('pos_find_product')}</span>
@@ -1087,7 +1087,7 @@ export default function POSBilling() {
               onClick={() => customerInputRef.current?.focus()}
               className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded-md border border-slate-200 transition-colors"
             >
-              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-700 shadow-2xs">
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[12px] font-bold text-slate-700 shadow-2xs">
                 F4
               </kbd>
               <span>{t('pos_customer')}</span>
@@ -1097,7 +1097,7 @@ export default function POSBilling() {
               onClick={() => discountInputRef.current?.focus()}
               className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded-md border border-slate-200 transition-colors"
             >
-              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-700 shadow-2xs">
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[12px] font-bold text-slate-700 shadow-2xs">
                 F6
               </kbd>
               <span>{t('pos_bill_discount')}</span>
@@ -1107,7 +1107,7 @@ export default function POSBilling() {
               onClick={cyclePaymentMode}
               className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded-md border border-slate-200 transition-colors"
             >
-              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-700 shadow-2xs">
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[12px] font-bold text-slate-700 shadow-2xs">
                 F8
               </kbd>
               <span>{t('pos_payment_mode')}</span>
@@ -1117,7 +1117,7 @@ export default function POSBilling() {
               onClick={handleGenerateBill}
               className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md border border-blue-200 transition-colors font-semibold"
             >
-              <kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-[10px] font-bold text-blue-700 shadow-2xs">
+              <kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-[12px] font-bold text-blue-700 shadow-2xs">
                 F9
               </kbd>
               <span>{t('pos_complete_sale')}</span>
@@ -1127,13 +1127,13 @@ export default function POSBilling() {
               onClick={addNewBill}
               className="flex items-center gap-1 px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded-md border border-slate-200 transition-colors text-slate-500"
             >
-              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-600 shadow-2xs">
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[12px] font-bold text-slate-600 shadow-2xs">
                 Alt+N
               </kbd>
               <span>{t('po_new_bill_short')}</span>
             </button>
 
-            <span className="flex items-center gap-1 px-2 py-1 text-slate-400 text-[10px]">
+            <span className="flex items-center gap-1 px-2 py-1 text-slate-400 text-[12px]">
               <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded font-mono">
                 Alt+1-9
               </kbd>
@@ -1156,7 +1156,7 @@ export default function POSBilling() {
               <span className="font-semibold text-emerald-600 tabular-nums">– ₹ {totalDiscount.toFixed(2)}</span>
             </div>
 
-            <div className="flex items-center justify-between text-slate-400 text-[11px]">
+            <div className="flex items-center justify-between text-slate-400 text-[13px]">
               <span>{t('pos_round_off')}</span>
               <span className="tabular-nums">{roundOff >= 0 ? `+ ₹ ${roundOff.toFixed(2)}` : `– ₹ ${Math.abs(roundOff).toFixed(2)}`}</span>
             </div>
@@ -1172,10 +1172,10 @@ export default function POSBilling() {
           {/* Bill Discount % (F6) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              <label className="text-[13px] font-bold uppercase tracking-wide text-slate-600">
                 {t('pos_bill_discount_label')}
               </label>
-              <span className="text-[10px] text-slate-400 font-mono">F6</span>
+              <span className="text-[12px] text-slate-400 font-mono">F6</span>
             </div>
             <div className="relative">
               <input
@@ -1200,10 +1200,10 @@ export default function POSBilling() {
           {/* Payment Mode Selector (F8) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              <label className="text-[13px] font-bold uppercase tracking-wide text-slate-600">
                 {t('pos_payment_label')}
               </label>
-              <span className="text-[10px] text-slate-400 font-mono">F8</span>
+              <span className="text-[12px] text-slate-400 font-mono">F8</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -1235,10 +1235,10 @@ export default function POSBilling() {
           <div className="space-y-3 pt-2 border-t border-slate-100">
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                <label className="text-[13px] font-bold uppercase tracking-wide text-slate-600">
                   {t('pos_customer_name')}
                 </label>
-                <span className="text-[10px] text-slate-400 font-mono">F4</span>
+                <span className="text-[12px] text-slate-400 font-mono">F4</span>
               </div>
               <div className="relative">
                 <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1254,7 +1254,7 @@ export default function POSBilling() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              <label className="text-[13px] font-bold uppercase tracking-wide text-slate-600">
                 {t('pos_phone')}
               </label>
               <div className="relative">
@@ -1270,7 +1270,7 @@ export default function POSBilling() {
             </div>
 
             {/* Cashier / Attendant tag */}
-            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between text-[11px]">
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between text-[13px]">
               <span className="text-slate-400">{t('po_cashier')}</span>
               <span className="font-semibold text-slate-700">Franklin ({t('admin')})</span>
             </div>
@@ -1280,7 +1280,7 @@ export default function POSBilling() {
           <button
             onClick={handleGenerateBill}
             disabled={activeBill.cart.length === 0}
-            className={`w-full py-3 px-4 rounded-xl text-[13px] font-bold tracking-[-0.01em] transition-all flex items-center justify-between ${
+            className={`w-full py-3 px-4 rounded-xl text-[15px] font-bold tracking-[-0.01em] transition-all flex items-center justify-between ${
               activeBill.cart.length === 0
                 ? 'bg-slate-100/90 text-slate-400 border border-slate-200/90 cursor-not-allowed shadow-none'
                 : 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-700/80 shadow-md ring-1 ring-inset ring-white/15 active:scale-[0.99]'
@@ -1295,7 +1295,7 @@ export default function POSBilling() {
                 ₹ {roundedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               <kbd
-                className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold border ${
+                className={`px-1.5 py-0.5 rounded-md text-[12px] font-mono font-bold border ${
                   activeBill.cart.length === 0
                     ? 'bg-white text-slate-400 border-slate-200/90'
                     : 'bg-white/15 text-white border-white/25'
@@ -1339,14 +1339,14 @@ export default function POSBilling() {
                         <span className="font-mono font-bold text-xs text-slate-900">
                           {inv.invoice_number}
                         </span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+                        <span className="text-[12px] font-bold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
                           {PAY_LABEL[inv.payment_mode || 'Cash'] ? t(PAY_LABEL[inv.payment_mode || 'Cash']) : inv.payment_mode}
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 font-semibold mt-0.5">
                         {!inv.customer_name || inv.customer_name === 'Walk-in Customer' ? t('po_walkin') : inv.customer_name}
                       </p>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[13px] text-slate-400">
                         {inv.date_time || t('po_recent')} · {t('po_items_n', { n: inv.items_count || 1 })}
                       </p>
                     </div>

@@ -81,7 +81,7 @@ export default function OrdersButton({ label, className = '' }) {
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">{t('ct_po_title')}</h3>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[13px] text-slate-500">
                   {t('ct_po_summary', { total: orders.length, pending: pending ? t('ct_po_pending_part', { n: pending }) : '' })}
                 </p>
               </div>
@@ -104,7 +104,7 @@ export default function OrdersButton({ label, className = '' }) {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border ${
+                  className={`px-2.5 py-1.5 rounded-lg text-[13px] font-semibold border ${
                     filter === f
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -140,7 +140,7 @@ export default function OrdersButton({ label, className = '' }) {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-slate-900 font-mono">{o.po_number}</p>
-                        <p className="text-[11px] text-slate-500 truncate">
+                        <p className="text-[13px] text-slate-500 truncate">
                           {o.vendor_name} - {o.order_date}
                         </p>
                       </div>
@@ -148,7 +148,7 @@ export default function OrdersButton({ label, className = '' }) {
                         Rs. {Number(o.amount || 0).toLocaleString('en-IN')}
                       </span>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                        className={`px-2 py-0.5 rounded-full text-[12px] font-semibold border ${
                           st === 'Request'
                             ? 'bg-blue-50 text-blue-700 border-blue-200'
                             : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -159,9 +159,9 @@ export default function OrdersButton({ label, className = '' }) {
                     </button>
                     {isOpen && (
                       <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 space-y-1">
-                        {lines.length === 0 && <p className="text-[11px] text-slate-400">{t('ct_po_no_lines')}</p>}
+                        {lines.length === 0 && <p className="text-[13px] text-slate-400">{t('ct_po_no_lines')}</p>}
                         {lines.map((l, i) => (
-                          <div key={i} className="flex justify-between text-[11px]">
+                          <div key={i} className="flex justify-between text-[13px]">
                             <span className="text-slate-700">
                               {l.name} {l.sku ? `(${l.sku})` : ''}
                             </span>

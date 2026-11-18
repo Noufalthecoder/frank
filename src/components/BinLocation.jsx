@@ -63,7 +63,7 @@ export default function BinLocation({ bin, racks = [], className = '' }) {
                 <p className="text-xs font-bold text-slate-900 truncate">
                   {t('rk_rack_label', { code: rack.code, name: rack.name })}
                 </p>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[13px] text-slate-500">
                   {t('rk_level_slot_opt', { level: binInfo.level_no, slot: binInfo.slot_no })} · <span className="font-mono">{code}</span>
                 </p>
               </div>

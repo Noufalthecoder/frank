@@ -221,7 +221,7 @@ export default function Racks({ embedded = false }) {
                 >
                   <div>
                     <p className="font-bold">{r.code} – {r.name}</p>
-                    <p className="text-[11px] text-slate-400 font-normal mt-0.5">
+                    <p className="text-[13px] text-slate-400 font-normal mt-0.5">
                       ({t('rk_bins_count', { n: r.binsCount || (r.levels * r.slots_per_level) })})
                     </p>
                   </div>
@@ -234,14 +234,14 @@ export default function Racks({ embedded = false }) {
           {/* Products with no valid bin */}
           {unassignedItems.length > 0 && (
             <div className="border-t border-slate-100 pt-3 space-y-2">
-              <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+              <p className="text-[13px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
                 <AlertCircle className="w-3.5 h-3.5" /> {t('rk_unassigned')} ({unassignedItems.length})
               </p>
               <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
                 {unassignedItems.map((item) => (
                   <div key={item.id} className="p-2 bg-amber-50/50 border border-amber-200/70 rounded-lg">
-                    <p className="text-[11px] font-semibold text-slate-800 truncate">{item.name}</p>
-                    <p className="text-[10px] font-mono text-slate-400 mb-1">
+                    <p className="text-[13px] font-semibold text-slate-800 truncate">{item.name}</p>
+                    <p className="text-[12px] font-mono text-slate-400 mb-1">
                       {item.sku}{item.bin_id ? ` · ${t('rk_bad_bin', { bin: item.bin_id })}` : ''}
                     </p>
                     <BinPicker
@@ -250,7 +250,7 @@ export default function Racks({ embedded = false }) {
                       autoPickFirst={false}
                       rackPlaceholder={t('rk_assign_to_rack')}
                       onChange={(code) => moveItem(item.id, code)}
-                      selectClassName="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-700"
+                      selectClassName="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-[13px] text-slate-700"
                     />
                   </div>
                 ))}
@@ -308,7 +308,7 @@ export default function Racks({ embedded = false }) {
                     <button
                       key={k}
                       onClick={() => setViewMode(k)}
-                      className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${
+                      className={`px-3 py-1 rounded-md text-[13px] font-bold transition-all ${
                         viewMode === k ? 'bg-white text-blue-600 shadow-xs ring-1 ring-slate-200/60' : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
@@ -356,13 +356,13 @@ export default function Racks({ embedded = false }) {
                                   : 'bg-slate-50/80 border-slate-200/80 hover:border-blue-300'
                               }`}
                             >
-                              <p className="text-[10px] font-mono font-medium text-slate-500 uppercase tracking-wider group-hover:text-blue-700">
+                              <p className="text-[12px] font-mono font-medium text-slate-500 uppercase tracking-wider group-hover:text-blue-700">
                                 {bin.bin_code}
                               </p>
                               <p className={`text-lg font-bold mt-1 ${hasStock ? 'text-emerald-900' : 'text-slate-400'}`}>
                                 {Number(bin.quantity).toLocaleString('en-IN')}
                               </p>
-                              <p className={`text-[9px] font-medium ${hasStock ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              <p className={`text-[11px] font-medium ${hasStock ? 'text-emerald-600' : 'text-slate-400'}`}>
                                 {(bin.items || []).length > 0 ? t('rk_sku_count', { n: bin.items.length }) : t('rk_empty_bin')}
                               </p>
                             </button>
@@ -410,7 +410,7 @@ export default function Racks({ embedded = false }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_code_label')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_code_label')}</label>
                   <input
                     type="text"
                     required
@@ -424,7 +424,7 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_name_label')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_name_label')}</label>
                   <input
                     type="text"
                     required
@@ -440,7 +440,7 @@ export default function Racks({ embedded = false }) {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_zone')}</label>
+                <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_zone')}</label>
                 <input
                   type="text"
                   placeholder={t('rk_ph_zone')}
@@ -452,7 +452,7 @@ export default function Racks({ embedded = false }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_levels_shelves')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_levels_shelves')}</label>
                   <input
                     type="number"
                     min="1"
@@ -463,7 +463,7 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_slots_per_level')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_slots_per_level')}</label>
                   <input
                     type="number"
                     min="1"
@@ -517,7 +517,7 @@ export default function Racks({ embedded = false }) {
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_name_label')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_name_label')}</label>
                   <input
                     type="text"
                     required
@@ -527,7 +527,7 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_zone')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_zone')}</label>
                   <input
                     type="text"
                     value={editRack.zone}
@@ -538,7 +538,7 @@ export default function Racks({ embedded = false }) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_levels_shelves')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_levels_shelves')}</label>
                   <input
                     type="number"
                     min="1"
@@ -549,7 +549,7 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_slots_per_level')}</label>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_slots_per_level')}</label>
                   <input
                     type="number"
                     min="1"
@@ -560,7 +560,7 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
               </div>
-              <p className="text-[11px] text-slate-400">{t('rk_shrink_note')}</p>
+              <p className="text-[13px] text-slate-400">{t('rk_shrink_note')}</p>
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -585,7 +585,7 @@ export default function Racks({ embedded = false }) {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 font-mono">{selectedBin.bin_code}</h3>
-                <p className="text-[11px] text-slate-400">{t('rk_level_slot_opt', { level: selectedBin.level_no, slot: selectedBin.slot_no })}</p>
+                <p className="text-[13px] text-slate-400">{t('rk_level_slot_opt', { level: selectedBin.level_no, slot: selectedBin.slot_no })}</p>
               </div>
               <button onClick={() => setSelectedBinCode(null)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
@@ -595,20 +595,20 @@ export default function Racks({ embedded = false }) {
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs space-y-1">
               <p className="text-slate-500">{t('rk_occupancy')}</p>
               <p className="text-xl font-bold text-slate-900">{t('rk_units', { n: Number(selectedBin.quantity).toLocaleString('en-IN') })}</p>
-              <p className={`text-[11px] font-medium ${Number(selectedBin.quantity) > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+              <p className={`text-[13px] font-medium ${Number(selectedBin.quantity) > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                 {Number(selectedBin.quantity) > 0 ? t('rk_status_stocked') : t('rk_status_empty')}
               </p>
             </div>
 
             {selectedBin.items && selectedBin.items.length > 0 ? (
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                <p className="text-[11px] font-bold text-slate-600 uppercase">{t('rk_products_in_bin')}</p>
+                <p className="text-[13px] font-bold text-slate-600 uppercase">{t('rk_products_in_bin')}</p>
                 {selectedBin.items.map((item) => (
                   <div key={item.id || item.sku} className="p-2 bg-white border border-slate-200 rounded-lg text-xs space-y-1.5">
                     <div className="flex items-center justify-between">
                       <div className="min-w-0 pr-2">
                         <p className="font-semibold text-slate-800 truncate">{item.name}</p>
-                        <p className="text-[10px] font-mono text-slate-400">{item.sku}</p>
+                        <p className="text-[12px] font-mono text-slate-400">{item.sku}</p>
                       </div>
                       <span className="font-bold text-emerald-700 flex-shrink-0">
                         {item.quantity} {item.unit || 'PCS'}
@@ -622,11 +622,11 @@ export default function Racks({ embedded = false }) {
                         rackPlaceholder={t('rk_move_to_rack')}
                         onChange={(code) => moveItem(item.id, code)}
                         className="flex-1 min-w-0"
-                        selectClassName="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-700"
+                        selectClassName="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-[13px] text-slate-700"
                       />
                       <button
                         onClick={() => moveItem(item.id, '')}
-                        className="px-2 py-1 text-[11px] font-semibold text-slate-500 border border-slate-200 rounded-md hover:text-rose-600 hover:bg-rose-50"
+                        className="px-2 py-1 text-[13px] font-semibold text-slate-500 border border-slate-200 rounded-md hover:text-rose-600 hover:bg-rose-50"
                       >
                         {t('rk_unassign')}
                       </button>
@@ -635,13 +635,13 @@ export default function Racks({ embedded = false }) {
                 ))}
               </div>
             ) : (
-              <p className="text-[11px] text-slate-400 text-center py-2">
+              <p className="text-[13px] text-slate-400 text-center py-2">
                 {t('rk_no_products_in', { bin: selectedBin.bin_code })}
               </p>
             )}
 
             <div className="space-y-1.5">
-              <p className="text-[11px] font-bold text-slate-600 uppercase">{t('rk_add_product_to_bin')}</p>
+              <p className="text-[13px] font-bold text-slate-600 uppercase">{t('rk_add_product_to_bin')}</p>
               <div className="flex gap-2">
                 <select
                   value={pickItemId}

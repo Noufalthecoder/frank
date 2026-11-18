@@ -295,7 +295,7 @@ export default function SalesHistory() {
       <div className="surface-card rounded-2xl overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            <tr className="bg-slate-50 border-b border-slate-200 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
               <th className="py-3 px-4">{t('hist_col_inv')}</th>
               <th className="py-3 px-4">{t('hist_col_date')}</th>
               <th className="py-3 px-4">{t('hist_col_cust')}</th>
@@ -324,13 +324,13 @@ export default function SalesHistory() {
                     {inv.items_count || 1}
                   </td>
                   <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[11px]">
+                    <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[13px]">
                       {payLabel(inv.payment_mode || 'Cash')}
                     </span>
                   </td>
                   <td className="py-3 px-4">
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      className={`px-2 py-0.5 rounded-full text-[12px] font-bold border ${
                         isReturned
                           ? 'bg-rose-50 text-rose-700 border-rose-200'
                           : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -396,7 +396,7 @@ export default function SalesHistory() {
                     {selectedInvoice.invoice_number}
                   </h3>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                    className={`px-2 py-0.5 rounded-full text-[12px] font-bold border ${
                       selectedInvoice.status === 'Returned'
                         ? 'bg-rose-50 text-rose-700 border-rose-200'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -417,14 +417,14 @@ export default function SalesHistory() {
 
             <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-lg border border-slate-100">
               <div>
-                <p className="text-slate-400 text-[11px]">{t('fi_customer')}</p>
+                <p className="text-slate-400 text-[13px]">{t('fi_customer')}</p>
                 <p className="font-semibold text-slate-800">{selectedInvoice.customer_name || t('fi_walkin')}</p>
                 {selectedInvoice.customer_phone && (
-                  <p className="text-[11px] text-slate-500">{selectedInvoice.customer_phone}</p>
+                  <p className="text-[13px] text-slate-500">{selectedInvoice.customer_phone}</p>
                 )}
               </div>
               <div className="text-right">
-                <p className="text-slate-400 text-[11px]">{t('fi_payment_mode')}</p>
+                <p className="text-slate-400 text-[13px]">{t('fi_payment_mode')}</p>
                 <p className="font-bold text-slate-800">{payLabel(selectedInvoice.payment_mode || 'Cash')}</p>
               </div>
             </div>
@@ -433,7 +433,7 @@ export default function SalesHistory() {
             <div className="border border-slate-200 rounded-lg overflow-hidden max-h-56 overflow-y-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-semibold text-slate-500 uppercase">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[12px] font-semibold text-slate-500 uppercase">
                     <th className="py-2 px-3">{t('fi_col_product')}</th>
                     <th className="py-2 px-2 text-center">{t('fi_col_qty')}</th>
                     <th className="py-2 px-2 text-right">{t('fi_col_rate')}</th>
@@ -456,7 +456,7 @@ export default function SalesHistory() {
                         <tr key={idx}>
                           <td className="py-2 px-3">
                             <p className="font-semibold text-slate-800">{tName(item.name)}</p>
-                            {item.sku && <p className="text-[10px] font-mono text-slate-400">{item.sku}</p>}
+                            {item.sku && <p className="text-[12px] font-mono text-slate-400">{item.sku}</p>}
                           </td>
                           <td className="py-2 px-2 text-center font-medium text-slate-700 whitespace-nowrap">
                             {formatQty(qtyVal)}{unitSuffix}

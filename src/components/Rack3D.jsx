@@ -124,13 +124,13 @@ export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin 
 
       {!compact && (
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[11px] text-slate-400">{t('rk_drag_hint')}</p>
+        <p className="text-[13px] text-slate-400">{t('rk_drag_hint')}</p>
         <div className="flex items-center gap-1">
           {Object.keys(PRESETS).map((k) => (
             <button
               key={k}
               onClick={() => setRot(PRESETS[k])}
-              className="px-2 py-1 text-[11px] font-semibold capitalize text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
+              className="px-2 py-1 text-[13px] font-semibold capitalize text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
             >
               {t('rk_view_' + k)}
             </button>
@@ -274,7 +274,7 @@ export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin 
       </div>
 
       {!compact && !hl && (
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 text-[11px] text-slate-500">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 text-[13px] text-slate-500">
         {[
           ['ok', t('rk_in_stock')],
           ['low', t('rk_low_stock')],
