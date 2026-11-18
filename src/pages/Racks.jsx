@@ -411,7 +411,7 @@ export default function Racks({ embedded = false }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_code_label')}</label>
-                  <input
+                  <input data-rule="code" maxLength={12}
                     type="text"
                     required
                     placeholder={t('rk_ph_code')}
@@ -425,7 +425,7 @@ export default function Racks({ embedded = false }) {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_name_label')}</label>
-                  <input
+                  <input data-rule="text" maxLength={40}
                     type="text"
                     required
                     placeholder={t('rk_ph_name')}
@@ -441,7 +441,7 @@ export default function Racks({ embedded = false }) {
 
               <div>
                 <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_zone')}</label>
-                <input
+                <input data-rule="text" maxLength={30}
                   type="text"
                   placeholder={t('rk_ph_zone')}
                   value={newRack.zone}
@@ -453,7 +453,7 @@ export default function Racks({ embedded = false }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_levels_shelves')}</label>
-                  <input
+                  <input data-int
                     type="number"
                     min="1"
                     max="10"
@@ -464,7 +464,7 @@ export default function Racks({ embedded = false }) {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_slots_per_level')}</label>
-                  <input
+                  <input data-int
                     type="number"
                     min="1"
                     max="10"
@@ -518,7 +518,7 @@ export default function Racks({ embedded = false }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_name_label')}</label>
-                  <input
+                  <input data-rule="text" maxLength={40}
                     type="text"
                     required
                     value={editRack.name}
@@ -528,7 +528,7 @@ export default function Racks({ embedded = false }) {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_zone')}</label>
-                  <input
+                  <input data-rule="text" maxLength={30}
                     type="text"
                     value={editRack.zone}
                     onChange={(e) => setEditRack({ ...editRack, zone: e.target.value })}
@@ -539,7 +539,7 @@ export default function Racks({ embedded = false }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_levels_shelves')}</label>
-                  <input
+                  <input data-int
                     type="number"
                     min="1"
                     max="10"
@@ -550,7 +550,7 @@ export default function Racks({ embedded = false }) {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('rk_slots_per_level')}</label>
-                  <input
+                  <input data-int
                     type="number"
                     min="1"
                     max="10"

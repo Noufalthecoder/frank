@@ -266,7 +266,7 @@ export default function Settings() {
                       <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                         {t('st_shop_name')}
                       </label>
-                      <input
+                      <input data-rule="text" maxLength={80}
                         type="text"
                         required
                         value={profile.shop_name}
@@ -276,7 +276,7 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_tagline')}</label>
-                      <input
+                      <input data-rule="text" maxLength={80}
                         type="text"
                         value={profile.tagline || ''}
                         onChange={(e) => setProfile({ ...profile, tagline: e.target.value })}
@@ -288,7 +288,7 @@ export default function Settings() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_phone')}</label>
-                      <input
+                      <input data-rule="phone" maxLength={15}
                         type="text"
                         required
                         value={profile.phone || ''}
@@ -310,7 +310,7 @@ export default function Settings() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_addr1')}</label>
-                      <input
+                      <input data-rule="text" maxLength={80}
                         type="text"
                         value={profile.address_line1 || ''}
                         onChange={(e) => setProfile({ ...profile, address_line1: e.target.value })}
@@ -319,7 +319,7 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_addr2')}</label>
-                      <input
+                      <input data-rule="text" maxLength={80}
                         type="text"
                         value={profile.address_line2 || ''}
                         onChange={(e) => setProfile({ ...profile, address_line2: e.target.value })}
@@ -331,7 +331,7 @@ export default function Settings() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_city')}</label>
-                      <input
+                      <input data-rule="alpha" maxLength={40}
                         type="text"
                         value={profile.city || ''}
                         onChange={(e) => setProfile({ ...profile, city: e.target.value })}
@@ -340,7 +340,7 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="block text-[13px] font-semibold text-slate-700 mb-1">{t('st_pincode')}</label>
-                      <input
+                      <input data-rule="digits" maxLength={6} inputMode="numeric"
                         type="text"
                         value={profile.pincode || ''}
                         onChange={(e) => setProfile({ ...profile, pincode: e.target.value })}
@@ -353,7 +353,7 @@ export default function Settings() {
                     <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                       {t('st_gstin')} <span className="text-slate-400 font-normal">{t('st_gstin_opt')}</span>
                     </label>
-                    <input
+                    <input data-rule="code" maxLength={15}
                       type="text"
                       placeholder={t('st_gstin_ph')}
                       value={profile.gstin || ''}
