@@ -360,7 +360,7 @@ export default function ToolLibraryPicker({
         {filteredTools.length === 0 && (
           <div className="col-span-4 py-10 text-center text-xs text-slate-400">
             <Package className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
-            No preset tools match "{query}". Switch to <strong>Manual Entry</strong> to add a custom product.
+            No preset tools match "{query}". Click <strong>Create Product</strong> in the top right to add a custom product.
           </div>
         )}
       </div>
