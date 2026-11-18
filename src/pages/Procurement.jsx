@@ -849,31 +849,24 @@ export default function Procurement() {
                 </div>
               </div>
 
-              {/* Itemized Restock Builder (Synced with Catalog Product ID) */}
+              {/* Itemized Restock Builder */}
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-700">Order Items (auto-restocked when Received)</p>
-                    <p className="text-[10px] text-slate-400">
-                      Cost Rate = vendor purchase price per unit (auto-calculates Total Amount)
-                    </p>
-                  </div>
+                  <p className="text-[11px] font-bold text-slate-700">Order Items</p>
                   <button
                     type="button"
                     onClick={() => setShowQuickItemForm((prev) => !prev)}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 text-[11px] font-semibold flex-shrink-0 transition-colors"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span>{showQuickItemForm ? 'Close' : 'New Catalog Item'}</span>
+                    {showQuickItemForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                    <span>{showQuickItemForm ? 'Close' : 'New Product'}</span>
                   </button>
                 </div>
 
-                {/* Optional Inline New Catalog Item Creator */}
+                {/* Inline New Product Creator */}
                 {showQuickItemForm && (
                   <div className="bg-white p-3 rounded-lg border border-blue-200/80 space-y-2.5">
-                    <p className="text-[11px] font-bold text-blue-700">
-                      Create Brand-New Item in Catalog & Add to PO
-                    </p>
+                    <p className="text-[11px] font-bold text-slate-800">New Product</p>
                     <div className="grid grid-cols-12 gap-2">
                       <input
                         type="text"
@@ -948,9 +941,9 @@ export default function Procurement() {
                       <button
                         type="button"
                         onClick={handleQuickCreateCatalogItem}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors"
+                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors"
                       >
-                        Create in Catalog & Add to PO
+                        Create Product
                       </button>
                     </div>
                   </div>
@@ -959,7 +952,7 @@ export default function Procurement() {
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-6">
                     <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">
-                      Catalog Product (ID-synced)
+                      Product
                     </label>
                     <select
                       value={lineProductId}
@@ -1059,13 +1052,6 @@ export default function Procurement() {
                   </select>
                 </div>
               </div>
-              {poForm.status === 'Received' && (
-                <p className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 rounded-lg px-3 py-1.5">
-                  {editingPo
-                    ? 'Saving as Received will sync only the added/changed item quantities into your catalog inventory (no duplicate restocking).'
-                    : 'Any ordered items listed above will be restocked into your catalog immediately upon generating this PO.'}
-                </p>
-              )}
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
