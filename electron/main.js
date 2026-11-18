@@ -17,8 +17,11 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win
 
 const Database = require('better-sqlite3')
-const dbpath = path.join(app.getPath("userData"), "billing.db")
+const userDataDir = app.getPath("userData")
+fs.mkdirSync(userDataDir, { recursive: true })
+const dbpath = path.join(userDataDir, "billing.db")
 let db = new Database(dbpath)
+db.pragma('journal_mode = WAL')
 
 // Initialize Schema
 function initSchema() {
