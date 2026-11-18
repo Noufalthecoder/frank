@@ -61,7 +61,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
   return (
     <div
       style={{
-        fontFamily: '"JetBrains Mono", "Courier New", Courier, monospace',
+        fontFamily: '"Lexend", "Noto Sans Tamil", "Nirmala UI", system-ui, -apple-system, "Segoe UI", Arial, sans-serif',
         color: '#0f172a',
         backgroundColor: '#ffffff',
         fontSize: `${baseFontPx}px`,
@@ -82,7 +82,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
       >
         {isNarrow ? (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: `${headingPx}px`, fontWeight: 800, letterSpacing: '0.4px' }}>
+            <div style={{ fontSize: `${headingPx}px`, fontWeight: 600, letterSpacing: '0.4px' }}>
               {shopName.toUpperCase()}
             </div>
             <div style={{ fontSize: `${Math.max(8, baseFontPx - 1)}px`, marginTop: '2px' }}>
@@ -105,7 +105,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
                 borderTop: '1px dashed #64748b',
                 display: 'flex',
                 justifyContent: 'space-between',
-                fontWeight: 700,
+                fontWeight: 600,
               }}
             >
               <span>Bill: #{billNo}</span>
@@ -115,7 +115,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
         ) : (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
             <div>
-              <div style={{ fontSize: `${headingPx}px`, fontWeight: 800, letterSpacing: '0.4px' }}>
+              <div style={{ fontSize: `${headingPx}px`, fontWeight: 600, letterSpacing: '0.4px' }}>
                 {shopName.toUpperCase()}
               </div>
               <div style={{ marginTop: '2px' }}>{addressParts.join(', ')}</div>
@@ -126,10 +126,10 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
               </div>
             </div>
             <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-              <div style={{ fontSize: `${Math.round(baseFontPx * 1.15)}px`, fontWeight: 800, letterSpacing: '0.8px' }}>
+              <div style={{ fontSize: `${Math.round(baseFontPx * 1.15)}px`, fontWeight: 600, letterSpacing: '0.8px' }}>
                 INVOICE / BILL
               </div>
-              <div style={{ marginTop: '2px', fontWeight: 700 }}>Bill No: #{billNo}</div>
+              <div style={{ marginTop: '2px', fontWeight: 600 }}>Bill No: #{billNo}</div>
               <div>Date: {billDate}</div>
             </div>
           </div>
@@ -138,7 +138,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
 
       {/* BILL TO */}
       <div style={{ marginBottom: isNarrow ? '8px' : '14px' }}>
-        <div style={{ fontWeight: 700, letterSpacing: '0.4px' }}>BILL TO:</div>
+        <div style={{ fontWeight: 600, letterSpacing: '0.4px' }}>BILL TO:</div>
         <div>
           Customer Name: <strong>{invoice.customer_name || 'Walk-in Customer'}</strong>
         </div>
@@ -255,7 +255,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
                       textAlign: 'right',
                       padding: '4px 0 4px 6px',
                       borderLeft: '1px solid #e2e8f0',
-                      fontWeight: 700,
+                      fontWeight: 600,
                       whiteSpace: 'nowrap',
                       verticalAlign: 'top',
                     }}
@@ -314,7 +314,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
                 style={{
                   textAlign: 'right',
                   padding: '4px 8px 2px 0',
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: `${Math.round(baseFontPx * 1.1)}px`,
                 }}
               >
@@ -325,7 +325,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
                   textAlign: 'right',
                   padding: '4px 0 2px 8px',
                   borderLeft: '1px solid #0f172a',
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: `${Math.round(baseFontPx * 1.1)}px`,
                   whiteSpace: 'nowrap',
                 }}

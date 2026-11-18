@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Search,
   Download,
-  Eye,
   Printer,
   X,
   CheckCircle2
@@ -49,6 +48,12 @@ export default function SalesHistory() {
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState('All Time');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  useEffect(() => {
+    if (!selectedInvoice) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setSelectedInvoice(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedInvoice]);
   const [printTarget, setPrintTarget] = useState(null);
   const [previewInvoice, setPreviewInvoice] = useState(null);
   const [printPrefs, setPrintPrefs] = useState(getPrintPreferences());
@@ -310,7 +315,10 @@ export default function SalesHistory() {
             {rows.map((inv) => {
               const isReturned = inv.status === 'Returned';
               return (
-                <tr key={inv.id} className={`hover:bg-slate-50/80 transition-colors ${isReturned ? 'opacity-70 bg-rose-50/20' : ''}`}>
+                <tr
+                  key={inv.id}
+                  onClick={() => setSelectedInvoice(inv)}
+                  className={`cursor-pointer hover:bg-blue-50/40 transition-colors ${selectedInvoice?.id === inv.id ? 'bg-blue-50/60' : ''} ${isReturned ? 'opacity-70 bg-rose-50/20' : ''}`}>
                   <td className="py-3 px-4 font-mono font-bold text-blue-600">
                     {inv.invoice_number}
                   </td>
@@ -344,16 +352,9 @@ export default function SalesHistory() {
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-1.5 text-slate-400">
-                      <button
-                        onClick={() => setSelectedInvoice(inv)}
-                        className="p-1.5 hover:text-blue-600 hover:bg-slate-100 rounded transition-colors"
-                        title={t('fi_view_details')}
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
                       {printPrefs.allowHistoryReprint !== false && (
                         <button
-                          onClick={() => handlePrint(inv)}
+                          onClick={(e) => { e.stopPropagation(); handlePrint(inv); }}
                           className="p-1.5 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors"
                           title={t('fi_reprint_receipt')}
                         >
@@ -387,16 +388,24 @@ export default function SalesHistory() {
 
       {/* Invoice Inspection Modal with Full Item Breakdown */}
       {selectedInvoice && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden p-7 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div
+          className="fixed inset-0 bg-slate-900/30 flex justify-end z-50"
+          onClick={() => setSelectedInvoice(null)}
+        >
+          <aside
+            role="dialog"
+            aria-label={selectedInvoice.invoice_number}
+            onClick={(e) => e.stopPropagation()}
+            className="animate-drawer bg-white h-full w-full max-w-[560px] shadow-2xl border-l border-slate-200 flex flex-col p-7 gap-5 overflow-y-auto"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-slate-900 font-mono">
+                  <h3 className="text-xl font-bold text-slate-900 font-mono">
                     {selectedInvoice.invoice_number}
                   </h3>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[12px] font-bold border ${
+                    className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
                       selectedInvoice.status === 'Returned'
                         ? 'bg-rose-50 text-rose-700 border-rose-200'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -405,7 +414,7 @@ export default function SalesHistory() {
                     {statusLabel(selectedInvoice.status || 'Completed')}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">{selectedInvoice.date_time}</p>
+                <p className="text-sm text-slate-400 mt-0.5">{selectedInvoice.date_time}</p>
               </div>
               <button
                 onClick={() => setSelectedInvoice(null)}
@@ -415,29 +424,29 @@ export default function SalesHistory() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-lg border border-slate-100">
+            <div className="grid grid-cols-2 gap-3 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
               <div>
-                <p className="text-slate-400 text-[13px]">{t('fi_customer')}</p>
+                <p className="text-slate-400 text-sm">{t('fi_customer')}</p>
                 <p className="font-semibold text-slate-800">{selectedInvoice.customer_name || t('fi_walkin')}</p>
                 {selectedInvoice.customer_phone && (
-                  <p className="text-[13px] text-slate-500">{selectedInvoice.customer_phone}</p>
+                  <p className="text-sm text-slate-500">{selectedInvoice.customer_phone}</p>
                 )}
               </div>
               <div className="text-right">
-                <p className="text-slate-400 text-[13px]">{t('fi_payment_mode')}</p>
+                <p className="text-slate-400 text-sm">{t('fi_payment_mode')}</p>
                 <p className="font-bold text-slate-800">{payLabel(selectedInvoice.payment_mode || 'Cash')}</p>
               </div>
             </div>
 
             {/* Itemized Lines */}
             <div className="border border-slate-200 rounded-lg overflow-hidden max-h-56 overflow-y-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[12px] font-semibold text-slate-500 uppercase">
-                    <th className="py-2 px-3">{t('fi_col_product')}</th>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+                    <th className="py-3 px-3">{t('fi_col_product')}</th>
                     <th className="py-2 px-2 text-center">{t('fi_col_qty')}</th>
                     <th className="py-2 px-2 text-right">{t('fi_col_rate')}</th>
-                    <th className="py-2 px-3 text-right">{t('fi_col_total')}</th>
+                    <th className="py-3 px-3 text-right">{t('fi_col_total')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -454,9 +463,9 @@ export default function SalesHistory() {
                       const rateSuffix = item.base_unit && isMeasurableUnit(item.base_unit) ? ` / ${item.base_unit}` : '';
                       return (
                         <tr key={idx}>
-                          <td className="py-2 px-3">
+                          <td className="py-3 px-3">
                             <p className="font-semibold text-slate-800">{tName(item.name)}</p>
-                            {item.sku && <p className="text-[12px] font-mono text-slate-400">{item.sku}</p>}
+                            {item.sku && <p className="text-xs font-mono text-slate-400">{item.sku}</p>}
                           </td>
                           <td className="py-2 px-2 text-center font-medium text-slate-700 whitespace-nowrap">
                             {formatQty(qtyVal)}{unitSuffix}
@@ -464,7 +473,7 @@ export default function SalesHistory() {
                           <td className="py-2 px-2 text-right text-slate-600 whitespace-nowrap">
                             ₹ {Number(item.rate || 0).toFixed(2)}{rateSuffix}
                           </td>
-                          <td className="py-2 px-3 text-right font-bold text-slate-900">
+                          <td className="py-3 px-3 text-right font-bold text-slate-900">
                             ₹ {Number(item.total ?? (item.stock_deduction_qty || qtyVal) * (item.rate || 0)).toFixed(2)}
                           </td>
                         </tr>
@@ -475,7 +484,7 @@ export default function SalesHistory() {
               </table>
             </div>
 
-            <div className="space-y-1.5 text-xs pt-1">
+            <div className="space-y-1.5 text-sm pt-1">
               <div className="flex justify-between text-slate-500">
                 <span>{t('fi_subtotal')}</span>
                 <span className="font-medium text-slate-800">₹ {Number(selectedInvoice.subtotal || selectedInvoice.total).toFixed(2)}</span>
@@ -490,11 +499,11 @@ export default function SalesHistory() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-4 mt-auto sticky bottom-0 bg-white border-t border-slate-100">
               {printPrefs.allowHistoryReprint !== false && (
                 <button
                   onClick={() => handlePrint(selectedInvoice)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800"
+                  className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>{t('hist_print_invoice')}</span>
@@ -503,7 +512,7 @@ export default function SalesHistory() {
               {selectedInvoice.status !== 'Returned' && (
                 <button
                   onClick={() => handleReturn(selectedInvoice)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold hover:bg-rose-100"
+                  className="flex items-center gap-1.5 px-3 py-2.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-sm font-semibold hover:bg-rose-100"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>{t('hist_return')}</span>
@@ -511,12 +520,12 @@ export default function SalesHistory() {
               )}
               <button
                 onClick={() => setSelectedInvoice(null)}
-                className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200"
+                className="px-3 py-2.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-200"
               >
                 {t('hist_close')}
               </button>
             </div>
-          </div>
+          </aside>
         </div>
       )}
 
