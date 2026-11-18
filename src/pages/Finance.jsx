@@ -1,3 +1,4 @@
+import { localDateStr } from '../lib/dateUtils.js';
 import Pagination, { usePagination } from '../components/Pagination.jsx';
 import React, { useState, useEffect } from 'react';
 import {
@@ -40,7 +41,7 @@ export default function Finance() {
     const k = { 'Shop Rent': 'fi_cat_rent', Salaries: 'fi_cat_salaries', Electricity: 'fi_cat_electricity', Transport: 'fi_cat_transport', Maintenance: 'fi_cat_maintenance', Others: 'fi_cat_others' }[c];
     return k ? t(k) : tCategory(c);
   };
-  const [activeTab, setActiveTab] = useState('Overview');
+  const [activeTab, setActiveTab] = useState('Expenses');
   const [dateRange, setDateRange] = useState('Last 30 Days');
   const [invoices, setInvoices] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -55,7 +56,7 @@ export default function Finance() {
   };
 
   // Day closing state
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localDateStr();
   const [returns, setReturns] = useState([]);
   const [openingCash, setOpeningCash] = useState('');
   const [countedCash, setCountedCash] = useState('');
@@ -115,6 +116,8 @@ export default function Finance() {
         date: todayStr,
         payment_mode: 'Cash',
       });
+      setCountedCash('');
+      setClosingRemarks('');
       loadAllFinanceData();
     }
   };
@@ -135,7 +138,7 @@ export default function Finance() {
 
   const getExpensesExport = () => ({
     title: t('fi_export_title_expenses'),
-    filename: `expenses_${new Date().toISOString().split('T')[0]}`,
+    filename: `expenses_${localDateStr()}`,
     headers: [t('fi_col_date'), t('fi_col_category'), t('fi_col_description'), t('fi_col_payment_mode'), t('fi_col_amount')],
     rows: filteredExpenses.map((e) => [
       e.date || '', e.category ? catLabel(e.category) : '', e.description || '', payLabel(e.payment_mode || 'Cash'), Number(e.amount || 0),
@@ -316,16 +319,25 @@ export default function Finance() {
       return;
     }
     if (window.api && window.api.recordDayClosing) {
-      await window.api.recordDayClosing({
+      const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+      const res = await window.api.recordDayClosing({
         closing_date: todayStr,
-        opening_cash: parseFloat(openingCash) || 0,
-        total_cash_sales: cashSalesToday,
-        total_expenses: cashExpensesToday,
-        system_expected_cash: expectedCash,
-        counted_cash: parseFloat(countedCash) || 0,
-        difference,
+        opening_cash: num(parseFloat(openingCash)),
+        total_cash_sales: num(cashSalesToday),
+        total_expenses: num(cashExpensesToday),
+        system_expected_cash: num(expectedCash),
+        counted_cash: num(parseFloat(countedCash)),
+        difference: num(difference),
         remarks: closingRemarks.trim(),
       });
+      if (!res || res.success === false) {
+        await showAlert({
+          title: t('fi_dayclose_failed'),
+          message: (res && res.error) || t('fi_dayclose_failed'),
+          tone: 'warning',
+        });
+        return;
+      }
       setClosingSavedMsg(t('fi_dayclose_recorded', { date: todayStr }));
       setTimeout(() => setClosingSavedMsg(''), 3500);
       loadAllFinanceData();
@@ -364,7 +376,6 @@ export default function Finance() {
       {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-6 text-xs font-semibold text-slate-500">
         {[
-          { id: 'Overview', label: t('fin_tab_overview') },
           { id: 'Expenses', label: t('fin_tab_expenses') },
           { id: 'Day Close', label: t('fin_tab_dayclose') },
         ].map(({ id: tab, label }) => (
@@ -382,117 +393,6 @@ export default function Finance() {
           </button>
         ))}
       </div>
-
-      {activeTab === 'Overview' && (
-        <div className="space-y-6">
-          {/* Top 4 Live Stat Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-slate-400">{t('fi_total_sales')}</p>
-                <p className="text-xl font-bold text-slate-900">
-                  ₹ {Math.round(totalSales).toLocaleString('en-IN')}
-                </p>
-                {refundsInRange > 0 && (
-                  <p className="text-xs font-medium text-amber-600">
-                    {t('rt_net_of_refunds', { amount: Math.round(refundsInRange).toLocaleString('en-IN') })}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-slate-400">{t('fi_total_expenses')}</p>
-                <p className="text-xl font-bold text-slate-900">
-                  ₹ {Math.round(totalExpenses).toLocaleString('en-IN')}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                <Wallet className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-slate-400">{t('fi_net_cash_flow')}</p>
-                <p className={`text-xl font-bold ${netCashFlow >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
-                  {netCashFlow < 0 ? '– ' : ''}₹ {Math.abs(Math.round(netCashFlow)).toLocaleString('en-IN')}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                <PiggyBank className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-slate-400">{t('fi_gross_margin')}</p>
-                <p className="text-xl font-bold text-slate-900">
-                  ₹ {Math.round(grossProfit).toLocaleString('en-IN')}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Middle: Daily Cash Flow Bar Chart & Top Expenses */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">{t('fi_daily_cash_flow')}</h2>
-                <p className="text-xs text-slate-400 mb-3">{t('fi_daily_cash_flow_sub')}</p>
-              </div>
-              {sortedDates.length === 0 ? (
-                <div className="h-64 w-full flex flex-col items-center justify-center text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
-                  <Wallet className="w-7 h-7 text-slate-300 mb-2" />
-                  <p className="text-xs font-semibold text-slate-600">{t('fi_no_cashflow')}</p>
-                  <p className="text-[13px] text-slate-400 mt-0.5">{t('fi_no_cashflow_hint')}</p>
-                </div>
-              ) : (
-                <div className="h-64 w-full">
-                  <Bar data={cashFlowData} options={cashFlowOptions} />
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 mb-4">{t('fi_top_expenses')}</h2>
-                {topExpenseCategories.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-8 text-center">{t('fi_no_expenses_period')}</p>
-                ) : (
-                  <div className="space-y-3 text-xs">
-                    {topExpenseCategories.map(([cat, amt]) => (
-                      <div key={cat} className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <span className="font-medium text-slate-700">{catLabel(cat)}</span>
-                        <span className="font-bold text-slate-900">
-                          ₹ {Number(amt).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={() => {
-                  setActiveTab('Expenses');
-                  setShowAddExpense(true);
-                }}
-                className="w-full mt-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-colors"
-              >
-                {t('fi_record_new_expense')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {activeTab === 'Expenses' && (
         <div className="space-y-4">

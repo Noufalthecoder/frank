@@ -59,6 +59,7 @@ export default {
     us_remove: 'Remove user',
     us_remove_confirm: 'Remove {name}? Past bills keep their cashier name.',
     us_error: 'Could not update users.',
+    fi_dayclose_failed: 'Could not record the day close.',
   },
   ta: {
     rt_title: 'திருப்பி வாங்கு & இருப்பில் சேர்',
@@ -119,5 +120,6 @@ export default {
     us_remove: 'பயனரை நீக்கு',
     us_remove_confirm: '{name} ஐ நீக்கவா? பழைய பில்களில் கேஷியர் பெயர் இருக்கும்.',
     us_error: 'பயனர்களைப் புதுப்பிக்க முடியவில்லை.',
+    fi_dayclose_failed: 'நாள் முடிவைப் பதிவு செய்ய முடியவில்லை.',
   },
 };

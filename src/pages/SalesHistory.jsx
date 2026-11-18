@@ -1,3 +1,4 @@
+import { localDateStr } from '../lib/dateUtils.js';
 import React, { useState, useEffect } from 'react';
 import {
   Search,
@@ -200,7 +201,7 @@ export default function SalesHistory() {
 
   const buildSalesExport = (list) => ({
     title: t('fi_export_title_sales'),
-    filename: `sales_history_${new Date().toISOString().split('T')[0]}`,
+    filename: `sales_history_${localDateStr()}`,
     headers: [t('fi_exp_invoice_no'), t('fi_exp_datetime'), t('fi_exp_customer'), t('fi_exp_phone'), t('fi_exp_items'), t('fi_exp_subtotal'), t('fi_exp_discount'), t('fi_exp_total'), t('fi_exp_mode'), t('fi_exp_status')],
     rows: list.map((inv) => [
       inv.invoice_number, inv.date_time || '', inv.customer_name || t('fi_walkin'), inv.customer_phone || '',

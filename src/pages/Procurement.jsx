@@ -1,3 +1,4 @@
+import { localDateStr } from '../lib/dateUtils.js';
 import Pagination, { usePagination } from '../components/Pagination.jsx';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -60,7 +61,7 @@ export default function Procurement() {
   const [poForm, setPoForm] = useState({
     po_number: '',
     vendor_name: '',
-    order_date: new Date().toISOString().split('T')[0],
+    order_date: localDateStr(),
     amount: '',
     status: 'Request',
     items: [],
@@ -147,7 +148,7 @@ export default function Procurement() {
     setPoForm({
       po_number: '',
       vendor_name: vendors[0]?.name || '',
-      order_date: new Date().toISOString().split('T')[0],
+      order_date: localDateStr(),
       amount: '',
       status: 'Request',
       items: [],
@@ -180,7 +181,7 @@ export default function Procurement() {
     setPoForm({
       po_number: po.po_number,
       vendor_name: po.vendor_name || vendors[0]?.name || '',
-      order_date: po.order_date || new Date().toISOString().split('T')[0],
+      order_date: po.order_date || localDateStr(),
       amount: String(po.amount ?? ''),
       status: normalizePoStatus(po.status),
       items: parsedLines,
@@ -374,7 +375,7 @@ export default function Procurement() {
       setPoForm({
         po_number: '',
         vendor_name: vendors[0]?.name || '',
-        order_date: new Date().toISOString().split('T')[0],
+        order_date: localDateStr(),
         amount: '',
         status: 'Request',
         items: [],
@@ -537,7 +538,7 @@ export default function Procurement() {
   const openOrders = orders.filter((o) => normalizePoStatus(o.status) === 'Request');
 
   const getProcurementExport = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
     if (activeTab === 'Vendors') {
       return {
         title: t('pr_x_vendors'),

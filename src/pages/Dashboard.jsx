@@ -1,3 +1,4 @@
+import { localDateStr } from '../lib/dateUtils.js';
 import { loadNetInvoices } from '../lib/returnMath.js';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -130,7 +131,7 @@ export default function Dashboard() {
   // Dynamic Sales Trend line chart grouped by date
   const salesByDate = {};
   validInvoices.forEach((inv) => {
-    const key = String(inv.date_time || '').slice(0, 10) || new Date().toISOString().slice(0, 10);
+    const key = String(inv.date_time || '').slice(0, 10) || localDateStr();
     salesByDate[key] = (salesByDate[key] || 0) + (Number(inv.total) || 0);
   });
   const trendDates = Object.keys(salesByDate).sort().slice(-7);

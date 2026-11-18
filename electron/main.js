@@ -963,13 +963,33 @@ ipcMain.handle('getDayClosings', () => {
   return db.prepare('SELECT * FROM day_closings ORDER BY closing_date DESC').all();
 });
 
-ipcMain.handle('recordDayClosing', (event, dc) => {
-  const stmt = db.prepare(`
-    INSERT OR REPLACE INTO day_closings (closing_date, opening_cash, total_cash_sales, total_expenses, system_expected_cash, counted_cash, difference, remarks)
-    VALUES (@closing_date, @opening_cash, @total_cash_sales, @total_expenses, @system_expected_cash, @counted_cash, @difference, @remarks)
-  `);
-  stmt.run(dc);
-  return { success: true };
+ipcMain.handle('recordDayClosing', (event, dc = {}) => {
+  try {
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+    const closingDate = String(dc.closing_date || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(closingDate)) return { success: false, error: 'Invalid closing date.' };
+    db.prepare(`
+      INSERT INTO day_closings (closing_date, opening_cash, total_cash_sales, total_expenses, system_expected_cash, counted_cash, difference, remarks)
+      VALUES (@closing_date, @opening_cash, @total_cash_sales, @total_expenses, @system_expected_cash, @counted_cash, @difference, @remarks)
+      ON CONFLICT(closing_date) DO UPDATE SET
+        opening_cash = excluded.opening_cash, total_cash_sales = excluded.total_cash_sales,
+        total_expenses = excluded.total_expenses, system_expected_cash = excluded.system_expected_cash,
+        counted_cash = excluded.counted_cash, difference = excluded.difference,
+        remarks = excluded.remarks, closed_at = CURRENT_TIMESTAMP
+    `).run({
+      closing_date: closingDate,
+      opening_cash: num(dc.opening_cash),
+      total_cash_sales: num(dc.total_cash_sales),
+      total_expenses: num(dc.total_expenses),
+      system_expected_cash: num(dc.system_expected_cash),
+      counted_cash: num(dc.counted_cash),
+      difference: num(dc.difference),
+      remarks: String(dc.remarks || '').slice(0, 300),
+    });
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message || 'Could not record day close.' };
+  }
 });
 
 // IPC Handlers: Database Management

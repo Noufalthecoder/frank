@@ -1,3 +1,4 @@
+import { localDateTimeStr } from '../lib/dateUtils.js';
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -130,7 +131,7 @@ export default function Settings() {
 
   const sampleTestInvoice = {
     invoice_number: 'TEST-0001',
-    date_time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+    date_time: localDateTimeStr(),
     customer_name: 'Walk-in Customer',
     customer_phone: '+91 98765 43210',
     payment_mode: 'Cash',
