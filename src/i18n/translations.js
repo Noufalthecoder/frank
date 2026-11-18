@@ -3,6 +3,7 @@ import procurementNs from './ns/procurement.js';
 import financeNs from './ns/finance.js';
 import catalogNs from './ns/catalog.js';
 import posNs from './ns/pos.js';
+import paginationNs from './ns/pagination.js';
 
 export const translations = {
   en: {
@@ -419,7 +420,7 @@ export const translations = {
 };
 
 // Merge per-screen namespaces (kept in separate files so each screen owns its strings)
-[settingsNs, procurementNs, financeNs, catalogNs, posNs].forEach((ns) => {
+[settingsNs, procurementNs, financeNs, catalogNs, posNs, paginationNs].forEach((ns) => {
   Object.assign(translations.en, ns.en);
   Object.assign(translations.ta, ns.ta);
 });

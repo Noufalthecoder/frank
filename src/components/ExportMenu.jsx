@@ -5,7 +5,7 @@ import { exportTable } from '../lib/exportUtils.js';
 
 /**
  * Export dropdown (Excel / PDF).
- * getSpec: () => ({ title, headers, rows, filename })  - called when a format is chosen.
+ * getSpec: () => ({ title, headers, rows, filename }) | Promise of the same - called when a format is chosen.
  * onDone(message): optional callback (e.g. toast).
  */
 export default function ExportMenu({ getSpec, onDone, className = '', label }) {
@@ -24,7 +24,7 @@ export default function ExportMenu({ getSpec, onDone, className = '', label }) {
     setOpen(false);
     setBusy(true);
     try {
-      const spec = getSpec();
+      const spec = await getSpec(); // may be async (e.g. fetch every page of a server-paged table)
       await exportTable(format, spec);
       onDone && onDone(t(spec.rows.length === 1 ? 'ct_exported_one' : 'ct_exported_many', { n: spec.rows.length, fmt: format === 'pdf' ? 'PDF' : 'Excel' }));
     } catch (err) {
