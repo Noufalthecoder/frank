@@ -28,8 +28,16 @@ import ExportMenu from '../components/ExportMenu.jsx';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function Finance() {
-  const { t } = useLanguage();
+  const { t, tCategory } = useLanguage();
   const { showAlert, showConfirm } = useAppDialog();
+  const payLabel = (m) => {
+    const k = { Cash: 'pos_cash', UPI: 'pos_upi', Card: 'pos_card', Bank: 'fi_pay_bank' }[m];
+    return k ? t(k) : m;
+  };
+  const catLabel = (c) => {
+    const k = { 'Shop Rent': 'fi_cat_rent', Salaries: 'fi_cat_salaries', Electricity: 'fi_cat_electricity', Transport: 'fi_cat_transport', Maintenance: 'fi_cat_maintenance', Others: 'fi_cat_others' }[c];
+    return k ? t(k) : tCategory(c);
+  };
   const [activeTab, setActiveTab] = useState('Overview');
   const [dateRange, setDateRange] = useState('Last 30 Days');
   const [invoices, setInvoices] = useState([]);
@@ -84,8 +92,8 @@ export default function Finance() {
     e.preventDefault();
     if (!newExp.amount) {
       await showAlert({
-        title: 'Missing Amount',
-        message: 'Please enter the expense amount.',
+        title: t('fi_missing_amount'),
+        message: t('fi_missing_amount_msg'),
         tone: 'warning',
       });
       return;
@@ -109,9 +117,9 @@ export default function Finance() {
 
   const handleDeleteExpense = async (id) => {
     const ok = await showConfirm({
-      title: 'Delete Expense',
-      message: 'Delete this expense entry?',
-      confirmLabel: 'Delete',
+      title: t('fi_delete_expense'),
+      message: t('fi_delete_expense_msg'),
+      confirmLabel: t('fi_delete'),
       tone: 'danger',
     });
     if (!ok) return;
@@ -122,11 +130,11 @@ export default function Finance() {
   };
 
   const getExpensesExport = () => ({
-    title: 'Expense Ledger',
+    title: t('fi_export_title_expenses'),
     filename: `expenses_${new Date().toISOString().split('T')[0]}`,
-    headers: ['Date', 'Category', 'Description', 'Payment Mode', 'Amount'],
+    headers: [t('fi_col_date'), t('fi_col_category'), t('fi_col_description'), t('fi_col_payment_mode'), t('fi_col_amount')],
     rows: filteredExpenses.map((e) => [
-      e.date || '', e.category || '', e.description || '', e.payment_mode || 'Cash', Number(e.amount || 0),
+      e.date || '', e.category ? catLabel(e.category) : '', e.description || '', payLabel(e.payment_mode || 'Cash'), Number(e.amount || 0),
     ]),
   });
 
@@ -190,13 +198,13 @@ export default function Finance() {
     labels: sortedDates.length > 0 ? sortedDates.map((d) => d.slice(5)) : [todayStr.slice(5)],
     datasets: [
       {
-        label: 'Sales',
+        label: t('dash_sales'),
         data: sortedDates.length > 0 ? sortedDates.map((d) => dateMap[d].sales) : [0],
         backgroundColor: '#1e3a8a',
         borderRadius: 4,
       },
       {
-        label: 'Expenses',
+        label: t('fin_tab_expenses'),
         data: sortedDates.length > 0 ? sortedDates.map((d) => dateMap[d].expenses) : [0],
         backgroundColor: '#60a5fa',
         borderRadius: 4,
@@ -277,8 +285,8 @@ export default function Finance() {
   const handleRecordClosing = async () => {
     if (countedCash === '') {
       await showAlert({
-        title: 'Counted Cash Required',
-        message: 'Please enter the counted cash amount in the drawer.',
+        title: t('fi_counted_required'),
+        message: t('fi_counted_required_msg'),
         tone: 'warning',
       });
       return;
@@ -294,7 +302,7 @@ export default function Finance() {
         difference,
         remarks: closingRemarks.trim(),
       });
-      setClosingSavedMsg(`Day Close recorded for ${todayStr}`);
+      setClosingSavedMsg(t('fi_dayclose_recorded', { date: todayStr }));
       setTimeout(() => setClosingSavedMsg(''), 3500);
       loadAllFinanceData();
     }
@@ -360,7 +368,7 @@ export default function Finance() {
                 <TrendingUp className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-400">Total Sales</p>
+                <p className="text-[11px] font-medium text-slate-400">{t('fi_total_sales')}</p>
                 <p className="text-xl font-bold text-slate-900">
                   ₹ {Math.round(totalSales).toLocaleString('en-IN')}
                 </p>
@@ -372,7 +380,7 @@ export default function Finance() {
                 <CreditCard className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-400">Total Expenses</p>
+                <p className="text-[11px] font-medium text-slate-400">{t('fi_total_expenses')}</p>
                 <p className="text-xl font-bold text-slate-900">
                   ₹ {Math.round(totalExpenses).toLocaleString('en-IN')}
                 </p>
@@ -384,7 +392,7 @@ export default function Finance() {
                 <Wallet className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-400">Net Cash Flow</p>
+                <p className="text-[11px] font-medium text-slate-400">{t('fi_net_cash_flow')}</p>
                 <p className={`text-xl font-bold ${netCashFlow >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
                   {netCashFlow < 0 ? '– ' : ''}₹ {Math.abs(Math.round(netCashFlow)).toLocaleString('en-IN')}
                 </p>
@@ -396,7 +404,7 @@ export default function Finance() {
                 <PiggyBank className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-slate-400">Gross Sales Margin</p>
+                <p className="text-[11px] font-medium text-slate-400">{t('fi_gross_margin')}</p>
                 <p className="text-xl font-bold text-slate-900">
                   ₹ {Math.round(grossProfit).toLocaleString('en-IN')}
                 </p>
@@ -408,14 +416,14 @@ export default function Finance() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">Daily Cash Flow</h2>
-                <p className="text-xs text-slate-400 mb-3">Live Sales vs Expenses breakdown</p>
+                <h2 className="text-sm font-bold text-slate-900">{t('fi_daily_cash_flow')}</h2>
+                <p className="text-xs text-slate-400 mb-3">{t('fi_daily_cash_flow_sub')}</p>
               </div>
               {sortedDates.length === 0 ? (
                 <div className="h-64 w-full flex flex-col items-center justify-center text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
                   <Wallet className="w-7 h-7 text-slate-300 mb-2" />
-                  <p className="text-xs font-semibold text-slate-600">No cash flow data yet</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Record sales or expenses to populate daily cash flow</p>
+                  <p className="text-xs font-semibold text-slate-600">{t('fi_no_cashflow')}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{t('fi_no_cashflow_hint')}</p>
                 </div>
               ) : (
                 <div className="h-64 w-full">
@@ -426,14 +434,14 @@ export default function Finance() {
 
             <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
               <div>
-                <h2 className="text-sm font-bold text-slate-900 mb-4">Top Expenses</h2>
+                <h2 className="text-sm font-bold text-slate-900 mb-4">{t('fi_top_expenses')}</h2>
                 {topExpenseCategories.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-8 text-center">No expenses recorded in this period.</p>
+                  <p className="text-xs text-slate-400 py-8 text-center">{t('fi_no_expenses_period')}</p>
                 ) : (
                   <div className="space-y-3 text-xs">
                     {topExpenseCategories.map(([cat, amt]) => (
                       <div key={cat} className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <span className="font-medium text-slate-700">{cat}</span>
+                        <span className="font-medium text-slate-700">{catLabel(cat)}</span>
                         <span className="font-bold text-slate-900">
                           ₹ {Number(amt).toLocaleString('en-IN')}
                         </span>
@@ -450,7 +458,7 @@ export default function Finance() {
                 }}
                 className="w-full mt-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-colors"
               >
-                + Record New Expense
+                {t('fi_record_new_expense')}
               </button>
             </div>
           </div>
@@ -460,7 +468,7 @@ export default function Finance() {
       {activeTab === 'Expenses' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-800">Expense Ledger ({filteredExpenses.length})</h2>
+            <h2 className="text-sm font-bold text-slate-800">{t('fi_expense_ledger_n', { n: filteredExpenses.length })}</h2>
             <div className="flex items-center gap-2">
               <ExportMenu getSpec={getExpensesExport} onDone={showToast} />
               <button
@@ -477,21 +485,21 @@ export default function Finance() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase">
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Description</th>
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Payment</th>
-                  <th className="py-3 px-4 text-right">Amount</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-3 px-4">{t('fi_col_category')}</th>
+                  <th className="py-3 px-4">{t('fi_col_description')}</th>
+                  <th className="py-3 px-4">{t('fi_col_date')}</th>
+                  <th className="py-3 px-4">{t('fi_col_payment')}</th>
+                  <th className="py-3 px-4 text-right">{t('fi_col_amount')}</th>
+                  <th className="py-3 px-4 text-right">{t('fi_col_action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredExpenses.map((e) => (
                   <tr key={e.id} className="hover:bg-slate-50">
-                    <td className="py-3 px-4 font-bold text-slate-900">{e.category}</td>
+                    <td className="py-3 px-4 font-bold text-slate-900">{catLabel(e.category)}</td>
                     <td className="py-3 px-4 text-slate-600">{e.description || '—'}</td>
                     <td className="py-3 px-4 text-slate-500">{e.date}</td>
-                    <td className="py-3 px-4 font-medium text-slate-700">{e.payment_mode || 'Cash'}</td>
+                    <td className="py-3 px-4 font-medium text-slate-700">{payLabel(e.payment_mode || 'Cash')}</td>
                     <td className="py-3 px-4 text-right font-bold text-rose-600">
                       ₹ {Number(e.amount).toLocaleString('en-IN')}
                     </td>
@@ -499,7 +507,7 @@ export default function Finance() {
                       <button
                         onClick={() => handleDeleteExpense(e.id)}
                         className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                        title="Delete Expense"
+                        title={t('fi_delete_expense_title')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -509,7 +517,7 @@ export default function Finance() {
                 {filteredExpenses.length === 0 && (
                   <tr>
                     <td colSpan={6} className="py-10 text-center text-slate-400">
-                      No expenses recorded.
+                      {t('fi_no_expenses')}
                     </td>
                   </tr>
                 )}
@@ -525,20 +533,20 @@ export default function Finance() {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">Daily Cash Closing Register</h2>
-                <p className="text-xs text-slate-400">Reconcile physical cash drawer for {todayStr}</p>
+                <h2 className="text-sm font-bold text-slate-900">{t('fi_close_register')}</h2>
+                <p className="text-xs text-slate-400">{t('fi_close_register_sub', { date: todayStr })}</p>
               </div>
               {closingSavedMsg && (
                 <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Saved
+                  {t('fi_saved')}
                 </span>
               )}
             </div>
 
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
-                <span className="text-slate-600 font-medium">Opening Cash (Start of Day):</span>
+                <span className="text-slate-600 font-medium">{t('fi_opening_cash')}</span>
                 <input
                   type="number"
                   value={openingCash}
@@ -548,17 +556,17 @@ export default function Finance() {
               </div>
 
               <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
-                <span className="text-slate-600 font-medium">Today's Cash Sales (Live from POS):</span>
+                <span className="text-slate-600 font-medium">{t('fi_cash_sales_today')}</span>
                 <span className="font-bold text-emerald-600">+ ₹ {cashSalesToday.toFixed(2)}</span>
               </div>
 
               <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
-                <span className="text-slate-600 font-medium">Today's Cash Expenses (Live):</span>
+                <span className="text-slate-600 font-medium">{t('fi_cash_expenses_today')}</span>
                 <span className="font-bold text-rose-600">– ₹ {cashExpensesToday.toFixed(2)}</span>
               </div>
 
               <div className="flex items-center justify-between bg-blue-50/70 p-3.5 rounded-lg border border-blue-200 font-bold text-sm">
-                <span className="text-blue-900">System Expected Cash:</span>
+                <span className="text-blue-900">{t('fi_expected_cash')}</span>
                 <span className="text-blue-700">₹ {expectedCash.toFixed(2)}</span>
               </div>
             </div>
@@ -566,11 +574,11 @@ export default function Finance() {
             <div className="space-y-3 pt-2 border-t border-slate-100">
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Actual Physical Cash Counted (₹) *
+                  {t('fi_counted_label')}
                 </label>
                 <input
                   type="number"
-                  placeholder="Enter exact drawer count"
+                  placeholder={t('fi_counted_placeholder')}
                   value={countedCash}
                   onChange={(e) => setCountedCash(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
@@ -585,7 +593,7 @@ export default function Finance() {
                       : 'bg-amber-50 border-amber-200 text-amber-800'
                   }`}
                 >
-                  <span>Cash Difference (Over / Short):</span>
+                  <span>{t('fi_cash_diff')}</span>
                   <span>
                     {difference >= 0 ? `+ ₹ ${difference.toFixed(2)}` : `– ₹ ${Math.abs(difference).toFixed(2)}`}
                   </span>
@@ -593,10 +601,10 @@ export default function Finance() {
               )}
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Closing Notes</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_closing_notes')}</label>
                 <textarea
                   rows="2"
-                  placeholder="Optional remark on discrepancies or drawer handover..."
+                  placeholder={t('fi_closing_notes_ph')}
                   value={closingRemarks}
                   onChange={(e) => setClosingRemarks(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
@@ -607,7 +615,7 @@ export default function Finance() {
                 onClick={handleRecordClosing}
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm shadow-blue-200 transition-colors"
               >
-                Record Day Close ({todayStr})
+                {t('fi_record_dayclose', { date: todayStr })}
               </button>
             </div>
           </div>
@@ -616,11 +624,11 @@ export default function Finance() {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               <Calendar className="w-4 h-4 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">Past Day Closings</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('fi_past_closings')}</h3>
             </div>
             {dayClosings.length === 0 ? (
               <p className="text-xs text-slate-400 text-center py-10">
-                No day closings recorded yet. Submit today's cash count to create your first record.
+                {t('fi_no_closings')}
               </p>
             ) : (
               <div className="divide-y divide-slate-100 text-xs max-h-96 overflow-y-auto">
@@ -629,7 +637,7 @@ export default function Finance() {
                     <div>
                       <p className="font-bold text-slate-900 font-mono">{dc.closing_date}</p>
                       <p className="text-[11px] text-slate-400">
-                        Expected: ₹{Number(dc.system_expected_cash).toFixed(0)} · Counted: ₹{Number(dc.counted_cash).toFixed(0)}
+                        {t('fi_expected_counted', { exp: Number(dc.system_expected_cash).toFixed(0), cnt: Number(dc.counted_cash).toFixed(0) })}
                       </p>
                       {dc.remarks && <p className="text-[11px] text-slate-500 mt-0.5 italic">"{dc.remarks}"</p>}
                     </div>
@@ -641,7 +649,7 @@ export default function Finance() {
                       }`}
                     >
                       {Number(dc.difference) === 0
-                        ? 'Matched'
+                        ? t('fi_matched')
                         : Number(dc.difference) > 0
                         ? `+₹${Number(dc.difference).toFixed(0)}`
                         : `–₹${Math.abs(Number(dc.difference)).toFixed(0)}`}
@@ -659,7 +667,7 @@ export default function Finance() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Record Shop Expense</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('fi_record_shop_expense')}</h3>
               <button onClick={() => setShowAddExpense(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
               </button>
@@ -667,26 +675,26 @@ export default function Finance() {
 
             <form onSubmit={handleAddExpense} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Category *</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_category_req')}</label>
                 <select
                   value={newExp.category}
                   onChange={(e) => setNewExp({ ...newExp, category: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800"
                 >
-                  <option value="Shop Rent">Shop Rent</option>
-                  <option value="Salaries">Salaries</option>
-                  <option value="Electricity">Electricity</option>
-                  <option value="Transport">Transport / Tempo</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Others">Others</option>
+                  <option value="Shop Rent">{t('fi_cat_rent')}</option>
+                  <option value="Salaries">{t('fi_cat_salaries')}</option>
+                  <option value="Electricity">{t('fi_cat_electricity')}</option>
+                  <option value="Transport">{t('fi_cat_transport')}</option>
+                  <option value="Maintenance">{t('fi_cat_maintenance')}</option>
+                  <option value="Others">{t('fi_cat_others')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Description</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_description')}</label>
                 <input
                   type="text"
-                  placeholder="e.g. Monthly shop rent"
+                  placeholder={t('fi_desc_placeholder')}
                   value={newExp.description}
                   onChange={(e) => setNewExp({ ...newExp, description: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800"
@@ -695,7 +703,7 @@ export default function Finance() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Amount (₹) *</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_amount_req')}</label>
                   <input
                     type="number"
                     required
@@ -707,7 +715,7 @@ export default function Finance() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Date</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_date')}</label>
                   <input
                     type="date"
                     value={newExp.date}
@@ -718,15 +726,15 @@ export default function Finance() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Payment Mode</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('fi_payment_mode')}</label>
                 <select
                   value={newExp.payment_mode}
                   onChange={(e) => setNewExp({ ...newExp, payment_mode: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800"
                 >
-                  <option value="Cash">Cash</option>
-                  <option value="UPI">UPI</option>
-                  <option value="Bank">Bank Transfer</option>
+                  <option value="Cash">{t('pos_cash')}</option>
+                  <option value="UPI">{t('pos_upi')}</option>
+                  <option value="Bank">{t('fi_pay_bank')}</option>
                 </select>
               </div>
 
@@ -736,13 +744,13 @@ export default function Finance() {
                   onClick={() => setShowAddExpense(false)}
                   className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                  Cancel
+                  {t('cat_cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold shadow-sm hover:bg-blue-700"
                 >
-                  Save Expense
+                  {t('fi_save_expense')}
                 </button>
               </div>
             </form>

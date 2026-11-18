@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Download, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { exportTable } from '../lib/exportUtils.js';
 
 /**
@@ -7,7 +8,8 @@ import { exportTable } from '../lib/exportUtils.js';
  * getSpec: () => ({ title, headers, rows, filename })  - called when a format is chosen.
  * onDone(message): optional callback (e.g. toast).
  */
-export default function ExportMenu({ getSpec, onDone, className = '', label = 'Export' }) {
+export default function ExportMenu({ getSpec, onDone, className = '', label }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const ref = useRef(null);
@@ -24,9 +26,9 @@ export default function ExportMenu({ getSpec, onDone, className = '', label = 'E
     try {
       const spec = getSpec();
       await exportTable(format, spec);
-      onDone && onDone(`Exported ${spec.rows.length} record${spec.rows.length === 1 ? '' : 's'} to ${format === 'pdf' ? 'PDF' : 'Excel'}.`);
+      onDone && onDone(t(spec.rows.length === 1 ? 'ct_exported_one' : 'ct_exported_many', { n: spec.rows.length, fmt: format === 'pdf' ? 'PDF' : 'Excel' }));
     } catch (err) {
-      onDone && onDone(`Export failed: ${err.message}`);
+      onDone && onDone(t('ct_export_failed', { error: err.message }));
     } finally {
       setBusy(false);
     }
@@ -44,7 +46,7 @@ export default function ExportMenu({ getSpec, onDone, className = '', label = 'E
         }
       >
         <Download className="w-3.5 h-3.5 text-slate-500" />
-        <span>{busy ? 'Exporting...' : label}</span>
+        <span>{busy ? t('ct_exporting') : label || t('ct_export')}</span>
         <ChevronDown className="w-3 h-3 text-slate-400" />
       </button>
       {open && (

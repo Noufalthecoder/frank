@@ -11,11 +11,13 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
 import BinPicker from '../components/BinPicker.jsx';
 import Rack3D from '../components/Rack3D.jsx';
 
 export default function Racks({ embedded = false }) {
+  const { t } = useLanguage();
   const { showConfirm, showAlert } = useAppDialog();
   const [racks, setRacks] = useState([]);
   const [selectedRackCode, setSelectedRackCode] = useState('R01');
@@ -69,7 +71,7 @@ export default function Racks({ embedded = false }) {
     if (!window.api || !window.api.moveItemToBin) return;
     const res = await window.api.moveItemToBin(itemId, binCode);
     if (res && res.success === false) {
-      await showAlert({ title: 'Could not move product', message: res.error, tone: 'danger' });
+      await showAlert({ title: t('rk_move_fail'), message: res.error, tone: 'danger' });
       return;
     }
     setPickItemId('');
@@ -86,7 +88,7 @@ export default function Racks({ embedded = false }) {
       slots_per_level: parseInt(editRack.slots_per_level) || 1,
     });
     if (res && res.success === false) {
-      setEditError(res.error || 'Could not update rack.');
+      setEditError(res.error || t('rk_update_fail'));
       return;
     }
     setEditRack(null);
@@ -102,11 +104,11 @@ export default function Racks({ embedded = false }) {
     const code = newRack.code.trim().toUpperCase();
     const name = newRack.name.trim();
     if (!code || !name) {
-      setFormError('Please fill both Rack Code and Rack Name.');
+      setFormError(t('rk_err_fill'));
       return;
     }
     if (!window.api || !window.api.addRack) {
-      setFormError('Database API unavailable. Please reload the app.');
+      setFormError(t('rk_err_api'));
       return;
     }
     try {
@@ -118,7 +120,7 @@ export default function Racks({ embedded = false }) {
         slots_per_level: parseInt(newRack.slots_per_level) || 4,
       });
       if (res && res.success === false) {
-        setFormError(res.error || 'Could not create rack.');
+        setFormError(res.error || t('rk_create_fail'));
         return;
       }
       setShowAddModal(false);
@@ -126,22 +128,22 @@ export default function Racks({ embedded = false }) {
       setSelectedRackCode(res?.code || code);
       await loadRacks();
     } catch (err) {
-      setFormError(err.message || 'Failed to create rack.');
+      setFormError(err.message || t('rk_create_fail2'));
     }
   };
 
   const handleDeleteRack = async (code) => {
     const ok = await showConfirm({
-      title: 'Delete Rack',
-      message: `Delete Rack ${code} and all its bins?`,
-      confirmLabel: 'Delete Rack',
+      title: t('rk_delete_rack'),
+      message: t('rk_delete_msg', { code }),
+      confirmLabel: t('rk_delete_rack'),
       tone: 'danger',
     });
     if (!ok) return;
     if (window.api && window.api.deleteRack) {
       const res = await window.api.deleteRack(code);
       if (res && res.success === false) {
-        await showAlert({ title: 'Cannot delete rack', message: res.error, tone: 'danger' });
+        await showAlert({ title: t('rk_cannot_delete'), message: res.error, tone: 'danger' });
         return;
       }
       await loadRacks();
@@ -165,8 +167,8 @@ export default function Racks({ embedded = false }) {
       {!embedded ? (
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Racks & Bins</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manage rack layout and bin-wise stock</p>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">{t('rk_title')}</h1>
+            <p className="text-xs text-slate-500 mt-0.5">{t('rk_subtitle')}</p>
           </div>
 
           <button
@@ -174,14 +176,14 @@ export default function Racks({ embedded = false }) {
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 rounded-lg text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add Rack</span>
+            <span>{t('rk_add_rack')}</span>
           </button>
         </div>
       ) : (
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Racks & Shelf Bin Layout</h2>
-            <p className="text-xs text-slate-400">Configure physical shelves, aisles, and bin codes</p>
+            <h2 className="text-sm font-bold text-slate-900">{t('rk_title_embedded')}</h2>
+            <p className="text-xs text-slate-400">{t('rk_subtitle_embedded')}</p>
           </div>
 
           <button
@@ -189,7 +191,7 @@ export default function Racks({ embedded = false }) {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 rounded-lg text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add Rack</span>
+            <span>{t('rk_add_rack')}</span>
           </button>
         </div>
       )}
@@ -200,7 +202,7 @@ export default function Racks({ embedded = false }) {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Rack List ({racks.length})
+              {t('rk_rack_list', { n: racks.length })}
             </span>
           </div>
 
@@ -220,7 +222,7 @@ export default function Racks({ embedded = false }) {
                   <div>
                     <p className="font-bold">{r.code} – {r.name}</p>
                     <p className="text-[11px] text-slate-400 font-normal mt-0.5">
-                      ({r.binsCount || (r.levels * r.slots_per_level)} bins)
+                      ({t('rk_bins_count', { n: r.binsCount || (r.levels * r.slots_per_level) })})
                     </p>
                   </div>
                   {isActive && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
@@ -233,20 +235,20 @@ export default function Racks({ embedded = false }) {
           {unassignedItems.length > 0 && (
             <div className="border-t border-slate-100 pt-3 space-y-2">
               <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5" /> Unassigned ({unassignedItems.length})
+                <AlertCircle className="w-3.5 h-3.5" /> {t('rk_unassigned')} ({unassignedItems.length})
               </p>
               <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
                 {unassignedItems.map((item) => (
                   <div key={item.id} className="p-2 bg-amber-50/50 border border-amber-200/70 rounded-lg">
                     <p className="text-[11px] font-semibold text-slate-800 truncate">{item.name}</p>
                     <p className="text-[10px] font-mono text-slate-400 mb-1">
-                      {item.sku}{item.bin_id ? ` · bad bin ${item.bin_id}` : ''}
+                      {item.sku}{item.bin_id ? ` · ${t('rk_bad_bin', { bin: item.bin_id })}` : ''}
                     </p>
                     <BinPicker
                       racks={racks}
                       value=""
                       autoPickFirst={false}
-                      rackPlaceholder="Assign to rack…"
+                      rackPlaceholder={t('rk_assign_to_rack')}
                       onChange={(code) => moveItem(item.id, code)}
                       selectClassName="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-700"
                     />
@@ -265,10 +267,10 @@ export default function Racks({ embedded = false }) {
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
                   <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                    Rack {currentRack.code} – {currentRack.name}
+                    {t('rk_rack_label', { code: currentRack.code, name: currentRack.name })}
                   </h2>
                   <p className="text-xs text-slate-400">
-                    Zone: <span className="font-medium text-slate-600">{currentRack.zone || 'Fasteners'}</span> · {currentRack.levels} Levels · {currentRack.slots_per_level} Slots per level
+                    {t('rk_zone')}: <span className="font-medium text-slate-600">{currentRack.zone || 'Fasteners'}</span> · {t('rk_levels_n', { n: currentRack.levels })} · {t('rk_slots_per_level_n', { n: currentRack.slots_per_level })}
                   </p>
                 </div>
 
@@ -284,14 +286,14 @@ export default function Racks({ embedded = false }) {
                         slots_per_level: currentRack.slots_per_level,
                       });
                     }}
-                    title="Edit Rack"
+                    title={t('rk_edit_rack')}
                     className="p-1.5 hover:text-blue-600 hover:bg-blue-50 rounded border border-slate-200 transition-colors"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => handleDeleteRack(currentRack.code)}
-                    title="Delete Rack"
+                    title={t('rk_delete_rack')}
                     className="p-1.5 hover:text-rose-600 hover:bg-rose-50 rounded border border-slate-200 transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -302,7 +304,7 @@ export default function Racks({ embedded = false }) {
               {/* View toggle */}
               <div className="flex items-center justify-end -mt-2">
                 <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
-                  {[['3d', '3D View'], ['grid', 'Grid']].map(([k, label]) => (
+                  {[['3d', t('rk_3d_view')], ['grid', t('rk_grid')]].map(([k, label]) => (
                     <button
                       key={k}
                       onClick={() => setViewMode(k)}
@@ -361,7 +363,7 @@ export default function Racks({ embedded = false }) {
                                 {Number(bin.quantity).toLocaleString('en-IN')}
                               </p>
                               <p className={`text-[9px] font-medium ${hasStock ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                {(bin.items || []).length > 0 ? `${bin.items.length} SKU${bin.items.length > 1 ? 's' : ''}` : 'Empty bin'}
+                                {(bin.items || []).length > 0 ? t('rk_sku_count', { n: bin.items.length }) : t('rk_empty_bin')}
                               </p>
                             </button>
                           );
@@ -375,7 +377,7 @@ export default function Racks({ embedded = false }) {
             </>
           ) : (
             <div className="py-12 text-center text-xs text-slate-400">
-              No racks found. Click "Add Rack" to create your first shelf.
+              {t('rk_no_racks')}
             </div>
           )}
         </div>
@@ -386,7 +388,7 @@ export default function Racks({ embedded = false }) {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">Add New Rack</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('rk_add_new')}</h3>
               <button
                 onClick={() => {
                   setFormError('');
@@ -408,11 +410,11 @@ export default function Racks({ embedded = false }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack Code *</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_code_label')}</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. R06"
+                    placeholder={t('rk_ph_code')}
                     value={newRack.code}
                     onChange={(e) => {
                       setFormError('');
@@ -422,11 +424,11 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack Name *</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_name_label')}</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Paints & Chemicals"
+                    placeholder={t('rk_ph_name')}
                     value={newRack.name}
                     onChange={(e) => {
                       setFormError('');
@@ -438,10 +440,10 @@ export default function Racks({ embedded = false }) {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Zone</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_zone')}</label>
                 <input
                   type="text"
-                  placeholder="e.g. Hardware / Chemical"
+                  placeholder={t('rk_ph_zone')}
                   value={newRack.zone}
                   onChange={(e) => setNewRack({ ...newRack, zone: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white"
@@ -450,7 +452,7 @@ export default function Racks({ embedded = false }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Levels (Shelves)</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_levels_shelves')}</label>
                   <input
                     type="number"
                     min="1"
@@ -461,7 +463,7 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Slots per Level</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_slots_per_level')}</label>
                   <input
                     type="number"
                     min="1"
@@ -482,13 +484,13 @@ export default function Racks({ embedded = false }) {
                   }}
                   className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                  Cancel
+                  {t('rk_cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold shadow-sm hover:bg-blue-700"
                 >
-                  Create Rack & Bins
+                  {t('rk_create')}
                 </button>
               </div>
             </form>
@@ -501,7 +503,7 @@ export default function Racks({ embedded = false }) {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">Edit Rack {editRack.code}</h3>
+              <h3 className="text-sm font-bold text-slate-900">{t('rk_edit_rack_n', { code: editRack.code })}</h3>
               <button onClick={() => setEditRack(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded">
                 <X className="w-4 h-4" />
               </button>
@@ -515,7 +517,7 @@ export default function Racks({ embedded = false }) {
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rack Name *</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_name_label')}</label>
                   <input
                     type="text"
                     required
@@ -525,7 +527,7 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Zone</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_zone')}</label>
                   <input
                     type="text"
                     value={editRack.zone}
@@ -536,7 +538,7 @@ export default function Racks({ embedded = false }) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Levels (Shelves)</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_levels_shelves')}</label>
                   <input
                     type="number"
                     min="1"
@@ -547,7 +549,7 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Slots per Level</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">{t('rk_slots_per_level')}</label>
                   <input
                     type="number"
                     min="1"
@@ -558,17 +560,17 @@ export default function Racks({ embedded = false }) {
                   />
                 </div>
               </div>
-              <p className="text-[11px] text-slate-400">Shrinking removes bins, so any bin that would be removed must be empty.</p>
+              <p className="text-[11px] text-slate-400">{t('rk_shrink_note')}</p>
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setEditRack(null)}
                   className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                  Cancel
+                  {t('rk_cancel')}
                 </button>
                 <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold shadow-sm hover:bg-blue-700">
-                  Save Changes
+                  {t('rk_save_changes')}
                 </button>
               </div>
             </form>
@@ -583,7 +585,7 @@ export default function Racks({ embedded = false }) {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 font-mono">{selectedBin.bin_code}</h3>
-                <p className="text-[11px] text-slate-400">Level {selectedBin.level_no} · Slot {selectedBin.slot_no}</p>
+                <p className="text-[11px] text-slate-400">{t('rk_level_slot_opt', { level: selectedBin.level_no, slot: selectedBin.slot_no })}</p>
               </div>
               <button onClick={() => setSelectedBinCode(null)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
@@ -591,16 +593,16 @@ export default function Racks({ embedded = false }) {
             </div>
 
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs space-y-1">
-              <p className="text-slate-500">Current Occupancy:</p>
-              <p className="text-xl font-bold text-slate-900">{Number(selectedBin.quantity).toLocaleString('en-IN')} units</p>
+              <p className="text-slate-500">{t('rk_occupancy')}</p>
+              <p className="text-xl font-bold text-slate-900">{t('rk_units', { n: Number(selectedBin.quantity).toLocaleString('en-IN') })}</p>
               <p className={`text-[11px] font-medium ${Number(selectedBin.quantity) > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                {Number(selectedBin.quantity) > 0 ? 'Status: Stocked & Active' : 'Status: Empty Bin'}
+                {Number(selectedBin.quantity) > 0 ? t('rk_status_stocked') : t('rk_status_empty')}
               </p>
             </div>
 
             {selectedBin.items && selectedBin.items.length > 0 ? (
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                <p className="text-[11px] font-bold text-slate-600 uppercase">Products in this bin</p>
+                <p className="text-[11px] font-bold text-slate-600 uppercase">{t('rk_products_in_bin')}</p>
                 {selectedBin.items.map((item) => (
                   <div key={item.id || item.sku} className="p-2 bg-white border border-slate-200 rounded-lg text-xs space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -617,7 +619,7 @@ export default function Racks({ embedded = false }) {
                         racks={racks}
                         value=""
                         autoPickFirst={false}
-                        rackPlaceholder="Move to rack…"
+                        rackPlaceholder={t('rk_move_to_rack')}
                         onChange={(code) => moveItem(item.id, code)}
                         className="flex-1 min-w-0"
                         selectClassName="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-[11px] text-slate-700"
@@ -626,7 +628,7 @@ export default function Racks({ embedded = false }) {
                         onClick={() => moveItem(item.id, '')}
                         className="px-2 py-1 text-[11px] font-semibold text-slate-500 border border-slate-200 rounded-md hover:text-rose-600 hover:bg-rose-50"
                       >
-                        Unassign
+                        {t('rk_unassign')}
                       </button>
                     </div>
                   </div>
@@ -634,24 +636,24 @@ export default function Racks({ embedded = false }) {
               </div>
             ) : (
               <p className="text-[11px] text-slate-400 text-center py-2">
-                No products in {selectedBin.bin_code} yet.
+                {t('rk_no_products_in', { bin: selectedBin.bin_code })}
               </p>
             )}
 
             <div className="space-y-1.5">
-              <p className="text-[11px] font-bold text-slate-600 uppercase">Add product to this bin</p>
+              <p className="text-[11px] font-bold text-slate-600 uppercase">{t('rk_add_product_to_bin')}</p>
               <div className="flex gap-2">
                 <select
                   value={pickItemId}
                   onChange={(e) => setPickItemId(e.target.value)}
                   className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
                 >
-                  <option value="">Select a product…</option>
+                  <option value="">{t('rk_select_product')}</option>
                   {allItems
                     .filter((i) => String(i.bin_id || '').toUpperCase() !== selectedBin.bin_code.toUpperCase())
                     .map((i) => (
                       <option key={i.id} value={i.id}>
-                        {i.name} ({i.sku}){i.bin_id ? ` · ${i.bin_id}` : ' · unassigned'}
+                        {i.name} ({i.sku}){i.bin_id ? ` · ${i.bin_id}` : ` · ${t('rk_unassigned_lc')}`}
                       </option>
                     ))}
                 </select>
@@ -660,7 +662,7 @@ export default function Racks({ embedded = false }) {
                   onClick={() => moveItem(Number(pickItemId), selectedBin.bin_code)}
                   className="px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40"
                 >
-                  Add
+                  {t('rk_add')}
                 </button>
               </div>
             </div>
@@ -669,7 +671,7 @@ export default function Racks({ embedded = false }) {
               onClick={() => setSelectedBinCode(null)}
               className="w-full py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700"
             >
-              Close
+              {t('rk_close')}
             </button>
           </div>
         </div>

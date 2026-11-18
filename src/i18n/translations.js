@@ -1,3 +1,10 @@
+import settingsNs from './ns/settings.js';
+import procurementNs from './ns/procurement.js';
+import financeNs from './ns/finance.js';
+import catalogNs from './ns/catalog.js';
+import posNs from './ns/pos.js';
+import landingNs from './ns/landing.js';
+
 export const translations = {
   en: {
     // Navigation & Shell
@@ -405,3 +412,9 @@ export const translations = {
     set_saved: 'சேமிக்கப்பட்டது!',
   },
 };
+
+// Merge per-screen namespaces (kept in separate files so each screen owns its strings)
+[settingsNs, procurementNs, financeNs, catalogNs, posNs, landingNs].forEach((ns) => {
+  Object.assign(translations.en, ns.en);
+  Object.assign(translations.ta, ns.ta);
+});

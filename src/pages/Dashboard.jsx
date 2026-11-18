@@ -42,6 +42,10 @@ const CATEGORY_COLORS = ['#2563eb', '#38bdf8', '#f59e0b', '#8b5cf6', '#10b981', 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { t, tName, tCategory } = useLanguage();
+  const payLabel = (m) => {
+    const k = { Cash: 'pos_cash', UPI: 'pos_upi', Card: 'pos_card', Bank: 'fi_pay_bank' }[m];
+    return k ? t(k) : m;
+  };
   const [dateRange, setDateRange] = useState('All Time');
   const [items, setItems] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -131,11 +135,11 @@ export default function Dashboard() {
   const trendDates = Object.keys(salesByDate).sort().slice(-7);
 
   const salesData = {
-    labels: trendDates.length > 0 ? trendDates.map((d) => d.slice(5)) : ['Today'],
+    labels: trendDates.length > 0 ? trendDates.map((d) => d.slice(5)) : [t('date_today')],
     datasets: [
       {
         fill: true,
-        label: 'Sales',
+        label: t('dash_sales'),
         data: trendDates.length > 0 ? trendDates.map((d) => salesByDate[d]) : [0],
         borderColor: '#2563eb',
         borderWidth: 2.5,
@@ -216,7 +220,7 @@ export default function Dashboard() {
   const totalSkus = items.length || 1;
 
   const categoryData = {
-    labels: categoryEntries.length > 0 ? categoryEntries.map(([c]) => tCategory(c)) : ['Empty'],
+    labels: categoryEntries.length > 0 ? categoryEntries.map(([c]) => tCategory(c)) : [t('fi_empty')],
     datasets: [
       {
         data: categoryEntries.length > 0 ? categoryEntries.map(([, count]) => count) : [1],
@@ -466,7 +470,7 @@ export default function Dashboard() {
                       {tName(item.name)} <span className="text-slate-400 font-normal">({item.sku})</span>
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      {t('dash_shelf')} {item.bin_id || 'Unassigned'} · {tCategory(item.category)}
+                      {t('dash_shelf')} {item.bin_id || t('fi_unassigned')} · {tCategory(item.category)}
                     </p>
                   </div>
                   {Number(item.quantity) <= 0 ? (
@@ -514,10 +518,10 @@ export default function Dashboard() {
                   >
                     <div className="min-w-0 pr-2">
                       <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
-                        {sale.customer_name || 'Walk-in Customer'}
+                        {sale.customer_name || t('fi_walkin')}
                       </p>
                       <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                        <span className="font-mono text-slate-600 font-medium">{sale.invoice_number}</span> · {sale.items_count || 1} items · {sale.date_time ? String(sale.date_time).slice(5, 16) : 'Today'}
+                        <span className="font-mono text-slate-600 font-medium">{sale.invoice_number}</span> · {t('fi_n_items', { n: sale.items_count || 1 })} · {sale.date_time ? String(sale.date_time).slice(5, 16) : t('date_today')}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
@@ -535,7 +539,7 @@ export default function Dashboard() {
                             : 'bg-purple-50 text-purple-700 border-purple-200'
                         }`}
                       >
-                        {sale.status === 'Returned' ? 'Returned' : sale.payment_mode || 'Cash'}
+                        {sale.status === 'Returned' ? t('hist_returned') : payLabel(sale.payment_mode || 'Cash')}
                       </span>
                     </div>
                   </div>

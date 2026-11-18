@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 // Pure CSS-3D shelving unit. Level 1 is the bottom shelf. Drag to rotate.
 const BIN_W = 84;
@@ -63,6 +64,7 @@ const PRESETS = {
 };
 
 export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin = '', compact = false, width = 300 }) {
+  const { t } = useLanguage();
   const [rot, setRot] = useState(compact ? { rx: -14, ry: -26 } : PRESETS.angle);
   const hl = String(highlightBin || '').toUpperCase();
   const drag = useRef(null);
@@ -122,7 +124,7 @@ export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin 
 
       {!compact && (
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[11px] text-slate-400">Drag to rotate · click a box to open the bin</p>
+        <p className="text-[11px] text-slate-400">{t('rk_drag_hint')}</p>
         <div className="flex items-center gap-1">
           {Object.keys(PRESETS).map((k) => (
             <button
@@ -130,7 +132,7 @@ export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin 
               onClick={() => setRot(PRESETS[k])}
               className="px-2 py-1 text-[11px] font-semibold capitalize text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
             >
-              {k}
+              {t('rk_view_' + k)}
             </button>
           ))}
         </div>
@@ -232,7 +234,7 @@ export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin 
                       tone={tone}
                       opacity={hl && !isTarget ? 0.45 : 1}
                       glow={isTarget}
-                      title={compact ? undefined : `${bin.bin_code}${names ? '\n' + names : '\nEmpty'}`}
+                      title={compact ? undefined : `${bin.bin_code}${names ? '\n' + names : '\n' + t('rk_empty_bin')}`}
                       onClick={
                         compact || !onBinClick
                           ? undefined
@@ -258,7 +260,7 @@ export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin 
                             L{l}-S{s}
                           </span>
                           <span style={{ fontSize: 15, fontWeight: 800 }}>
-                            {isTarget ? 'HERE' : status === 'empty' ? (hl ? '' : '—') : Number(bin.quantity).toLocaleString('en-IN')}
+                            {isTarget ? t('rk_here') : status === 'empty' ? (hl ? '' : '—') : Number(bin.quantity).toLocaleString('en-IN')}
                           </span>
                         </div>
                       }
@@ -274,10 +276,10 @@ export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin 
       {!compact && !hl && (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 text-[11px] text-slate-500">
         {[
-          ['ok', 'In stock'],
-          ['low', 'Low stock'],
-          ['out', 'Out of stock'],
-          ['empty', 'Empty bin'],
+          ['ok', t('rk_in_stock')],
+          ['low', t('rk_low_stock')],
+          ['out', t('rk_out_stock')],
+          ['empty', t('rk_empty_bin')],
         ].map(([k, label]) => (
           <span key={k} className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm border border-black/10" style={{ background: TONES[k].front }} />

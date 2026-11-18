@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MapPin, X } from 'lucide-react';
 import Rack3D from './Rack3D.jsx';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 const POP_W = 340;
 const POP_H = 440;
@@ -11,6 +12,7 @@ const POP_H = 440;
  * `racks` is the list from window.api.getRacks().
  */
 export default function BinLocation({ bin, racks = [], className = '' }) {
+  const { t } = useLanguage();
   const [pos, setPos] = useState(null);
   const timer = useRef(null);
   const code = String(bin || '').toUpperCase();
@@ -20,8 +22,8 @@ export default function BinLocation({ bin, racks = [], className = '' }) {
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  if (!code) return <span className={className}>Unassigned</span>;
-  if (!rack) return <span className={className} title="Bin not found in Racks & Bins">{code}</span>;
+  if (!code) return <span className={className}>{t('rk_unassigned')}</span>;
+  if (!rack) return <span className={className} title={t('rk_bin_not_in_racks')}>{code}</span>;
 
   const open = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -59,10 +61,10 @@ export default function BinLocation({ bin, racks = [], className = '' }) {
               </span>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  Rack {rack.code} – {rack.name}
+                  {t('rk_rack_label', { code: rack.code, name: rack.name })}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Level {binInfo.level_no} · Slot {binInfo.slot_no} · <span className="font-mono">{code}</span>
+                  {t('rk_level_slot_opt', { level: binInfo.level_no, slot: binInfo.slot_no })} · <span className="font-mono">{code}</span>
                 </p>
               </div>
             </div>
@@ -76,6 +78,7 @@ export default function BinLocation({ bin, racks = [], className = '' }) {
 
 /** Red "locate" action button for table/card action columns. */
 export function LocateButton({ item, onLocate, size = 'md' }) {
+  const { t } = useLanguage();
   const has = Boolean(String(item.bin_id || '').trim());
   const pad = size === 'sm' ? 'p-1' : size === 'lg' ? 'p-1.5' : 'p-1';
   const icon = size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5';
@@ -83,7 +86,7 @@ export function LocateButton({ item, onLocate, size = 'md' }) {
     <button
       onClick={() => has && onLocate(item)}
       disabled={!has}
-      title={has ? `Show location (${item.bin_id})` : 'Not assigned to a rack'}
+      title={has ? t('rk_show_location', { bin: item.bin_id }) : t('rk_not_assigned_rack')}
       className={`${pad} rounded transition-colors ${
         has ? 'text-rose-600 bg-rose-50 hover:bg-rose-100' : 'text-slate-300 cursor-not-allowed'
       }`}
@@ -95,6 +98,7 @@ export function LocateButton({ item, onLocate, size = 'md' }) {
 
 /** Modal that pinpoints a product's bin on a rotatable 3D rack. */
 export function LocationModal({ item, racks, onClose }) {
+  const { t } = useLanguage();
   const code = String(item.bin_id || '').toUpperCase();
   const rack = racks.find((r) => (r.bins || []).some((b) => b.bin_code.toUpperCase() === code));
   const bin = rack ? rack.bins.find((b) => b.bin_code.toUpperCase() === code) : null;
@@ -113,11 +117,11 @@ export function LocationModal({ item, racks, onClose }) {
               <h3 className="text-sm font-extrabold text-slate-900 truncate">{item.name}</h3>
               {rack && bin ? (
                 <p className="text-xs text-slate-500">
-                  Rack {rack.code} – {rack.name} · Level {bin.level_no} · Slot {bin.slot_no} ·{' '}
+                  {t('rk_rack_label', { code: rack.code, name: rack.name })} · {t('rk_level_slot_opt', { level: bin.level_no, slot: bin.slot_no })} ·{' '}
                   <span className="font-mono font-semibold text-rose-600">{code}</span>
                 </p>
               ) : (
-                <p className="text-xs text-rose-600">Bin "{code}" was not found in Racks &amp; Bins.</p>
+                <p className="text-xs text-rose-600">{t('rk_bin_missing', { bin: code })}</p>
               )}
             </div>
           </div>
