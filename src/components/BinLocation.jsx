@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import Rack3D from './Rack3D.jsx';
 
 const POP_W = 340;
@@ -71,5 +71,63 @@ export default function BinLocation({ bin, racks = [], className = '' }) {
           document.body
         )}
     </>
+  );
+}
+
+/** Red "locate" action button for table/card action columns. */
+export function LocateButton({ item, onLocate, size = 'md' }) {
+  const has = Boolean(String(item.bin_id || '').trim());
+  const pad = size === 'sm' ? 'p-1' : size === 'lg' ? 'p-1.5' : 'p-1';
+  const icon = size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5';
+  return (
+    <button
+      onClick={() => has && onLocate(item)}
+      disabled={!has}
+      title={has ? `Show location (${item.bin_id})` : 'Not assigned to a rack'}
+      className={`${pad} rounded transition-colors ${
+        has ? 'text-rose-600 bg-rose-50 hover:bg-rose-100' : 'text-slate-300 cursor-not-allowed'
+      }`}
+    >
+      <MapPin className={icon} />
+    </button>
+  );
+}
+
+/** Modal that pinpoints a product's bin on a rotatable 3D rack. */
+export function LocationModal({ item, racks, onClose }) {
+  const code = String(item.bin_id || '').toUpperCase();
+  const rack = racks.find((r) => (r.bins || []).some((b) => b.bin_code.toUpperCase() === code));
+  const bin = rack ? rack.bins.find((b) => b.bin_code.toUpperCase() === code) : null;
+  return createPortal(
+    <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-xs flex items-center justify-center p-4 z-[90]" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl max-h-[92vh] overflow-y-auto p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-5 h-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-extrabold text-slate-900 truncate">{item.name}</h3>
+              {rack && bin ? (
+                <p className="text-xs text-slate-500">
+                  Rack {rack.code} – {rack.name} · Level {bin.level_no} · Slot {bin.slot_no} ·{' '}
+                  <span className="font-mono font-semibold text-rose-600">{code}</span>
+                </p>
+              ) : (
+                <p className="text-xs text-rose-600">Bin "{code}" was not found in Racks &amp; Bins.</p>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {rack && <Rack3D rack={rack} highlightBin={code} width={520} />}
+      </div>
+    </div>,
+    document.body
   );
 }

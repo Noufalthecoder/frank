@@ -37,7 +37,7 @@ import { useAppDialog } from '../components/AppDialogContext.jsx';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
 import ExportMenu from '../components/ExportMenu.jsx';
 import OrdersButton from '../components/OrdersButton.jsx';
-import BinLocation from '../components/BinLocation.jsx';
+import BinLocation, { LocateButton, LocationModal } from '../components/BinLocation.jsx';
 
 const VIEW_MODES = [
   { id: 'large', labelKey: 'cat_view_large', icon: Square, pageSize: 12 },
@@ -73,6 +73,7 @@ export default function Catalog() {
   const [items, setItems] = useState([]);
   const [availableBins, setAvailableBins] = useState([]);
   const [racks, setRacks] = useState([]);
+  const [locateItem, setLocateItem] = useState(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [brandFilter, setBrandFilter] = useState('All');
@@ -793,6 +794,7 @@ export default function Catalog() {
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-2 text-slate-400">
+                      <LocateButton item={item} onLocate={setLocateItem} size="sm" />
                       <button
                         onClick={() => openEdit(item)}
                         className="p-1 hover:text-blue-600 hover:bg-slate-100 rounded transition-colors"
@@ -869,6 +871,7 @@ export default function Catalog() {
                         )}
                       </span>
                       <div className="flex items-center gap-1 text-slate-400">
+                        <LocateButton item={item} onLocate={setLocateItem} size="lg" />
                         <button
                           onClick={() => openEdit(item)}
                           className="p-1.5 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -934,6 +937,7 @@ export default function Catalog() {
                         )}
                       </span>
                       <div className="flex items-center gap-0.5 text-slate-400 flex-shrink-0">
+                        <LocateButton item={item} onLocate={setLocateItem} size="sm" />
                         <button
                           onClick={() => openEdit(item)}
                           className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -1037,6 +1041,8 @@ export default function Catalog() {
       </div>
 
       {/* Add / Edit Modal */}
+      {locateItem && <LocationModal item={locateItem} racks={racks} onClose={() => setLocateItem(null)} />}
+
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className={`animate-modal bg-white rounded-2xl shadow-2xl border border-slate-200/90 w-full overflow-hidden flex flex-col max-h-[90vh] transition-all ${modalMode === 'library' && !editingItem ? 'max-w-3xl' : 'max-w-lg'}`}>

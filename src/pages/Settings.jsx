@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Racks from './Racks.jsx';
 import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
+import { InvoiceDocument } from '../components/PrintableReceipt.jsx';
 import {
   PAPER_SIZES,
   getPrintPreferences,
@@ -429,7 +430,8 @@ export default function Settings() {
           )}
 
           {activeTab === 'Billing & Print' && (
-            <div className="space-y-5">
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+            <div className="xl:col-span-3 space-y-5 min-w-0">
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900">Printer Configuration</h2>
@@ -641,6 +643,36 @@ export default function Settings() {
                   Save Printer Settings
                 </button>
               </div>
+            </div>
+
+            {/* Live bill preview (updates as you change format / orientation) */}
+            <div className="xl:col-span-2 xl:sticky xl:top-2 min-w-0">
+              {(() => {
+                const fmt = printPrefs.format;
+                const landscape = (printPrefs.orientation || 'portrait') === 'landscape';
+                const widthClass =
+                  fmt === '58mm' ? 'max-w-[260px]'
+                  : fmt === '80mm' ? 'max-w-[330px]'
+                  : fmt === 'A6' ? 'max-w-[400px]'
+                  : landscape ? 'max-w-[460px]' : 'max-w-[400px]';
+                return (
+                  <div className="rounded-xl border border-slate-200 bg-slate-100/90 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-slate-800">Bill Preview</p>
+                      <span className="text-[11px] font-medium text-slate-500">
+                        {fmt} · {landscape ? 'Landscape' : 'Portrait'}
+                      </span>
+                    </div>
+                    <div className="max-h-[calc(100vh-190px)] overflow-y-auto flex justify-center">
+                      <div className={`w-full ${widthClass} bg-white rounded-lg shadow-lg border border-slate-200/90 overflow-hidden`}>
+                        <InvoiceDocument invoice={sampleTestInvoice} profile={profile} format={fmt} inlinePreview={true} />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-400 text-center mt-2.5">Sample bill — uses your Shop Profile details</p>
+                  </div>
+                );
+              })()}
+            </div>
             </div>
           )}
 
