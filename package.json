@@ -8,9 +8,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && electron-builder",
+    "build": "vite build && node scripts/prepare-native.mjs && electron-builder --win",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare-native": "node scripts/prepare-native.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.8",
@@ -28,7 +29,6 @@
     "react-countup": "^6.5.3",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.6.2",
-    "sqlite3": "^5.1.7",
     "sweetalert2": "^11.22.0",
     "uuid": "^11.1.0"
   },
@@ -50,7 +50,8 @@
     "typescript": "^5.2.2",
     "vite": "^5.1.6",
     "vite-plugin-electron": "^0.28.6",
-    "vite-plugin-electron-renderer": "^0.14.5"
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "prebuild-install": "^7.1.2"
   },
   "main": "dist-electron/main.js",
   "build": {
