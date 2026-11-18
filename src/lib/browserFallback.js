@@ -16,7 +16,7 @@ function getCleanInitialData() {
       id: 1,
       shop_name: 'T. S. P Enterprises',
       tagline: 'Hardware, Tools & Fasteners',
-      phone: '+91 98765 43210',
+      phone: '',
       email: 'tspenterprises@gmail.com',
       gstin: '',
       address_line1: 'Beach Road',

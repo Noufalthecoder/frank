@@ -173,7 +173,7 @@ function initSchema() {
   if (!profile) {
     db.prepare(`
       INSERT INTO shop_profile (id, shop_name, tagline, phone, email, address_line1, address_line2, city, pincode)
-      VALUES (1, 'T. S. P Enterprises', 'Hardware, Tools & Fasteners', '+91 98765 43210', 'tspenterprises@gmail.com', 'Beach Road', 'Tharuvaikulam', 'Thoothukudi', '628105')
+      VALUES (1, 'T. S. P Enterprises', 'Hardware, Tools & Fasteners', '', 'tspenterprises@gmail.com', 'Beach Road', 'Tharuvaikulam', 'Thoothukudi', '628105')
     `).run();
   } else {
     // Only migrate legacy placeholder names so user's custom Settings edits persist
@@ -183,6 +183,9 @@ function initSchema() {
       WHERE id = 1 AND (shop_name LIKE '%StockMate%' OR shop_name LIKE '%Sekar%')
     `).run();
   }
+
+  // Clear the old fake placeholder phone so it never prints on customer receipts
+  db.prepare("UPDATE shop_profile SET phone = '' WHERE id = 1 AND phone = '+91 98765 43210'").run();
 
   // Seed only default category labels — never seed dummy products, racks, vendors, bills, POs, or expenses
   const categories = ['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'];

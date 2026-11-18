@@ -76,8 +76,8 @@ export default function Settings() {
   const [profile, setProfile] = useState({
     shop_name: 'T. S. P Enterprises',
     tagline: 'Hardware, Tools & Fasteners',
-    phone: '+91 98765 43210',
-    email: 'tspenterprises@gmail.com',
+    phone: '',
+    email: '',
     gstin: '',
     address_line1: 'Beach Road',
     address_line2: 'Tharuvaikulam',

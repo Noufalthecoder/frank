@@ -34,7 +34,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
     profile?.city || 'Thoothukudi',
     profile?.pincode || '628105',
   ].filter(Boolean);
-  const phone = profile?.phone || '+91 98765 43210';
+  const phone = profile?.phone || '';
   const gstin = String(profile?.gstin || '').trim();
   const termsText =
     profile?.invoice_footer || 'Goods once sold will not be taken back.';
@@ -88,9 +88,11 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
             <div style={{ fontSize: `${Math.max(8, baseFontPx - 1)}px`, marginTop: '2px' }}>
               {addressParts.join(', ')}
             </div>
-            <div style={{ fontSize: `${Math.max(8, baseFontPx - 1)}px` }}>
-              Phone: {phone}
-            </div>
+            {phone && (
+              <div style={{ fontSize: `${Math.max(8, baseFontPx - 1)}px` }}>
+                Phone: {phone}
+              </div>
+            )}
             {gstin && (
               <div style={{ fontSize: `${Math.max(8, baseFontPx - 1)}px`, fontWeight: 600 }}>
                 GSTIN: {gstin}
@@ -118,8 +120,9 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
               </div>
               <div style={{ marginTop: '2px' }}>{addressParts.join(', ')}</div>
               <div>
-                Phone: {phone}
-                {gstin ? ` | GSTIN: ${gstin}` : ''}
+                {phone ? `Phone: ${phone}` : ''}
+                {phone && gstin ? ' | ' : ''}
+                {gstin ? `GSTIN: ${gstin}` : ''}
               </div>
             </div>
             <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>

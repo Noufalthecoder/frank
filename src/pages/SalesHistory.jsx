@@ -7,6 +7,8 @@ import {
   X,
   CheckCircle2
 } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
+import { useAppDialog } from '../components/AppDialogContext.jsx';
 import PrintableReceipt from '../components/PrintableReceipt.jsx';
 import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
 import PrintErrorBanner from '../components/PrintErrorBanner.jsx';
@@ -19,6 +21,7 @@ const PAGE_SIZE = 12;
 
 export default function SalesHistory() {
   const { t, tName } = useLanguage();
+  const { showConfirm } = useAppDialog();
   const payLabel = (m) => {
     const k = { Cash: 'pos_cash', UPI: 'pos_upi', Card: 'pos_card', Bank: 'fi_pay_bank' }[m];
     return k ? t(k) : m;
@@ -57,6 +60,25 @@ export default function SalesHistory() {
       const res = await window.api.getInvoices();
       setInvoices(res || []);
     }
+  };
+
+  const handleReturn = async (inv) => {
+    const ok = await showConfirm({
+      title: t('hist_return'),
+      message: t('hist_return_confirm', { n: inv.invoice_number }),
+      confirmLabel: t('hist_return'),
+      tone: 'danger',
+    });
+    if (!ok) return;
+    const res = window.api && window.api.returnInvoice ? await window.api.returnInvoice(inv.id) : null;
+    if (!res || res.success === false) {
+      showToast((res && res.error) || 'Return failed.');
+      return;
+    }
+    showToast(t('hist_return_done', { n: inv.invoice_number }));
+    setSelectedInvoice({ ...inv, status: 'Returned' });
+    await loadInvoices();
+    window.dispatchEvent(new CustomEvent('stock-updated'));
   };
 
   const showToast = (msg) => {
@@ -480,6 +502,15 @@ export default function SalesHistory() {
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>{t('hist_print_invoice')}</span>
+                </button>
+              )}
+              {selectedInvoice.status !== 'Returned' && (
+                <button
+                  onClick={() => handleReturn(selectedInvoice)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold hover:bg-rose-100"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>{t('hist_return')}</span>
                 </button>
               )}
               <button

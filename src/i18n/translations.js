@@ -169,6 +169,9 @@ export const translations = {
     hist_invoices: 'invoices',
     hist_print_invoice: 'Print Invoice',
     hist_close: 'Close',
+    hist_return: 'Return & Restock',
+    hist_return_confirm: 'Return invoice {n}? The items will be added back to stock.',
+    hist_return_done: 'Invoice {n} returned and stock restored.',
 
     // Vendors / Procurement
     vend_title: 'Vendors & Purchases',
@@ -372,6 +375,9 @@ export const translations = {
     hist_invoices: 'பில்கள்',
     hist_print_invoice: 'பில் அச்சிடு',
     hist_close: 'மூடு',
+    hist_return: 'திருப்பி எடு & இருப்பில் சேர்',
+    hist_return_confirm: 'பில் {n} திரும்பப் பெறவா? பொருட்கள் மீண்டும் இருப்பில் சேர்க்கப்படும்.',
+    hist_return_done: 'பில் {n} திரும்பப் பெறப்பட்டது; இருப்பு மீட்கப்பட்டது.',
 
     // Vendors / Procurement
     vend_title: 'சப்ளையர்கள் & கொள்முதல்',
