@@ -160,6 +160,25 @@ export default function Layout({ children }) {
             })}
           </nav>
         </div>
+
+        {/* Sidebar Footer: Admin Profile Card */}
+        <div className="p-3 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => navigate('/settings')}
+            className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/70 transition-all text-left group"
+          >
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-blue-100 flex-shrink-0">
+              AA
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-slate-900 leading-tight truncate group-hover:text-blue-700 transition-colors">
+                A. Adithya
+              </p>
+              <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">{t('admin')}</p>
+            </div>
+          </button>
+        </div>
       </aside>
 
       {/* Main Area */}
@@ -304,17 +323,6 @@ export default function Layout({ children }) {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Profile */}
-            <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200/80">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-[11px] flex items-center justify-center shadow-sm ring-2 ring-blue-100">
-                AA
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-900 leading-tight">A. Adithya</p>
-                <p className="text-[10px] text-slate-400 font-semibold">{t('admin')}</p>
-              </div>
             </div>
           </div>
         </header>
