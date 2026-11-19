@@ -1025,11 +1025,19 @@ ipcMain.handle('restoreDatabase', async () => {
   }
   try {
     const sourcePath = filePaths[0];
-    // Safety copy of current db before replacing
+    // Safety copy of current db and WAL before replacing
     const safetyBackup = `${dbpath}.pre_restore.bak`;
     try { fs.copyFileSync(dbpath, safetyBackup); } catch (_) {}
+    try {
+      if (fs.existsSync(`${dbpath}-wal`)) fs.copyFileSync(`${dbpath}-wal`, `${safetyBackup}-wal`);
+    } catch (_) {}
 
     db.close();
+
+    // Clean up stale WAL/SHM from previous database state so restored DB opens clean
+    try { if (fs.existsSync(`${dbpath}-wal`)) fs.unlinkSync(`${dbpath}-wal`); } catch (_) {}
+    try { if (fs.existsSync(`${dbpath}-shm`)) fs.unlinkSync(`${dbpath}-shm`); } catch (_) {}
+
     fs.copyFileSync(sourcePath, dbpath);
     db = new Database(dbpath);
     applyPragmas(db);
