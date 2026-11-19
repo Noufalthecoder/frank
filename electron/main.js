@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import fs from 'node:fs'
+import sampleData from './sample-data.json'
 import { planReturn, parseReturnLines, r2 } from '../src/lib/returnMath.js'
 
 const require = createRequire(import.meta.url)
@@ -259,13 +260,95 @@ function initSchema() {
   // Clear the old fake placeholder phone so it never prints on customer receipts
   db.prepare("UPDATE shop_profile SET phone = '' WHERE id = 1 AND phone = '+91 98765 43210'").run();
 
-  // Seed only default category labels — never seed dummy products, racks, vendors, bills, POs, or expenses
+  // Seed only default category labels
   const categories = ['Fasteners', 'Tools', 'Electrical', 'Plumbing', 'Paints & Adhesives', 'Others'];
   const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
   categories.forEach(c => insertCat.run(c));
 
+  // Pre-seed sample hardware data if the database is fresh and completely empty,
+  // so the standalone .exe is ready for full-flow testing out of the box.
+  try {
+    const itemCount = db.prepare('SELECT COUNT(*) as c FROM items').get().c;
+    if (itemCount === 0) {
+      seedSampleHardwareData();
+    }
+  } catch (_) {}
+
   // Let SQLite gather stats for any table/index that has none yet (cheap no-op otherwise).
   try { db.pragma('optimize'); } catch (_) {}
+}
+
+function seedSampleHardwareData() {
+  try {
+    const tx = db.transaction(() => {
+      // Items
+      if (Array.isArray(sampleData.items)) {
+        const stmt = db.prepare(`
+          INSERT OR REPLACE INTO items (sku, name, size, unit, category, selling_price, cost_price, quantity, reorder_level, bin_id, status)
+          VALUES (@sku, @name, @size, @unit, @category, @selling_price, @cost_price, @quantity, @reorder_level, @bin_id, @status)
+        `);
+        for (const item of sampleData.items) {
+          stmt.run({
+            sku: item.sku,
+            name: item.name,
+            size: item.size || null,
+            unit: item.unit || 'PCS',
+            category: item.category || 'General',
+            selling_price: Number(item.selling_price || 0),
+            cost_price: Number(item.cost_price || 0),
+            quantity: Number(item.quantity || 0),
+            reorder_level: Number(item.reorder_level || 10),
+            bin_id: item.bin_id || null,
+            status: item.status || 'Active',
+          });
+        }
+      }
+      // Racks & Bins
+      if (Array.isArray(sampleData.racks)) {
+        const rStmt = db.prepare(`
+          INSERT OR REPLACE INTO racks (code, name, zone, levels, slots_per_level)
+          VALUES (@code, @name, @zone, @levels, @slots_per_level)
+        `);
+        const bStmt = db.prepare(`
+          INSERT OR IGNORE INTO rack_bins (bin_code, rack_code, level_no, slot_no, quantity)
+          VALUES (?, ?, ?, ?, 0)
+        `);
+        for (const r of sampleData.racks) {
+          rStmt.run(r);
+          for (let l = 1; l <= (r.levels || 4); l++) {
+            for (let s = 1; s <= (r.slots_per_level || 4); s++) {
+              bStmt.run(`${r.code}-L${l}-S${s}`, r.code, l, s);
+            }
+          }
+        }
+      }
+      // Vendors
+      if (Array.isArray(sampleData.vendors)) {
+        const vStmt = db.prepare(`
+          INSERT OR REPLACE INTO vendors (name, contact_person, phone, email, city)
+          VALUES (@name, @contact_person, @phone, @email, @city)
+        `);
+        for (const v of sampleData.vendors) {
+          vStmt.run(v);
+        }
+      }
+      // Invoices
+      if (Array.isArray(sampleData.invoices)) {
+        const iStmt = db.prepare(`
+          INSERT OR REPLACE INTO invoices (invoice_number, date_time, customer_name, customer_phone, subtotal, discount, total, payment_mode, items_json, items_count, status)
+          VALUES (@invoice_number, @date_time, @customer_name, @customer_phone, @subtotal, @discount, @total, @payment_mode, @items_json, @items_count, @status)
+        `);
+        for (const inv of sampleData.invoices) {
+          iStmt.run(inv);
+        }
+      }
+    });
+    tx();
+    return { success: true, count: sampleData.items ? sampleData.items.length : 0 };
+  } catch (err) {
+    console.error('Failed to seed sample hardware data:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 function formatLocalDateTime(date = new Date()) {
@@ -1056,7 +1139,7 @@ ipcMain.handle('restoreDatabase', async () => {
 });
 
 ipcMain.handle('seedDemoData', () => {
-  return { success: true };
+  return seedSampleHardwareData();
 });
 
 ipcMain.handle('resetDatabase', () => {

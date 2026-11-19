@@ -13,7 +13,8 @@ import {
   Download,
   Upload,
   RefreshCw,
-  Trash2
+  Trash2,
+  PackagePlus
 } from 'lucide-react';
 import Racks from './Racks.jsx';
 import PrintPreviewModal from '../components/PrintPreviewModal.jsx';
@@ -176,6 +177,24 @@ export default function Settings() {
           message: res.error,
           tone: 'danger',
         });
+      }
+    }
+  };
+
+  const handleSeedSampleData = async () => {
+    const ok = await showConfirm({
+      title: t('st_sample_title') || 'Load Sample Hardware Data?',
+      message: t('st_sample_msg') || 'This will populate 41 hardware products, 5 racks, 5 vendors, and sample invoices to test all store flows.',
+      confirmLabel: t('st_load_btn') || 'Load Sample Data',
+      tone: 'primary',
+    });
+    if (!ok) return;
+    if (window.api && window.api.seedDemoData) {
+      const res = await window.api.seedDemoData();
+      if (res && res.success) {
+        setDbStatusMsg(t('st_sample_loaded') || 'Sample hardware data loaded successfully.');
+        window.dispatchEvent(new CustomEvent('stock-updated'));
+        loadProfile();
       }
     }
   };
@@ -715,8 +734,16 @@ export default function Settings() {
               </div>
 
               <div className="pt-4 border-t border-slate-100 space-y-2.5">
-                <p className="text-xs font-bold text-slate-700">{t('st_danger_zone')}</p>
+                <p className="text-xs font-bold text-slate-700">{t('st_data_tools') || 'Test & Maintenance Tools'}</p>
                 <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleSeedSampleData}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    <PackagePlus className="w-3.5 h-3.5" />
+                    <span>{t('st_load_sample_data') || 'Load Sample Hardware Data'}</span>
+                  </button>
+
                   <button
                     onClick={handleResetDatabase}
                     className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold transition-colors"
