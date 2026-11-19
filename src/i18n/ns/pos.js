@@ -131,6 +131,8 @@ export default {
     rk_select_product: 'Select a product…',
     rk_add: 'Add',
     rk_close: 'Close',
+    rk_manage_bin: 'Move / Add products',
+    rk_done: 'Done',
   },
   ta: {
     // POS
@@ -263,5 +265,7 @@ export default {
     rk_select_product: 'பொருளைத் தேர்ந்தெடு…',
     rk_add: 'சேர்',
     rk_close: 'மூடு',
+    rk_manage_bin: 'நகர்த்து / பொருள் சேர்',
+    rk_done: 'முடிந்தது',
   },
 };
