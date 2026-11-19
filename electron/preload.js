@@ -80,6 +80,11 @@ contextBridge.exposeInMainWorld('api', {
   seedDemoData: () => ipcRenderer.invoke('seedDemoData'),
   resetDatabase: () => ipcRenderer.invoke('resetDatabase'),
 
+  // POS Billing Draft State (Crash-proof persistent recovery in SQLite)
+  saveDraftBills: (dataStr) => ipcRenderer.invoke('saveDraftBills', dataStr),
+  getDraftBills: () => ipcRenderer.invoke('getDraftBills'),
+  clearDraftBills: () => ipcRenderer.invoke('clearDraftBills'),
+
   // Printing & PDF Export
   getPrinters: () => ipcRenderer.invoke('getPrinters'),
   printInvoice: (opts) => ipcRenderer.invoke('printInvoice', opts),

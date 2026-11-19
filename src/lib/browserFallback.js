@@ -650,7 +650,31 @@ export function initBrowserApiFallback() {
         expenses: [],
         day_closings: [],
       });
+      try { localStorage.removeItem('tsp_pos_draft_bills_v1'); } catch (_) {}
       return { success: true };
+    },
+    saveDraftBills: async (dataStr) => {
+      try {
+        localStorage.setItem('tsp_pos_draft_bills_v1', dataStr);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    },
+    getDraftBills: async () => {
+      try {
+        return localStorage.getItem('tsp_pos_draft_bills_v1');
+      } catch (_) {
+        return null;
+      }
+    },
+    clearDraftBills: async () => {
+      try {
+        localStorage.removeItem('tsp_pos_draft_bills_v1');
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
     },
     getPrinters: async () => [
       {

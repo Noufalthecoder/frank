@@ -146,10 +146,34 @@ export default function POSBilling() {
   const customerInputRef = useRef(null);
   const discountInputRef = useRef(null);
 
-  // Persist open draft bill tabs automatically across page navigation & restarts
+  // Crash recovery: On mount, hydrate drafts from durable SQLite storage if available
+  useEffect(() => {
+    let isMounted = true;
+    if (window.api && window.api.getDraftBills) {
+      window.api.getDraftBills().then((sqliteRaw) => {
+        if (!isMounted || !sqliteRaw) return;
+        try {
+          const parsed = JSON.parse(sqliteRaw);
+          if (Array.isArray(parsed.bills) && parsed.bills.length > 0) {
+            setBills(parsed.bills);
+            if (parsed.activeBillId) setActiveBillId(parsed.activeBillId);
+          }
+        } catch (_) {}
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Persist open draft bill tabs automatically across page navigation, restarts & crashes (dual-layer: localStorage + SQLite WAL)
   useEffect(() => {
     try {
-      localStorage.setItem(DRAFT_BILLS_KEY, JSON.stringify({ bills, activeBillId }));
+      const payload = JSON.stringify({ bills, activeBillId });
+      localStorage.setItem(DRAFT_BILLS_KEY, payload);
+      if (window.api && window.api.saveDraftBills) {
+        window.api.saveDraftBills(payload);
+      }
     } catch (_) {}
   }, [bills, activeBillId]);
 

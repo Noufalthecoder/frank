@@ -187,6 +187,12 @@ function initSchema() {
       items_json TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS pos_draft_state (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      data TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- INDEXES-BEGIN
     CREATE INDEX IF NOT EXISTS idx_items_upper_sku ON items(UPPER(sku));
     CREATE INDEX IF NOT EXISTS idx_items_upper_bin ON items(UPPER(bin_id));
@@ -1064,10 +1070,44 @@ ipcMain.handle('resetDatabase', () => {
       DELETE FROM vendors;
       DELETE FROM expenses;
       DELETE FROM day_closings;
+      DELETE FROM pos_draft_state;
     `);
   });
   tx();
   return { success: true };
+});
+
+// IPC Handlers: POS Billing Draft State (Crash-proof persistent recovery in SQLite)
+ipcMain.handle('saveDraftBills', (event, dataStr) => {
+  try {
+    if (!dataStr) return { success: false };
+    db.prepare(`
+      INSERT INTO pos_draft_state (id, data, updated_at)
+      VALUES (1, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP
+    `).run(dataStr);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('getDraftBills', () => {
+  try {
+    const row = db.prepare('SELECT data FROM pos_draft_state WHERE id = 1').get();
+    return row ? row.data : null;
+  } catch (err) {
+    return null;
+  }
+});
+
+ipcMain.handle('clearDraftBills', () => {
+  try {
+    db.prepare('DELETE FROM pos_draft_state WHERE id = 1').run();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 // Paper size definitions in microns (width x height) for Electron print & printToPDF (A1-A6 + Thermal)
