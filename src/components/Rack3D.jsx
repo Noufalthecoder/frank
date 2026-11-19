@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 
-// Pure CSS-3D shelving unit. Level 1 is the bottom shelf. Drag to rotate.
+// Pure CSS-3D shelving unit. Level 1 is the top shelf. Drag to rotate.
 const BIN_W = 84;
 const BIN_H = 58;
 const BIN_D = 72;
@@ -92,16 +92,20 @@ export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin 
 
   const onDown = (e) => {
     if (compact) return;
-    drag.current = { x: e.clientX, y: e.clientY, ...rot };
+    drag.current = { x: e.clientX, y: e.clientY, el: e.currentTarget, pid: e.pointerId, ...rot };
     moved.current = false;
-    e.currentTarget.setPointerCapture?.(e.pointerId);
   };
   const onMove = (e) => {
     const d = drag.current;
     if (!d) return;
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
-    if (Math.abs(dx) + Math.abs(dy) > 4) moved.current = true;
+    if (!moved.current && Math.abs(dx) + Math.abs(dy) > 4) {
+      moved.current = true;
+      // Capture only once a real drag starts, so plain clicks still reach the bin.
+      try { d.el.setPointerCapture?.(d.pid); } catch (_) {}
+    }
+    if (!moved.current) return;
     setRot({
       ry: Math.max(-95, Math.min(95, d.ry + dx * 0.45)),
       rx: Math.max(-80, Math.min(10, d.rx - dy * 0.35)),
@@ -192,7 +196,7 @@ export default function Rack3D({ rack, itemsById = {}, onBinClick, highlightBin 
 
           {Array.from({ length: levels }, (_, li) => {
             const l = li + 1;
-            const slabY = RH - 12 - (l - 1) * LEVEL_H + 2;
+            const slabY = RH - 12 - (levels - l) * LEVEL_H + 2; // L1 is the TOP shelf
             return (
               <React.Fragment key={l}>
                 <Cuboid x={0} y={slabY} z={0} w={RW} h={SLAB} d={RD} tone={SHELF} />

@@ -34,12 +34,15 @@ export default function Settings() {
   const { showAlert, showConfirm } = useAppDialog();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const initialTab =
-    tabParam === 'racks'
-      ? 'Racks & Bins'
-      : tabParam === 'print'
-      ? 'Billing & Print'
-      : 'Shop Profile';
+  const TAB_BY_PARAM = {
+    profile: 'Shop Profile',
+    racks: 'Racks & Bins',
+    users: 'Users & Roles',
+    print: 'Billing & Print',
+    prefs: 'Preferences',
+    db: 'Database',
+  };
+  const initialTab = TAB_BY_PARAM[tabParam] || 'Shop Profile';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [dbPath, setDbPath] = useState('%APPDATA%\\Invenbill\\billing.db');
@@ -71,8 +74,7 @@ export default function Settings() {
   };
 
   useEffect(() => {
-    if (tabParam === 'racks') setActiveTab('Racks & Bins');
-    else if (tabParam === 'print') setActiveTab('Billing & Print');
+    setActiveTab(TAB_BY_PARAM[tabParam] || 'Shop Profile');
   }, [tabParam]);
 
   const [profile, setProfile] = useState({
@@ -203,48 +205,10 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] font-extrabold text-slate-900 tracking-[-0.025em]">{t('set_title')}</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            {t('set_subtitle')}
-          </p>
-        </div>
-      </div>
-
       {/* Main Split Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
-        {/* Left Side: Settings Navigation Tabs */}
-        <div className="surface-card rounded-2xl p-3 space-y-1">
-          {[
-            { id: 'Shop Profile', label: t('set_tab_profile'), icon: Store },
-            { id: 'Racks & Bins', label: t('set_tab_racks'), icon: Grid3X3 },
-            { id: 'Users & Roles', label: t('set_tab_users'), icon: Users },
-            { id: 'Billing & Print', label: t('set_tab_print'), icon: Printer },
-            { id: 'Preferences', label: t('set_tab_prefs'), icon: Sliders },
-            { id: 'Database', label: t('set_tab_db'), icon: Database },
-          ].map(({ id, label, icon: Icon }) => {
-            const isActive = activeTab === id;
-            return (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 transition-colors ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-700 font-bold'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>{label}</span>
-              </button>
-            );
-          })}
-        </div>
-
+      <div className="items-start">
         {/* Right Side: Form Panel */}
-        <div className="md:col-span-3 surface-card rounded-2xl p-6 space-y-6">
+        <div className="surface-card rounded-2xl p-6 space-y-6">
           {activeTab === 'Shop Profile' && (
             <form onSubmit={handleSave} className="space-y-6">
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">

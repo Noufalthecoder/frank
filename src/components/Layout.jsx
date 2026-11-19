@@ -17,7 +17,12 @@ import {
   ArrowRight,
   CheckCircle2,
   X,
-  Languages
+  Languages,
+  Store,
+  Users,
+  Printer,
+  Sliders,
+  Database
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 
@@ -104,6 +109,17 @@ export default function Layout({ children }) {
     { name: t('nav_settings'), path: '/settings', icon: Settings },
   ];
 
+  const settingsSubItems = [
+    { id: 'profile', label: t('set_tab_profile'), icon: Store },
+    { id: 'racks', label: t('set_tab_racks'), icon: Grid3X3 },
+    { id: 'users', label: t('set_tab_users'), icon: Users },
+    { id: 'print', label: t('set_tab_print'), icon: Printer },
+    { id: 'prefs', label: t('set_tab_prefs'), icon: Sliders },
+    { id: 'db', label: t('set_tab_db'), icon: Database },
+  ];
+  const onSettings = location.pathname === '/settings';
+  const activeSettingsTab = new URLSearchParams(location.search).get('tab') || 'profile';
+
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter' && globalSearch.trim()) {
       navigate(`/catalog?q=${encodeURIComponent(globalSearch.trim())}`);
@@ -153,6 +169,27 @@ export default function Layout({ children }) {
                     <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} strokeWidth={1.75} />
                     <span className="truncate">{item.name}</span>
                   </NavLink>
+                  {item.path === '/settings' && onSettings && (
+                    <div className="ml-4 mr-4 mb-1 flex flex-col gap-1">
+                      {settingsSubItems.map((sub) => {
+                        const subActive = activeSettingsTab === sub.id;
+                        return (
+                          <NavLink
+                            key={sub.id}
+                            to={`/settings?tab=${sub.id}`}
+                            className={`flex items-center gap-3 pl-9 pr-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${
+                              subActive
+                                ? 'bg-blue-50 text-blue-700 font-semibold'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                          >
+                            <sub.icon className={`w-4 h-4 flex-shrink-0 ${subActive ? 'text-blue-600' : 'text-slate-400'}`} strokeWidth={1.75} />
+                            <span className="truncate">{sub.label}</span>
+                          </NavLink>
+                        );
+                      })}
+                    </div>
+                  )}
                   {idx === 0 && <div className="h-5" aria-hidden="true" />}
                 </React.Fragment>
               );

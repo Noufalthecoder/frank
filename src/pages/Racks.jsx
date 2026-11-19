@@ -23,6 +23,7 @@ export default function Racks({ embedded = false }) {
   const [selectedRackCode, setSelectedRackCode] = useState('R01');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedBinCode, setSelectedBinCode] = useState(null);
+  const [manageBin, setManageBin] = useState(false);
   const [allItems, setAllItems] = useState([]);
   const [editRack, setEditRack] = useState(null);
   const [editError, setEditError] = useState('');
@@ -579,103 +580,157 @@ export default function Racks({ embedded = false }) {
       )}
 
       {/* Bin Detail Modal */}
-      {selectedBin && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-xl overflow-hidden p-7 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 font-mono">{selectedBin.bin_code}</h3>
-                <p className="text-[13px] text-slate-400">{t('rk_level_slot_opt', { level: selectedBin.level_no, slot: selectedBin.slot_no })}</p>
+      {selectedBin && (() => {
+        const binItems = selectedBin.items || [];
+        const totalUnits = binItems.reduce((n, i) => n + Number(i.quantity || 0), 0);
+        const stateOf = (i) => {
+          const q = Number(i.quantity || 0);
+          if (q <= 0) return { label: t('rk_out_stock'), dot: 'bg-rose-500', text: 'text-rose-600', bg: 'bg-rose-50' };
+          if (q <= Number(i.reorder_level || 0)) return { label: t('rk_low_stock'), dot: 'bg-amber-500', text: 'text-amber-600', bg: 'bg-amber-50' };
+          return { label: t('rk_in_stock'), dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' };
+        };
+        const closeBin = () => { setSelectedBinCode(null); setManageBin(false); };
+        return (
+        <div
+          className="fixed inset-0 bg-slate-900/45 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) closeBin(); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[88vh]">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4 bg-gradient-to-b from-slate-50 to-white border-b border-slate-100">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${binItems.length ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                  <Package className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-extrabold text-slate-900 font-mono leading-tight">{selectedBin.bin_code}</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    {t('rk_level_slot_opt', { level: selectedBin.level_no, slot: selectedBin.slot_no })}
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setSelectedBinCode(null)} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={closeBin} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg" aria-label={t('rk_close')}>
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs space-y-1">
-              <p className="text-slate-500">{t('rk_occupancy')}</p>
-              <p className="text-xl font-bold text-slate-900">{t('rk_units', { n: Number(selectedBin.quantity).toLocaleString('en-IN') })}</p>
-              <p className={`text-[13px] font-medium ${Number(selectedBin.quantity) > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                {Number(selectedBin.quantity) > 0 ? t('rk_status_stocked') : t('rk_status_empty')}
-              </p>
+            {/* Summary tiles */}
+            <div className="grid grid-cols-2 gap-3 px-6 pt-4">
+              <div className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3">
+                <p className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">{t('rk_products_in_bin')}</p>
+                <p className="text-2xl font-extrabold text-slate-900 leading-tight">{binItems.length}</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3">
+                <p className="text-[12px] font-semibold text-emerald-700 uppercase tracking-wide">{t('rk_occupancy')}</p>
+                <p className="text-2xl font-extrabold text-emerald-800 leading-tight">{totalUnits.toLocaleString('en-IN')}</p>
+              </div>
             </div>
 
-            {selectedBin.items && selectedBin.items.length > 0 ? (
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                <p className="text-[13px] font-bold text-slate-600 uppercase">{t('rk_products_in_bin')}</p>
-                {selectedBin.items.map((item) => (
-                  <div key={item.id || item.sku} className="p-2 bg-white border border-slate-200 rounded-lg text-xs space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 pr-2">
-                        <p className="font-semibold text-slate-800 truncate">{item.name}</p>
-                        <p className="text-[12px] font-mono text-slate-400">{item.sku}</p>
-                      </div>
-                      <span className="font-bold text-emerald-700 flex-shrink-0">
-                        {item.quantity} {item.unit || 'PCS'}
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-1.5">
-                      <BinPicker
-                        racks={racks}
-                        value=""
-                        autoPickFirst={false}
-                        rackPlaceholder={t('rk_move_to_rack')}
-                        onChange={(code) => moveItem(item.id, code)}
-                        className="flex-1 min-w-0"
-                        selectClassName="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-[13px] text-slate-700"
-                      />
-                      <button
-                        onClick={() => moveItem(item.id, '')}
-                        className="px-2 py-1 text-[13px] font-semibold text-slate-500 border border-slate-200 rounded-md hover:text-rose-600 hover:bg-rose-50"
-                      >
-                        {t('rk_unassign')}
-                      </button>
-                    </div>
+            {/* Product list */}
+            <div className="px-6 py-4 overflow-y-auto flex-1 min-h-[120px]">
+              {binItems.length > 0 ? (
+                <ul className="space-y-2">
+                  {binItems.map((item) => {
+                    const st = stateOf(item);
+                    return (
+                      <li key={item.id || item.sku} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                        <div className="flex items-center gap-3 px-3.5 py-3">
+                          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${st.dot}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{item.name}</p>
+                            <p className="text-[12px] text-slate-400 font-mono truncate">
+                              {item.sku}{item.category ? ` · ${item.category}` : ''}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-base font-extrabold text-slate-900 leading-tight">
+                              {Number(item.quantity).toLocaleString('en-IN')}
+                              <span className="text-[12px] font-semibold text-slate-400 ml-1">{item.unit || 'PCS'}</span>
+                            </p>
+                            <span className={`inline-block mt-0.5 px-1.5 py-px rounded text-[11px] font-bold ${st.bg} ${st.text}`}>{st.label}</span>
+                          </div>
+                        </div>
+                        {manageBin && (
+                          <div className="flex items-start gap-1.5 px-3.5 pb-3 pt-2 bg-slate-50 border-t border-slate-100">
+                            <BinPicker
+                              racks={racks}
+                              value=""
+                              autoPickFirst={false}
+                              rackPlaceholder={t('rk_move_to_rack')}
+                              onChange={(code) => moveItem(item.id, code)}
+                              className="flex-1 min-w-0"
+                              selectClassName="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-[13px] text-slate-700"
+                            />
+                            <button
+                              onClick={() => moveItem(item.id, '')}
+                              className="px-2 py-1 text-[13px] font-semibold text-slate-500 border border-slate-200 bg-white rounded-md hover:text-rose-600 hover:bg-rose-50"
+                            >
+                              {t('rk_unassign')}
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                    <Package className="w-5 h-5" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[13px] text-slate-400 text-center py-2">
-                {t('rk_no_products_in', { bin: selectedBin.bin_code })}
-              </p>
-            )}
+                  <p className="text-sm font-semibold text-slate-600">{t('rk_status_empty')}</p>
+                  <p className="text-[13px] text-slate-400 mt-0.5">{t('rk_no_products_in', { bin: selectedBin.bin_code })}</p>
+                </div>
+              )}
 
-            <div className="space-y-1.5">
-              <p className="text-[13px] font-bold text-slate-600 uppercase">{t('rk_add_product_to_bin')}</p>
-              <div className="flex gap-2">
-                <select
-                  value={pickItemId}
-                  onChange={(e) => setPickItemId(e.target.value)}
-                  className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
-                >
-                  <option value="">{t('rk_select_product')}</option>
-                  {allItems
-                    .filter((i) => String(i.bin_id || '').toUpperCase() !== selectedBin.bin_code.toUpperCase())
-                    .map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name} ({i.sku}){i.bin_id ? ` · ${i.bin_id}` : ` · ${t('rk_unassigned_lc')}`}
-                      </option>
-                    ))}
-                </select>
-                <button
-                  disabled={!pickItemId}
-                  onClick={() => moveItem(Number(pickItemId), selectedBin.bin_code)}
-                  className="px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40"
-                >
-                  {t('rk_add')}
-                </button>
-              </div>
+              {manageBin && (
+                <div className="mt-4 space-y-1.5">
+                  <p className="text-[12px] font-bold text-slate-500 uppercase tracking-wide">{t('rk_add_product_to_bin')}</p>
+                  <div className="flex gap-2">
+                    <select
+                      value={pickItemId}
+                      onChange={(e) => setPickItemId(e.target.value)}
+                      className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                    >
+                      <option value="">{t('rk_select_product')}</option>
+                      {allItems
+                        .filter((i) => String(i.bin_id || '').toUpperCase() !== selectedBin.bin_code.toUpperCase())
+                        .map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.name} ({i.sku}){i.bin_id ? ` · ${i.bin_id}` : ` · ${t('rk_unassigned_lc')}`}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      disabled={!pickItemId}
+                      onClick={() => moveItem(Number(pickItemId), selectedBin.bin_code)}
+                      className="px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40"
+                    >
+                      {t('rk_add')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <button
-              onClick={() => setSelectedBinCode(null)}
-              className="w-full py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700"
-            >
-              {t('rk_close')}
-            </button>
+            {/* Footer */}
+            <div className="flex items-center gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50/60">
+              <button
+                onClick={() => setManageBin((v) => !v)}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-colors ${
+                  manageBin ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {manageBin ? t('rk_done') : t('rk_manage_bin')}
+              </button>
+              <button onClick={closeBin} className="flex-1 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
+                {t('rk_close')}
+              </button>
+            </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
