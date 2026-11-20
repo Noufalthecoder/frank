@@ -1,5 +1,5 @@
 import { localDateTimeStr } from '../lib/dateUtils.js';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Store,
@@ -25,6 +25,7 @@ import {
   savePrintPreferences,
 } from '../lib/printConfig.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
+import { fileToLogoDataUrl } from '../lib/logoUtils.js';
 import UsersPanel from '../components/UsersPanel.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
 
@@ -78,6 +79,20 @@ export default function Settings() {
     setActiveTab(TAB_BY_PARAM[tabParam] || 'Shop Profile');
   }, [tabParam]);
 
+  const logoInputRef = useRef(null);
+  const [logoError, setLogoError] = useState('');
+  const handleLogoPick = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setLogoError('');
+    try {
+      const dataUrl = await fileToLogoDataUrl(file);
+      setProfile((p) => ({ ...p, logo_data: dataUrl }));
+    } catch (err) {
+      setLogoError(err.message === 'type' ? t('st_logo_err_type') : err.message === 'size' ? t('st_logo_err_size') : t('st_logo_err_read'));
+    }
+  };
   const [profile, setProfile] = useState({
     shop_name: 'T. S. P Enterprises',
     tagline: 'Hardware, Tools & Fasteners',
@@ -358,19 +373,48 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {/* Right: Shop Logo Card */}
+                {/* Right: Shop Logo */}
                 <div className="space-y-3">
-                  <label className="block text-[13px] font-semibold text-slate-700">{t('st_header_preview')}</label>
-                  <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center space-y-2 bg-slate-50/50">
-                    <div className="w-14 h-14 rounded-xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-sm shadow-blue-200">
-                      <Layers className="w-7 h-7" />
-                    </div>
+                  <label className="block text-[13px] font-semibold text-slate-700">{t('st_logo')}</label>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={handleLogoPick}
+                  />
+                  <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center space-y-3 bg-slate-50/50">
+                    {profile.logo_data ? (
+                      <img src={profile.logo_data} alt={t('st_logo')} className="max-h-24 max-w-full object-contain mx-auto" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl bg-slate-900 text-white flex items-center justify-center mx-auto">
+                        <Layers className="w-8 h-8" />
+                      </div>
+                    )}
                     <div>
-                      <p className="text-xs font-bold text-slate-800">{profile.shop_name || 'T. S. P Enterprises'}</p>
-                      <p className="text-[12px] text-slate-400">
-                        {profile.address_line1 || 'Beach Road'} · {profile.address_line2 || 'Tharuvaikulam'}
-                      </p>
+                      <p className="text-sm font-bold text-slate-800">{profile.shop_name || 'T. S. P Enterprises'}</p>
+                      <p className="text-xs text-slate-400">{t('st_logo_hint')}</p>
                     </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        className="px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        {profile.logo_data ? t('st_logo_change') : t('st_logo_upload')}
+                      </button>
+                      {profile.logo_data && (
+                        <button
+                          type="button"
+                          onClick={() => setProfile({ ...profile, logo_data: '' })}
+                          className="px-3.5 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 rounded-lg"
+                        >
+                          {t('st_logo_remove')}
+                        </button>
+                      )}
+                    </div>
+                    {logoError && <p className="text-xs text-rose-600">{logoError}</p>}
+                    <p className="text-[11px] text-slate-400">{t('st_logo_save_hint')}</p>
                   </div>
                 </div>
               </div>

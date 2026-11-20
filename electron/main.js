@@ -235,6 +235,11 @@ function initSchema() {
     // Column already exists
   }
   try {
+    db.exec(`ALTER TABLE shop_profile ADD COLUMN logo_data TEXT DEFAULT ''`);
+  } catch (_) {
+    // Column already exists
+  }
+  try {
     db.exec(`ALTER TABLE shop_profile ADD COLUMN gstin TEXT DEFAULT ''`);
   } catch (_) {
     // Column already exists
@@ -368,15 +373,22 @@ ipcMain.handle('getShopProfile', () => {
   return db.prepare('SELECT * FROM shop_profile WHERE id = 1').get();
 });
 
-ipcMain.handle('updateShopProfile', (event, profile) => {
+ipcMain.handle('updateShopProfile', (event, profile = {}) => {
+  // Logo is a small image stored as a data URL. Keep the existing one when the caller omits it.
+  let logo = profile.logo_data;
+  if (logo === undefined) {
+    logo = (db.prepare('SELECT logo_data FROM shop_profile WHERE id = 1').get() || {}).logo_data || '';
+  } else if (logo && (!/^data:image\/(png|jpeg|webp);base64,/.test(logo) || logo.length > 700000)) {
+    return { success: false, error: 'Logo must be a PNG, JPEG or WebP image under 500 KB.' };
+  }
   const stmt = db.prepare(`
     UPDATE shop_profile
     SET shop_name = @shop_name, tagline = @tagline, phone = @phone, email = @email,
         gstin = @gstin, address_line1 = @address_line1, address_line2 = @address_line2, city = @city, pincode = @pincode,
-        invoice_footer = @invoice_footer, updated_at = CURRENT_TIMESTAMP
+        invoice_footer = @invoice_footer, logo_data = @logo_data, updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
   `);
-  stmt.run({ ...profile, gstin: String(profile.gstin || '').trim().toUpperCase() });
+  stmt.run({ ...profile, gstin: String(profile.gstin || '').trim().toUpperCase(), logo_data: logo || '' });
   return { success: true };
 });
 

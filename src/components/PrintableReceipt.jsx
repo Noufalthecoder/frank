@@ -36,6 +36,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
   ].filter(Boolean);
   const phone = profile?.phone || '';
   const gstin = String(profile?.gstin || '').trim();
+  const logo = profile?.logo_data || '';
   const termsText =
     profile?.invoice_footer || 'Goods once sold will not be taken back.';
 
@@ -82,6 +83,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
       >
         {isNarrow ? (
           <div style={{ textAlign: 'center' }}>
+            {logo && <img src={logo} alt="" style={{ maxHeight: '44px', maxWidth: '70%', objectFit: 'contain', margin: '0 auto 4px', display: 'block' }} />}
             <div style={{ fontSize: `${headingPx}px`, fontWeight: 600, letterSpacing: '0.4px' }}>
               {shopName.toUpperCase()}
             </div>
@@ -114,7 +116,9 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
           </div>
         ) : (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {logo && <img src={logo} alt="" style={{ maxHeight: `${Math.round(baseFontPx * 4.2)}px`, maxWidth: `${Math.round(baseFontPx * 9)}px`, objectFit: 'contain' }} />}
+              <div>
               <div style={{ fontSize: `${headingPx}px`, fontWeight: 600, letterSpacing: '0.4px' }}>
                 {shopName.toUpperCase()}
               </div>
@@ -123,6 +127,7 @@ export function InvoiceDocument({ invoice, profile, format, inlinePreview = fals
                 {phone ? `Phone: ${phone}` : ''}
                 {phone && gstin ? ' | ' : ''}
                 {gstin ? `GSTIN: ${gstin}` : ''}
+              </div>
               </div>
             </div>
             <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
