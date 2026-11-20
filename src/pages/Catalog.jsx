@@ -567,6 +567,7 @@ export default function Catalog() {
     const grp = getUnitGroup(unit);
     if (grp === 'length') return 'bg-sky-50 text-sky-700 border border-sky-200';
     if (grp === 'weight') return 'bg-violet-50 text-violet-700 border border-violet-200';
+    if (grp === 'volume') return 'bg-teal-50 text-teal-700 border border-teal-200';
     return 'bg-slate-100 text-slate-600 border border-slate-200';
   };
 
@@ -794,6 +795,8 @@ export default function Catalog() {
                               ? 'bg-sky-50 text-sky-700 border border-sky-200'
                               : grp === 'weight'
                               ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                              : grp === 'volume'
+                              ? 'bg-teal-50 text-teal-700 border border-teal-200'
                               : 'text-slate-600'
                           }`}
                         >

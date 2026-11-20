@@ -1,10 +1,11 @@
 // Measurement unit system for hardware inventory & POS billing
-// Supports Count (PCS, BOX, SET, PKT, ROLL), Length (m, cm), and Weight (kg, g, mg).
+// Supports Count (PCS, BOX, SET, PKT, ROLL), Length (m, cm), Weight (kg, g, mg) and Volume (L, mL).
 
 export const UNIT_GROUPS = {
   count: ['PCS', 'BOX', 'SET', 'PKT', 'ROLL'],
   length: ['m', 'cm'],
   weight: ['kg', 'g', 'mg'],
+  volume: ['L', 'mL'],
 };
 
 export const UNIT_OPTIONS = [
@@ -33,12 +34,24 @@ export const UNIT_OPTIONS = [
       { value: 'mg', label: 'mg (Milligram)' },
     ],
   },
+  {
+    group: 'Volume',
+    units: [
+      { value: 'L', label: 'L (Litre)' },
+      { value: 'mL', label: 'mL (Millilitre)' },
+    ],
+  },
 ];
 
-// Conversion factors to each family's smallest unit (cm for length, mg for weight)
+// Conversion factors to each family's smallest unit (cm for length, mg for weight, mL for volume)
 const LENGTH_TO_CM = {
   m: 100,
   cm: 1,
+};
+
+const VOLUME_TO_ML = {
+  L: 1_000,
+  mL: 1,
 };
 
 const WEIGHT_TO_MG = {
@@ -54,6 +67,8 @@ export function normalizeUnit(unit) {
   if (lower === 'cm' || lower === 'centimeter' || lower === 'centimetre') return 'cm';
   if (lower === 'kg' || lower === 'kgs' || lower === 'kilogram' || lower === 'kilograms') return 'kg';
   if (lower === 'g' || lower === 'gm' || lower === 'gms' || lower === 'gram' || lower === 'grams') return 'g';
+  if (lower === 'l' || lower === 'lt' || lower === 'ltr' || lower === 'ltrs' || lower === 'litre' || lower === 'litres' || lower === 'liter' || lower === 'liters') return 'L';
+  if (lower === 'ml' || lower === 'mls' || lower === 'millilitre' || lower === 'millilitres' || lower === 'milliliter' || lower === 'milliliters') return 'mL';
   if (lower === 'mg' || lower === 'milligram' || lower === 'milligrams') return 'mg';
   return raw.toUpperCase() || 'PCS';
 }
@@ -62,12 +77,13 @@ export function getUnitGroup(unit) {
   const norm = normalizeUnit(unit);
   if (norm === 'm' || norm === 'cm') return 'length';
   if (norm === 'kg' || norm === 'g' || norm === 'mg') return 'weight';
+  if (norm === 'L' || norm === 'mL') return 'volume';
   return 'count';
 }
 
 export function isMeasurableUnit(unit) {
   const group = getUnitGroup(unit);
-  return group === 'length' || group === 'weight';
+  return group === 'length' || group === 'weight' || group === 'volume';
 }
 
 export function getCompatibleUnits(unit) {
@@ -75,6 +91,7 @@ export function getCompatibleUnits(unit) {
   const group = getUnitGroup(norm);
   if (group === 'length') return UNIT_GROUPS.length;
   if (group === 'weight') return UNIT_GROUPS.weight;
+  if (group === 'volume') return UNIT_GROUPS.volume;
   return [norm];
 }
 
@@ -91,6 +108,9 @@ export function convertUnit(value, fromUnit, toUnit) {
   }
   if (from in WEIGHT_TO_MG && to in WEIGHT_TO_MG) {
     return Number(((num * WEIGHT_TO_MG[from]) / WEIGHT_TO_MG[to]).toFixed(6));
+  }
+  if (from in VOLUME_TO_ML && to in VOLUME_TO_ML) {
+    return Number(((num * VOLUME_TO_ML[from]) / VOLUME_TO_ML[to]).toFixed(6));
   }
   return num;
 }
