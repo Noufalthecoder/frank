@@ -166,6 +166,11 @@ function initSchema() {
   // Secondary indexes for the real access paths (all idempotent; see docs/PERFORMANCE.md).
   // scripts/bench-sql.sh extracts the block between the INDEXES markers, keep them intact.
   db.exec(`
+    CREATE TABLE IF NOT EXISTS custom_units (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE COLLATE NOCASE
+    );
+
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -776,6 +781,31 @@ ipcMain.handle('processReturn', (event, payload = {}) => {
 
 ipcMain.handle('getOutOfStockItems', () => {
   return db.prepare('SELECT * FROM items WHERE quantity <= 0 ORDER BY name ASC').all();
+});
+
+// IPC Handlers: user-defined measurement units (count-type, e.g. DOZEN, BUNDLE)
+const BUILTIN_UNITS = new Set(['PCS','BOX','SET','PKT','ROLL','M','CM','KG','G','MG','L','ML','MTR','METER','METRE','GM','GMS','KGS','LTR','LITRE','LITER','PIECE','PIECES']);
+ipcMain.handle('getCustomUnits', () => db.prepare('SELECT id, name FROM custom_units ORDER BY name COLLATE NOCASE').all());
+
+ipcMain.handle('addCustomUnit', (event, name) => {
+  const clean = String(name || '').trim().replace(/\s+/g, ' ').toUpperCase().slice(0, 14);
+  if (!clean) return { success: false, error: 'Enter a unit name.' };
+  if (!/^[\p{L}\p{M}\p{N} .\/-]+$/u.test(clean)) return { success: false, error: 'Use letters, numbers and spaces only.' };
+  if (BUILTIN_UNITS.has(clean)) return { success: false, error: `${clean} already exists as a standard unit.` };
+  try {
+    db.prepare('INSERT INTO custom_units (name) VALUES (?)').run(clean);
+    return { success: true, name: clean };
+  } catch (err) {
+    return { success: false, error: /UNIQUE/.test(err.message) ? `${clean} already exists.` : err.message };
+  }
+});
+
+ipcMain.handle('deleteCustomUnit', (event, name) => {
+  const clean = String(name || '').trim().toUpperCase();
+  const used = db.prepare('SELECT COUNT(*) c FROM items WHERE UPPER(unit) = ?').get(clean).c;
+  if (used > 0) return { success: false, error: `${clean} is used by ${used} product(s) and cannot be removed.` };
+  db.prepare('DELETE FROM custom_units WHERE name = ?').run(clean);
+  return { success: true };
 });
 
 // IPC Handlers: Users (cashiers / staff)

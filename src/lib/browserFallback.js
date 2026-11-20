@@ -534,6 +534,24 @@ export function initBrowserApiFallback() {
       writeDb(db);
       return { success: true };
     },
+    getCustomUnits: async () => (readDb().custom_units || []).map((name, i) => ({ id: i + 1, name })).sort((a, b) => a.name.localeCompare(b.name)),
+    addCustomUnit: async (name) => {
+      const clean = String(name || '').trim().replace(/\s+/g, ' ').toUpperCase().slice(0, 14);
+      const BUILTIN = ['PCS','BOX','SET','PKT','ROLL','M','CM','KG','G','MG','L','ML','MTR','METER','METRE','GM','GMS','KGS','LTR','LITRE','LITER','PIECE','PIECES'];
+      if (!clean) return { success: false, error: 'Enter a unit name.' };
+      if (!/^[\p{L}\p{M}\p{N} .\/-]+$/u.test(clean)) return { success: false, error: 'Use letters, numbers and spaces only.' };
+      if (BUILTIN.includes(clean)) return { success: false, error: `${clean} already exists as a standard unit.` };
+      const db = readDb(); db.custom_units = db.custom_units || [];
+      if (db.custom_units.includes(clean)) return { success: false, error: `${clean} already exists.` };
+      db.custom_units.push(clean); writeDb(db); return { success: true, name: clean };
+    },
+    deleteCustomUnit: async (name) => {
+      const clean = String(name || '').trim().toUpperCase();
+      const db = readDb();
+      const used = db.items.filter((i) => String(i.unit || '').toUpperCase() === clean).length;
+      if (used > 0) return { success: false, error: `${clean} is used by ${used} product(s) and cannot be removed.` };
+      db.custom_units = (db.custom_units || []).filter((u) => u !== clean); writeDb(db); return { success: true };
+    },
     getUsers: async () => {
       const db = readDb();
       if (!db.users || db.users.length === 0) { db.users = [{ id: 1, name: 'Franklin', role: 'Admin', active: true }]; writeDb(db); }
