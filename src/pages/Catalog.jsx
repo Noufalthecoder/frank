@@ -26,9 +26,9 @@ import {
   Check
 } from 'lucide-react';
 import ToolLibraryPicker from '../components/ToolLibraryPicker.jsx';
+import UnitSelect from '../components/UnitSelect.jsx';
 import { TOOL_LIBRARY } from '../data/toolLibrary.js';
 import {
-  UNIT_OPTIONS,
   normalizeUnit,
   getUnitGroup,
   isMeasurableUnit,
@@ -1269,21 +1269,11 @@ export default function Catalog() {
                   <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                     {t('ct_unit_label')}
                   </label>
-                  <select
-                    value={normalizeUnit(form.unit)}
-                    onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  <UnitSelect
+                    value={form.unit}
+                    onChange={(u) => setForm({ ...form, unit: u })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500"
-                  >
-                    {UNIT_OPTIONS.map((grp) => (
-                      <optgroup key={grp.group} label={t(`ct_unit_group_${grp.group}`)}>
-                        {grp.units.map((u) => (
-                          <option key={u.value} value={u.value}>
-                            {t(`ct_unit_${u.value}`)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
 

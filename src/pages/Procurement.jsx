@@ -15,7 +15,8 @@ import {
   Download,
   ChevronDown
 } from 'lucide-react';
-import { UNIT_OPTIONS, normalizeUnit, formatQty } from '../lib/units.js';
+import { normalizeUnit, formatQty } from '../lib/units.js';
+import UnitSelect from '../components/UnitSelect.jsx';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
 import { getBilingualSearchFields } from '../i18n/productTamil.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
@@ -999,21 +1000,14 @@ export default function Procurement() {
                         onChange={(e) => setQuickItem({ ...quickItem, size: e.target.value })}
                         className="col-span-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
                       />
-                      <select
-                        value={quickItem.unit}
-                        onChange={(e) => setQuickItem({ ...quickItem, unit: e.target.value })}
-                        className="col-span-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
-                      >
-                        {UNIT_OPTIONS.map((grp) => (
-                          <optgroup key={grp.group} label={grp.group}>
-                            {grp.units.map((u) => (
-                              <option key={u.value} value={u.value}>
-                                {u.value}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
+                      <div className="col-span-3">
+                        <UnitSelect
+                          value={quickItem.unit}
+                          onChange={(u) => setQuickItem({ ...quickItem, unit: u })}
+                          translateLabels={false}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-12 gap-2">
                       <select
