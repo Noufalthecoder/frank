@@ -138,9 +138,13 @@ export default function Layout({ children }) {
         <div className="flex flex-col min-h-0">
           {/* Brand header */}
           <div className="flex items-center gap-3 px-6 min-h-[72px] border-b border-slate-200">
-            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center flex-shrink-0">
-              <Layers className="w-5 h-5" />
-            </div>
+            {shopProfile.logo_data ? (
+              <img src={shopProfile.logo_data} alt="" className="h-10 w-10 rounded-xl object-contain flex-shrink-0 bg-white" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center flex-shrink-0">
+                <Layers className="w-5 h-5" />
+              </div>
+            )}
             <div className="min-w-0 py-2">
               <h1 className="text-[19px] font-extrabold text-slate-950 tracking-[-0.03em] leading-tight truncate">
                 {shopProfile.shop_name || 'T. S. P Enterprises'}
