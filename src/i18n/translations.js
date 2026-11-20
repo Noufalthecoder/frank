@@ -181,7 +181,7 @@ export const translations = {
     vend_tab_po: 'Purchase Orders',
     vend_tab_grn: 'Goods Receipt',
     vend_tab_vendors: 'Vendors',
-    vend_new_po: 'New PO',
+    vend_new_po: 'New Purchase Order',
     vend_add_vendor: 'Add Vendor',
 
     // Finance
@@ -387,7 +387,7 @@ export const translations = {
     vend_tab_po: 'கொள்முதல் ஆர்டர்கள்',
     vend_tab_grn: 'சரக்கு பெறுதல்',
     vend_tab_vendors: 'சப்ளையர்கள்',
-    vend_new_po: 'புதிய ஆர்டர்',
+    vend_new_po: 'புதிய கொள்முதல் ஆர்டர்',
     vend_add_vendor: 'சப்ளையர் சேர்',
 
     // Finance
