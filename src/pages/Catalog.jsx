@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import ToolLibraryPicker from '../components/ToolLibraryPicker.jsx';
 import UnitSelect from '../components/UnitSelect.jsx';
-import { TOOL_LIBRARY } from '../data/toolLibrary.js';
 import {
   normalizeUnit,
   getUnitGroup,

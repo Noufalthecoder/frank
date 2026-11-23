@@ -13,7 +13,6 @@ import {
   Download,
   Upload,
   RefreshCw,
-  Trash2,
   PackagePlus
 } from 'lucide-react';
 import Racks from './Racks.jsx';
@@ -211,21 +210,6 @@ export default function Settings() {
         window.dispatchEvent(new CustomEvent('stock-updated'));
         loadProfile();
       }
-    }
-  };
-
-  const handleResetDatabase = async () => {
-    const ok = await showConfirm({
-      title: t('st_reset_title'),
-      message: t('st_reset_msg'),
-      confirmLabel: t('st_erase_all'),
-      tone: 'danger',
-    });
-    if (!ok) return;
-    if (window.api && window.api.resetDatabase) {
-      await window.api.resetDatabase();
-      setDbStatusMsg(t('st_db_cleared'));
-      window.dispatchEvent(new CustomEvent('stock-updated'));
     }
   };
 
@@ -786,14 +770,6 @@ export default function Settings() {
                   >
                     <PackagePlus className="w-3.5 h-3.5" />
                     <span>{t('st_load_sample_data') || 'Load Sample Hardware Data'}</span>
-                  </button>
-
-                  <button
-                    onClick={handleResetDatabase}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>{t('st_clear_all')}</span>
                   </button>
                 </div>
               </div>
