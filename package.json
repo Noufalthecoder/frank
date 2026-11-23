@@ -4,7 +4,7 @@
   "description": "Offline Inventory Management & Retail POS Billing System for T. S. P Enterprises",
   "author": "T. S. P Enterprises",
   "private": true,
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
