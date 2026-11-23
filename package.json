@@ -4,7 +4,7 @@
   "description": "Offline Inventory Management & Retail POS Billing System for T. S. P Enterprises",
   "author": "T. S. P Enterprises",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -71,7 +71,9 @@
     "win": {
       "target": "nsis",
       "icon": "public/icon.png",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": false,
+      "artifactName": "StockMate.${ext}",
+      "executableName": "StockMate"
     },
     "nsis": {
       "oneClick": false,

@@ -275,14 +275,7 @@ function initSchema() {
   const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
   categories.forEach(c => insertCat.run(c));
 
-  // Pre-seed sample hardware data if the database is fresh and completely empty,
-  // so the standalone .exe is ready for full-flow testing out of the box.
-  try {
-    const itemCount = db.prepare('SELECT COUNT(*) as c FROM items').get().c;
-    if (itemCount === 0) {
-      seedSampleHardwareData();
-    }
-  } catch (_) {}
+  // NOTE: a fresh install starts EMPTY. Sample data is opt-in (Settings -> Database -> Load Sample Data).
 
   // Let SQLite gather stats for any table/index that has none yet (cheap no-op otherwise).
   try { db.pragma('optimize'); } catch (_) {}
@@ -1190,6 +1183,7 @@ ipcMain.handle('resetDatabase', () => {
       DELETE FROM items;
       DELETE FROM racks;
       DELETE FROM rack_bins;
+      DELETE FROM invoice_returns;
       DELETE FROM invoices;
       DELETE FROM purchase_orders;
       DELETE FROM vendors;
