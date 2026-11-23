@@ -39,6 +39,7 @@ import {
 } from '../lib/units.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import { useAppDialog } from '../components/AppDialogContext.jsx';
+import BinLocation from '../components/BinLocation.jsx';
 import { fuzzyFilter } from '../lib/fuzzySearch.js';
 import { getBilingualSearchFields } from '../i18n/productTamil.js';
 
@@ -108,6 +109,7 @@ export default function POSBilling() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [allItems, setAllItems] = useState([]);
+  const [racks, setRacks] = useState([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [recentInvoices, setRecentInvoices] = useState([]);
 
@@ -215,6 +217,10 @@ export default function POSBilling() {
     if (window.api && window.api.getItems) {
       const items = await window.api.getItems();
       setAllItems(items || []);
+    }
+    if (window.api && window.api.getRacks) {
+      const rackList = await window.api.getRacks();
+      setRacks(rackList || []);
     }
   };
 
@@ -855,7 +861,7 @@ export default function POSBilling() {
                             </div>
                           </td>
                           <td className="py-2.5 px-3 font-medium text-slate-600">
-                            {item.bin_id || '—'}
+                            {item.bin_id ? <BinLocation bin={item.bin_id} racks={racks} className="text-blue-600" /> : '—'}
                           </td>
                           <td className="py-2.5 px-3">
                             {!available ? (
@@ -969,7 +975,7 @@ export default function POSBilling() {
                                   <span>·</span>
                                 </>
                               )}
-                              <span>{t('dash_shelf')}: {item.bin || t('rk_unassigned')}</span>
+                              <span>{t('dash_shelf')}: <BinLocation bin={item.bin} racks={racks} className="text-blue-600 font-medium" /></span>
                               <span>·</span>
                               <span className={exceedsStock ? 'text-rose-600 font-bold' : 'text-emerald-600 font-medium'}>
                                 {t('cat_stock')}: {formatQty(availableStock)} {baseUnit}
