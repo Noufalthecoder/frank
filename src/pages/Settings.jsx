@@ -52,6 +52,7 @@ export default function Settings() {
   const [printers, setPrinters] = useState([]);
   const [loadingPrinters, setLoadingPrinters] = useState(false);
   const [showTestPreview, setShowTestPreview] = useState(false);
+  const [showBillPreviewModal, setShowBillPreviewModal] = useState(false);
   const [toast, setToast] = useState('');
 
   const showToast = (msg) => {
@@ -211,6 +212,32 @@ export default function Settings() {
         loadProfile();
       }
     }
+  };
+
+  const renderBillPreview = () => {
+                const fmt = printPrefs.format;
+                const landscape = (printPrefs.orientation || 'portrait') === 'landscape';
+                const widthClass =
+                  fmt === '58mm' ? 'max-w-[260px]'
+                  : fmt === '80mm' ? 'max-w-[330px]'
+                  : fmt === 'A6' ? 'max-w-[400px]'
+                  : landscape ? 'max-w-[460px]' : 'max-w-[400px]';
+                return (
+                  <div className="rounded-xl border border-slate-200 bg-slate-100/90 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-slate-800">{t('st_bill_preview')}</p>
+                      <span className="text-[13px] font-medium text-slate-500">
+                        {fmt} · {landscape ? t('st_landscape') : t('st_portrait')}
+                      </span>
+                    </div>
+                    <div className="max-h-[calc(100vh-190px)] overflow-y-auto flex justify-center">
+                      <div className={`w-full ${widthClass} bg-white rounded-lg shadow-lg border border-slate-200/90 overflow-hidden`}>
+                        <InvoiceDocument invoice={sampleTestInvoice} profile={profile} format={fmt} inlinePreview={true} />
+                      </div>
+                    </div>
+                    <p className="text-[13px] text-slate-400 text-center mt-2.5">{t('st_sample_bill')}</p>
+                  </div>
+                );
   };
 
   return (
@@ -423,8 +450,15 @@ export default function Settings() {
           )}
 
           {activeTab === 'Billing & Print' && (
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
-            <div className="xl:col-span-3 space-y-5 min-w-0">
+            <div className="grid grid-cols-1 min-[1180px]:grid-cols-5 gap-6 items-start">
+            <div className="min-[1180px]:col-span-3 space-y-5 min-w-0">
+              <button
+                type="button"
+                onClick={() => setShowBillPreviewModal(true)}
+                className="min-[1180px]:hidden w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-sm font-bold hover:bg-blue-100 transition-colors"
+              >
+                {t('st_bill_preview')}
+              </button>
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900">{t('st_printer_config')}</h2>
@@ -639,32 +673,8 @@ export default function Settings() {
             </div>
 
             {/* Live bill preview (updates as you change format / orientation) */}
-            <div className="xl:col-span-2 xl:sticky xl:top-2 min-w-0">
-              {(() => {
-                const fmt = printPrefs.format;
-                const landscape = (printPrefs.orientation || 'portrait') === 'landscape';
-                const widthClass =
-                  fmt === '58mm' ? 'max-w-[260px]'
-                  : fmt === '80mm' ? 'max-w-[330px]'
-                  : fmt === 'A6' ? 'max-w-[400px]'
-                  : landscape ? 'max-w-[460px]' : 'max-w-[400px]';
-                return (
-                  <div className="rounded-xl border border-slate-200 bg-slate-100/90 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-bold text-slate-800">{t('st_bill_preview')}</p>
-                      <span className="text-[13px] font-medium text-slate-500">
-                        {fmt} · {landscape ? t('st_landscape') : t('st_portrait')}
-                      </span>
-                    </div>
-                    <div className="max-h-[calc(100vh-190px)] overflow-y-auto flex justify-center">
-                      <div className={`w-full ${widthClass} bg-white rounded-lg shadow-lg border border-slate-200/90 overflow-hidden`}>
-                        <InvoiceDocument invoice={sampleTestInvoice} profile={profile} format={fmt} inlinePreview={true} />
-                      </div>
-                    </div>
-                    <p className="text-[13px] text-slate-400 text-center mt-2.5">{t('st_sample_bill')}</p>
-                  </div>
-                );
-              })()}
+            <div className="hidden min-[1180px]:block min-[1180px]:col-span-2 min-[1180px]:sticky min-[1180px]:top-2 min-w-0">
+              {renderBillPreview()}
             </div>
             </div>
           )}
@@ -777,6 +787,17 @@ export default function Settings() {
           )}
         </div>
       </div>
+
+      {showBillPreviewModal && (
+        <div className="fixed inset-0 z-[90] bg-slate-900/45 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setShowBillPreviewModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
+            {renderBillPreview()}
+            <button type="button" onClick={() => setShowBillPreviewModal(false)} className="mt-3 w-full py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold">
+              {t('st_close_preview')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Live Test Page Print Preview Modal */}
       {showTestPreview && (
