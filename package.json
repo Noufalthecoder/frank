@@ -92,6 +92,10 @@
       "package.json",
       "!billing.db",
       "!release/"
-    ]
+    ],
+    "electronLanguages": [
+      "en-US"
+    ],
+    "compression": "maximum"
   }
 }
